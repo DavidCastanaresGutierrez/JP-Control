@@ -88,10 +88,6 @@ export function Sidebar({
         )}
       </nav>
 
-      <div className="px-5 py-4 border-t border-white/10 text-[11px] text-white/40">
-        Copia local en este navegador; con la nube activa, los datos se comparten.
-      </div>
-
       {selected && modalOpen && (
         <ConcostImportModal
           title="Actualizar datos Concost"

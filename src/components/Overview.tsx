@@ -193,18 +193,23 @@ export function Overview({
               </div>
 
               <div className="text-[11px] text-ink-muted mt-3 space-y-0.5">
-                <div>
-                  Actualización Concost:{' '}
-                  <span className="font-semibold text-ink-soft">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Actualización Concost:</span>
+                  <span className="font-bold text-ink">
                     {p.lastImport ? fmtFechaImportacion(p.lastImport) : 'sin fecha'}
                   </span>
                 </div>
-                <div className="truncate" title={p.concostFileName}>
-                  Archivo Explotación:{' '}
-                  <span className="font-semibold text-ink-soft">
+                <div className="flex items-center justify-between gap-3 truncate" title={p.concostFileName}>
+                  <span>Archivo Explotación:</span>
+                  <span className="font-semibold text-ink-soft truncate">
                     {p.concostFileName ?? 'no registrado'}
                   </span>
-                  {p.hasta && <> · Datos hasta {fmtFecha(p.hasta)}</>}
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Datos hasta:</span>
+                  <span className="font-bold text-ink">
+                    {p.hasta ? fmtFecha(p.hasta) : 'sin fecha'}
+                  </span>
                 </div>
               </div>
             </button>

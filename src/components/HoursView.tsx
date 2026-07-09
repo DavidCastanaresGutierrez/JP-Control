@@ -57,10 +57,12 @@ export function HoursView({
   project,
   onImportHours,
   onUpdate,
+  onSelectPersons,
 }: {
   project: Project
   onImportHours: (files: File[]) => void
   onUpdate: (patch: Partial<Project>) => void
+  onSelectPersons?: (personas: string[]) => void
 }) {
   const coste = useMemo(() => costeHorasMensual(project.entries), [project.entries])
   const matriz = useMemo(() => matrizHoras(project.hours), [project.hours])
@@ -104,6 +106,11 @@ export function HoursView({
       else next.add(persona)
       return next
     })
+
+  const seleccionarDepartamento = (personas: string[]) => {
+    setSeleccion(new Set(personas))
+    onSelectPersons?.(personas)
+  }
 
   // Modo de medida de la gráfica/tabla de participantes
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
@@ -689,13 +696,19 @@ export function HoursView({
                   return (
                     <tr key={f.dept} className="border-t border-line">
                       <td className="px-3 py-2">
-                        <div className="font-semibold text-ink">
-                          {f.dept}
-                          {f.estado === 'exceso' && <span className="ml-1.5">⚠️</span>}
-                        </div>
-                        <div className="text-[11px] text-ink-muted">
-                          {f.personas.length} {f.personas.length === 1 ? 'persona' : 'personas'}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => seleccionarDepartamento(f.personas)}
+                          className="text-left w-full group"
+                        >
+                          <div className="font-semibold text-ink group-hover:underline">
+                            {f.dept}
+                            {f.estado === 'exceso' && <span className="ml-1.5">⚠️</span>}
+                          </div>
+                          <div className="text-[11px] text-ink-muted">
+                            {f.personas.length} {f.personas.length === 1 ? 'persona' : 'personas'}
+                          </div>
+                        </button>
                       </td>
                       <td className="px-3 py-2 text-right">
                         {f.dept === SIN_DEPT ? (
