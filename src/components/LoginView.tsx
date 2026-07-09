@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import typsaDigitalLogo from '../assets/typsa-digital.png'
 import { beginSsoLogin } from '../lib/auth'
 
-export function LoginView({ error }: { error?: string }) {
+export function LoginView() {
   const [email, setEmail] = useState('')
-  const [localError, setLocalError] = useState(error ?? '')
+  const [localError, setLocalError] = useState('')
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -24,9 +25,11 @@ export function LoginView({ error }: { error?: string }) {
     <div className="flex min-h-full items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border border-line bg-surface p-7 shadow-hover">
         <div className="mb-6">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-500 font-black text-primary-950">
-            JP
-          </div>
+          <img
+            src={typsaDigitalLogo}
+            alt="TYPSA Digital Solutions"
+            className="mb-5 h-16 w-auto object-contain"
+          />
           <h1 className="font-display text-2xl font-extrabold text-ink">JP Control</h1>
           <p className="mt-1 text-sm text-ink-soft">Acceso con SSO TYPSA.</p>
         </div>

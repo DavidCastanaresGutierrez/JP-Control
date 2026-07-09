@@ -120,6 +120,7 @@ export function HoursView({
   const seleccionarTarea = (tarea: string) => {
     setTareaSeleccionada((prev) => (prev === tarea ? null : tarea))
   }
+  const hayFiltrosActivos = Boolean(departamentoSeleccionado) || Boolean(tareaSeleccionada)
 
   // Modo de medida de la grafica/tabla de participantes
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
@@ -137,6 +138,7 @@ export function HoursView({
     [jornadaMes],
   )
 
+  const todasPersonas = useMemo(() => matriz.filas.map((fila) => fila.persona), [matriz.filas])
   const personasFiltradas = useMemo(() => {
     const filtroDept = departamentoSeleccionado
       ? new Set(
@@ -149,24 +151,22 @@ export function HoursView({
       ? new Set(tareas.find((t) => t.tarea === tareaSeleccionada)?.personas ?? [])
       : null
 
-    return matriz.filas
-      .map((fila) => fila.persona)
-      .filter((persona) => {
-        if (filtroDept && !filtroDept.has(persona)) return false
-        if (filtroTarea && !filtroTarea.has(persona)) return false
-        return true
-      })
-  }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas])
+    return todasPersonas.filter((persona) => {
+      if (filtroDept && !filtroDept.has(persona)) return false
+      if (filtroTarea && !filtroTarea.has(persona)) return false
+      return true
+    })
+  }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas, todasPersonas])
 
   useEffect(() => {
-    const next = personasFiltradas.length > 0 ? personasFiltradas : matriz.filas.map((f) => f.persona)
+    const next = hayFiltrosActivos ? personasFiltradas : todasPersonas
     setSeleccion((prev) => {
       if (prev.size === 0) return new Set(next)
       const inter = next.filter((persona) => prev.has(persona))
-      return new Set(inter.length > 0 ? inter : next)
+      return new Set(inter.length > 0 || hayFiltrosActivos ? inter : next)
     })
     onSelectPersons?.(personasFiltradas)
-  }, [matriz.filas, onSelectPersons, personasFiltradas])
+  }, [hayFiltrosActivos, onSelectPersons, personasFiltradas, todasPersonas])
 
   const chartData = useMemo(() => {
     const activos = matriz.filas.filter((f) => seleccion.has(f.persona))
@@ -188,10 +188,11 @@ export function HoursView({
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
   const tareasVisibles = useMemo(() => {
-    if (personasFiltradas.length === 0) return tareas
+    if (tareaSeleccionada) return tareas.filter((t) => t.tarea === tareaSeleccionada)
+    if (!departamentoSeleccionado) return tareas
     const filtradas = new Set(personasFiltradas)
     return tareas.filter((t) => t.personas.some((persona) => filtradas.has(persona)))
-  }, [personasFiltradas, tareas])
+  }, [departamentoSeleccionado, personasFiltradas, tareaSeleccionada, tareas])
   const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
@@ -200,16 +201,15 @@ export function HoursView({
     return dept
   }, [departamentoSeleccionado])
   const deptSeleccionadosTexto = departamentoSeleccionado ?? ''
-  const estaFiltrado =
-    Boolean(departamentoSeleccionado) || Boolean(tareaSeleccionada) || personasFiltradas.length < matriz.filas.length
+  const estaFiltrado = hayFiltrosActivos || personasFiltradas.length < matriz.filas.length
   const filasControlVisibles = useMemo(() => {
-    if (!departamentoSeleccionado && !tareaSeleccionada) return control.filas
+    if (departamentoSeleccionado) return control.filas.filter((fila) => fila.dept === departamentoSeleccionado)
+    if (!tareaSeleccionada) return control.filas
     const deptasVisibles = new Set<string>()
     const personasVisibles = new Set(personasFiltradas)
     for (const fila of control.filas) {
       if (fila.personas.some((persona) => personasVisibles.has(persona))) deptasVisibles.add(fila.dept)
     }
-    if (deptasVisibles.size === 0) return control.filas
     return control.filas.filter((fila) => deptasVisibles.has(fila.dept))
   }, [control.filas, departamentoSeleccionado, personasFiltradas, tareaSeleccionada])
 
@@ -248,9 +248,9 @@ export function HoursView({
 
   const personasVisibles = useMemo(() => {
     const visibles = new Set(personasFiltradas)
-    if (visibles.size === 0) return filasOrdenadas
+    if (!hayFiltrosActivos) return filasOrdenadas
     return filasOrdenadas.filter((f) => visibles.has(f.persona))
-  }, [filasOrdenadas, personasFiltradas])
+  }, [filasOrdenadas, hayFiltrosActivos, personasFiltradas])
 
   const escenarioPrincipal = forecast?.escenarios.find((e) => e.id === 'r3')
   const marca80 = useMemo(() => {
@@ -728,7 +728,7 @@ export function HoursView({
             </p>
             {estaFiltrado && (
               <p className="mt-1 text-[11px] font-medium text-ink-soft">
-                Filtrado por <span className="font-bold text-ink">{personasSel.length} personas</span>
+                Filtrado por <span className="font-bold text-ink">{personasVisibles.length} personas</span>
                 {deptSeleccionados.size > 0 && (
                   <>
                     {' '}
@@ -763,6 +763,13 @@ export function HoursView({
                 </tr>
               </thead>
               <tbody>
+                {filasControlVisibles.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-6 text-center text-sm text-ink-soft">
+                      No hay departamentos con personas para esta combinacion de filtros.
+                    </td>
+                  </tr>
+                )}
                 {filasControlVisibles.map((f) => {
                   const barColor =
                     f.estado === 'exceso'
@@ -779,7 +786,9 @@ export function HoursView({
                   return (
                     <tr
                       key={f.dept}
-                      className="border-t border-line transition-colors"
+                      className={`border-t border-line transition-colors ${
+                        departamentoSeleccionado === f.dept ? 'bg-accent-300/18' : ''
+                      }`}
                     >
                       <td className="px-3 py-2">
                         <button
@@ -955,13 +964,22 @@ export function HoursView({
                       </tr>
                     </thead>
                     <tbody>
+                      {tareasVisibles.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-6 text-center text-sm text-ink-soft">
+                            No hay tareas con personas para esta combinacion de filtros.
+                          </td>
+                        </tr>
+                      )}
                       {tareasVisibles.map((t) => {
                         const activo = tareaSeleccionada === t.tarea
                         return (
                           <tr
                             key={t.tarea}
                             onClick={() => seleccionarTarea(t.tarea)}
-                            className="border-t border-line cursor-pointer transition-colors hover:bg-surface-muted"
+                            className={`border-t border-line cursor-pointer transition-colors hover:bg-surface-muted ${
+                              activo ? 'bg-accent-300/18' : ''
+                            }`}
                           >
                             <td className={`px-3 py-2 ${activo ? 'font-bold' : ''}`}>{t.tarea}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{fmtNum(t.horas)} h</td>

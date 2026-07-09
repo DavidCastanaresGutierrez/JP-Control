@@ -262,7 +262,7 @@ export default function App() {
   }
 
   if (isSsoEnabled && !authSession) {
-    return <LoginView error={syncEstado === 'auth' ? undefined : 'La sesion ha caducado. Vuelve a entrar.'} />
+    return <LoginView />
   }
 
   return (
