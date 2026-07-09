@@ -684,7 +684,7 @@ export function HoursView({
 
       {/* Control por departamento + tareas del contrato */}
       {project.hours.length > 0 && (
-        <div className={hayTareas ? 'grid xl:grid-cols-2 gap-5' : 'space-y-5'}>
+        <div className="grid xl:grid-cols-2 gap-5">
           <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
           <div>
             <h3 className="font-bold text-ink text-lg">Control por departamento</h3>
@@ -876,7 +876,6 @@ export function HoursView({
             La asignaciÃ³n de personas y facturas a departamentos se hace en la pestaÃ±a ConfiguraciÃ³n.
           </p>
         </div>
-        {hayTareas && (
           <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
             <div>
               <h3 className="font-bold text-ink text-lg">Tareas del contrato</h3>
@@ -887,56 +886,64 @@ export function HoursView({
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
-              <span>{tareas.length} tareas detectadas</span>
-              <span>
-                {fmtNum(tareas.reduce((s, t) => s + t.horas, 0))} h ·{' '}
-                {fmtEur(tareas.reduce((s, t) => s + t.coste, 0))}
-              </span>
-            </div>
+            {hayTareas ? (
+              <>
+                <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
+                  <span>{tareas.length} tareas detectadas</span>
+                  <span>
+                    {fmtNum(tareas.reduce((s, t) => s + t.horas, 0))} h ·{' '}
+                    {fmtEur(tareas.reduce((s, t) => s + t.coste, 0))}
+                  </span>
+                </div>
 
-            <div className="max-h-[560px] overflow-auto rounded-[18px] border border-line">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-surface">
-                  <tr className="text-[11px] text-ink-muted uppercase tracking-wide">
-                    <th className="text-left px-3 py-2 font-bold border-b border-line">Tarea</th>
-                    <th className="text-right px-3 py-2 font-bold border-b border-line">Horas</th>
-                    <th className="text-right px-3 py-2 font-bold border-b border-line">Coste</th>
-                    <th className="text-right px-3 py-2 font-bold border-b border-line">Personas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tareas.map((t) => {
-                    const activo = tareaSeleccionada === t.tarea
-                    return (
-                      <tr
-                        key={t.tarea}
-                        onClick={() => seleccionarTarea(t.tarea, t.personas)}
-                        className={`border-t border-line cursor-pointer transition-colors ${
-                          activo ? 'bg-accent-300/20' : 'hover:bg-surface-muted'
-                        }`}
-                      >
-                        <td className={`px-3 py-2 ${activo ? 'font-bold' : ''}`}>{t.tarea}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{fmtNum(t.horas)} h</td>
-                        <td className="px-3 py-2 text-right tabular-nums font-bold">
-                          {fmtEur(t.coste)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
-                          {t.personas.length}
-                        </td>
+                <div className="max-h-[560px] overflow-auto rounded-[18px] border border-line">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-surface">
+                      <tr className="text-[11px] text-ink-muted uppercase tracking-wide">
+                        <th className="text-left px-3 py-2 font-bold border-b border-line">Tarea</th>
+                        <th className="text-right px-3 py-2 font-bold border-b border-line">Horas</th>
+                        <th className="text-right px-3 py-2 font-bold border-b border-line">Coste</th>
+                        <th className="text-right px-3 py-2 font-bold border-b border-line">Personas</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {tareas.map((t) => {
+                        const activo = tareaSeleccionada === t.tarea
+                        return (
+                          <tr
+                            key={t.tarea}
+                            onClick={() => seleccionarTarea(t.tarea, t.personas)}
+                            className={`border-t border-line cursor-pointer transition-colors ${
+                              activo ? 'bg-accent-300/20' : 'hover:bg-surface-muted'
+                            }`}
+                          >
+                            <td className={`px-3 py-2 ${activo ? 'font-bold' : ''}`}>{t.tarea}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmtNum(t.horas)} h</td>
+                            <td className="px-3 py-2 text-right tabular-nums font-bold">
+                              {fmtEur(t.coste)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
+                              {t.personas.length}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-            <p className="text-xs text-ink-muted">
-              Selecciona una tarea para centrar esas personas en la tabla de participantes y en la
-              grafica.
-            </p>
+                <p className="text-xs text-ink-muted">
+                  Selecciona una tarea para centrar esas personas en la tabla de participantes y en la
+                  grafica.
+                </p>
+              </>
+            ) : (
+              <div className="rounded-[18px] border border-dashed border-line p-4 text-sm text-ink-soft bg-surface-muted/40">
+                Aun no hay tareas visibles con este proyecto. Si acabas de actualizar la app, vuelve a
+                importar el Excel de horas para que se lean las columnas de tarea y aparezca este panel.
+              </div>
+            )}
           </div>
-        )}
         </div>
       )}
     </div>

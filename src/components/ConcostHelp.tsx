@@ -11,7 +11,7 @@ export function ConcostHelp({ compact = false, dark = false }: { compact?: boole
       <div className={`font-extrabold ${title} ${compact ? 'text-sm' : 'text-base'}`}>
         Ficheros necesarios de Concost
       </div>
-      <div className={`mt-3 grid gap-3 ${compact ? 'text-xs' : 'md:grid-cols-2 text-sm'}`}>
+      <div className={`mt-3 grid gap-3 ${compact ? 'text-xs' : 'md:grid-cols-3 text-sm'}`}>
         <div className={`rounded-lg border ${item} ${compact ? 'p-3' : 'p-4'}`}>
           <div className={`font-bold ${strong}`}>1. Explotación</div>
           <p className="mt-1 leading-relaxed">
@@ -22,12 +22,20 @@ export function ConcostHelp({ compact = false, dark = false }: { compact?: boole
           <div className="mt-2 font-semibold">Archivo esperado: explotacion-detalle-*.xlsx</div>
         </div>
         <div className={`rounded-lg border ${item} ${compact ? 'p-3' : 'p-4'}`}>
-          <div className={`font-bold ${strong}`}>2. Horas</div>
+          <div className={`font-bold ${strong}`}>2. Horas por empleado</div>
           <p className="mt-1 leading-relaxed">
             En Concost abre la pestaña <b>Horas</b>, selecciona <b>Por Empleados</b> y marca
             <b> Detalle</b>. Sirve para actualizar horas, participantes, departamentos y ocupación.
           </p>
           <div className="mt-2 font-semibold">Archivo esperado: horas-empleado-detalle-*.xlsx</div>
+        </div>
+        <div className={`rounded-lg border ${item} ${compact ? 'p-3' : 'p-4'}`}>
+          <div className={`font-bold ${strong}`}>3. Horas por tareas</div>
+          <p className="mt-1 leading-relaxed">
+            Si exportas las horas por <b>Tareas</b>, también nos vale: leeremos la columna{' '}
+            <b>Tarea del contrato</b> para agrupar coste, horas y personas por tarea.
+          </p>
+          <div className="mt-2 font-semibold">Compatible con exportación por tareas</div>
         </div>
       </div>
     </section>

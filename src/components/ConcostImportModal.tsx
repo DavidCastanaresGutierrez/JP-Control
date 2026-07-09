@@ -37,7 +37,7 @@ export function ConcostImportModal({
           </button>
         </div>
 
-        <div className="grid gap-4 p-6 md:grid-cols-2">
+        <div className="grid gap-4 p-6 md:grid-cols-3">
           <button
             onClick={() => explotacionInputRef.current?.click()}
             className="text-left rounded-lg border-2 border-accent-500 bg-accent-300/20 p-5 transition-colors hover:bg-accent-300/35"
@@ -75,6 +75,22 @@ export function ConcostImportModal({
               Subir horas-empleado-detalle-*.xlsx
             </div>
           </button>
+
+          <div className="rounded-lg border border-line bg-surface-muted p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-lg font-extrabold text-ink">3. Tareas</div>
+              <span className="rounded-md bg-surface px-2 py-1 text-[11px] font-extrabold uppercase text-ink-muted">
+                Opcional
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+              Si exportas las horas por <b>Tareas</b>, el Excel también sirve: el sistema leerá la
+              columna <b>Tarea del contrato</b> para agrupar horas, coste y personas por tarea.
+            </p>
+            <div className="mt-4 text-sm font-bold text-primary-900">
+              Compatible con exportación por tareas
+            </div>
+          </div>
         </div>
 
         <input
