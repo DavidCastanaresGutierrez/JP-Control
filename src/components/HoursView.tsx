@@ -70,11 +70,6 @@ export function HoursView({
     () => forecastPresupuesto(project.entries, project.budget ?? project.contractValue),
     [project.entries, project.budget, project.contractValue],
   )
-  const control = useMemo(
-    () => controlDepartamentos(project),
-    [project],
-  )
-
   const setShare = (dept: string, pct: number | undefined) => {
     const next = { ...(project.deptShare ?? {}) }
     if (pct === undefined || Number.isNaN(pct)) delete next[dept]
@@ -159,6 +154,21 @@ export function HoursView({
     })
   }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas, todasPersonas])
 
+  const control = useMemo(
+    () =>
+      controlDepartamentos(
+        project,
+        hayFiltrosActivos
+          ? {
+              personas: personasFiltradas,
+              tarea: tareaSeleccionada,
+              incluirExternos: !tareaSeleccionada,
+            }
+          : {},
+      ),
+    [hayFiltrosActivos, personasFiltradas, project, tareaSeleccionada],
+  )
+
   useEffect(() => {
     const next = hayFiltrosActivos ? personasFiltradas : todasPersonas
     setSeleccion((prev) => {
@@ -189,11 +199,17 @@ export function HoursView({
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
   const tareasVisibles = useMemo(() => {
-    if (tareaSeleccionada) return tareas.filter((t) => t.tarea === tareaSeleccionada)
-    if (!departamentoSeleccionado) return tareas
-    const filtradas = new Set(personasFiltradas)
-    return tareas.filter((t) => t.personas.some((persona) => filtradas.has(persona)))
-  }, [departamentoSeleccionado, personasFiltradas, tareaSeleccionada, tareas])
+    if (!departamentoSeleccionado && !tareaSeleccionada) return tareas
+
+    const personasPermitidas = departamentoSeleccionado ? new Set(personasFiltradas) : null
+    return tareasContrato(
+      project.hours.filter((h) => {
+        if (personasPermitidas && !personasPermitidas.has(h.persona)) return false
+        if (tareaSeleccionada && h.tarea?.trim() !== tareaSeleccionada) return false
+        return true
+      }),
+    )
+  }, [departamentoSeleccionado, personasFiltradas, project.hours, tareaSeleccionada, tareas])
   const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
@@ -213,6 +229,18 @@ export function HoursView({
     }
     return control.filas.filter((fila) => deptasVisibles.has(fila.dept))
   }, [control.filas, departamentoSeleccionado, personasFiltradas, tareaSeleccionada])
+  const totalControlVisible = useMemo(() => {
+    const asignado = filasControlVisibles.reduce((s, fila) => s + (fila.asignado ?? 0), 0)
+    const share = filasControlVisibles.reduce((s, fila) => s + (fila.share ?? 0), 0)
+    const coste = filasControlVisibles.reduce((s, fila) => s + fila.coste, 0)
+    const horas = filasControlVisibles.reduce((s, fila) => s + fila.horas, 0)
+    return {
+      asignado,
+      share,
+      coste: Math.round(coste * 100) / 100,
+      horas: Math.round(horas * 100) / 100,
+    }
+  }, [filasControlVisibles])
 
   // Personas con horas imputadas pero coste 0 EUR en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
@@ -876,24 +904,22 @@ export function HoursView({
                     Total
                     <span
                       className={`ml-2 text-[11px] font-medium ${
-                        control.hayShares && Math.abs(control.sumaShares - 100) > 0.5
+                        totalControlVisible.share > 0 && Math.abs(totalControlVisible.share - 100) > 0.5
                           ? 'text-[#8A5A00]'
                           : 'text-ink-muted'
                       }`}
                     >
-                      ({fmtPct(control.sumaShares)} asignado)
+                      ({fmtPct(totalControlVisible.share)} asignado)
                     </span>
                   </td>
                   <td />
                   <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
-                    {control.presupuesto !== null
-                      ? fmtEur((control.sumaShares / 100) * control.presupuesto)
-                      : '-'}
+                    {totalControlVisible.asignado > 0 ? fmtEur(totalControlVisible.asignado) : '-'}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {control.hayCoste ? fmtEur(control.costeTotal) : <span className="text-ink-muted">-</span>}
+                    {control.hayCoste ? fmtEur(totalControlVisible.coste) : <span className="text-ink-muted">-</span>}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{fmtNum(control.horasTotal)} h</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmtNum(totalControlVisible.horas)} h</td>
                   <td />
                   <td />
                 </tr>

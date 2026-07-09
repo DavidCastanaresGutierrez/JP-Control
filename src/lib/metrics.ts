@@ -486,16 +486,28 @@ export interface ControlDepartamentos {
   hayShares: boolean
 }
 
+export interface ControlDepartamentosOptions {
+  personas?: Iterable<string>
+  tarea?: string | null
+  incluirExternos?: boolean
+}
+
 /**
  * Calcula, por departamento, el presupuesto consumido frente al asignado.
  * El consumo es el coste de personal: si las horas traen coste por persona
  * (fichero del ERP) se usa directo; si no, se estima repartiendo el coste de
  * personal total del proyecto (cuenta 9101 de la explotación) por horas.
  */
-export function controlDepartamentos(project: Project): ControlDepartamentos {
+export function controlDepartamentos(
+  project: Project,
+  options: ControlDepartamentosOptions = {},
+): ControlDepartamentos {
   const dept = project.personDept ?? {}
   const share = project.deptShare ?? {}
   const presupuesto = project.budget ?? project.contractValue ?? null
+  const personasFiltro = options.personas ? new Set(options.personas) : null
+  const tareaFiltro = options.tarea?.trim() || null
+  const incluirExternos = options.incluirExternos ?? !tareaFiltro
 
   // Coste de personal total del proyecto según la explotación (cuenta 9101)
   const costePersonal9101 = project.entries.reduce(
@@ -506,6 +518,8 @@ export function controlDepartamentos(project: Project): ControlDepartamentos {
   // Coste y horas acumulados por persona (de los registros de horas)
   const porPersona = new Map<string, { coste: number; horas: number }>()
   for (const h of horasDePersonas(project.hours)) {
+    if (personasFiltro && !personasFiltro.has(h.persona)) continue
+    if (tareaFiltro && h.tarea?.trim() !== tareaFiltro) continue
     const acc = porPersona.get(h.persona) ?? { coste: 0, horas: 0 }
     acc.coste += h.coste ?? 0
     acc.horas += h.horas
@@ -532,8 +546,10 @@ export function controlDepartamentos(project: Project): ControlDepartamentos {
   }
   // Facturas de externos asignadas a su departamento; sin asignar -> "Otros Gastos"
   const extDept = project.extDept ?? {}
-  for (const p of partidasExternas(project.entries)) {
-    asegura(extDept[p.id]?.trim() || OTROS_GASTOS).externo += p.coste
+  if (incluirExternos) {
+    for (const p of partidasExternas(project.entries)) {
+      asegura(extDept[p.id]?.trim() || OTROS_GASTOS).externo += p.coste
+    }
   }
   // Departamentos que existen aunque aún no tengan gente: los estándar y los que
   // tengan % asignado (para poder repartir el presupuesto antes de asignar gente)

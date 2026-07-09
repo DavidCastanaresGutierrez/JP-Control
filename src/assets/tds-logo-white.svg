@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 82" role="img" aria-label="TYPSA Digital Solutions">
+  <text x="0" y="48" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="800" letter-spacing="0">TYPSA</text>
+  <text x="74" y="68" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" letter-spacing="0">Digital Solutions</text>
+  <path d="M146 10 L129 26 L129 58 L146 74" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#ffffff" opacity="0.58">
+    <rect x="166" y="18" width="14" height="14"/>
+    <rect x="184" y="30" width="10" height="10"/>
+    <rect x="207" y="36" width="9" height="9"/>
+    <rect x="174" y="50" width="8" height="8"/>
+    <rect x="196" y="58" width="12" height="12"/>
+    <rect x="220" y="50" width="7" height="7"/>
+  </g>
+</svg>
