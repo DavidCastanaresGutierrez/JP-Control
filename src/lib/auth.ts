@@ -13,6 +13,16 @@ export const ssoUrl = import.meta.env.VITE_TYPSA_SSO_URL as string | undefined
 export const ssoCallbackUrl = import.meta.env.VITE_TYPSA_SSO_CALLBACK_URL as string | undefined
 export const isSsoEnabled = Boolean(ssoUrl)
 
+function buildSsoLoginUrl(baseUrl: string) {
+  const url = new URL(baseUrl)
+  if (!url.pathname || url.pathname === '/') {
+    url.pathname = '/sso'
+  } else if (!url.pathname.endsWith('/sso')) {
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/sso`
+  }
+  return url
+}
+
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const [, payload] = token.split('.')
   if (!payload) return {}
@@ -59,7 +69,7 @@ export function clearAuthSession() {
 
 export function beginSsoLogin(email: string, redirectUri?: string) {
   if (!ssoUrl) throw new Error('Falta VITE_TYPSA_SSO_URL')
-  const url = new URL(ssoUrl)
+  const url = buildSsoLoginUrl(ssoUrl)
   url.searchParams.set('email', email.trim())
   const callback = redirectUri ?? ssoCallbackUrl ?? `${window.location.origin}/login-success`
   url.searchParams.set('redirect_uri', callback)
