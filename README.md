@@ -126,8 +126,9 @@ node scripts/test-horas.mjs
    ```
 
 2. **Vercel** — en [vercel.com](https://vercel.com) → *Add New…* → *Project* →
-   importa el repo `jp-control`. Vercel detecta Vite solo (build `npm run build`,
-   salida `dist`) y despliega también el API de `api/`.
+   importa el repo `jp-control`. Con el plan **Hobby** gratis Vercel detecta Vite
+   solo (build `npm run build`, salida `dist`) y despliega también el API de
+   `api/`.
 
 3. **Base de datos** — en el proyecto de Vercel → pestaña **Storage** →
    *Create Database* → **Neon (Postgres)** → plan gratuito → *Connect*. Esto
