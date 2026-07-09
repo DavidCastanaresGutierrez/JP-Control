@@ -169,16 +169,26 @@ export function HoursView({
   }, [tareas, seleccion])
   const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
+  const deptPorPersona = project.personDept ?? {}
   const deptSeleccionados = useMemo(() => {
     const dept = new Set<string>()
     for (const persona of seleccion) {
-      const d = project.personDept?.[persona]?.trim()
+      const d = deptPorPersona[persona]?.trim()
       if (d) dept.add(d)
     }
     return dept
-  }, [project.personDept, seleccion])
+  }, [deptPorPersona, seleccion])
   const deptSeleccionadosTexto = [...deptSeleccionados].join(', ')
   const estaFiltrado = seleccion.size > 0 && seleccion.size < matriz.filas.length
+  const filasControlVisibles = useMemo(() => {
+    if (deptSeleccionados.size === 0) return control.filas
+    const visibles = new Set<string>()
+    for (const fila of control.filas) {
+      if (deptSeleccionados.has(fila.dept)) visibles.add(fila.dept)
+    }
+    if (visibles.size === 0) return control.filas
+    return control.filas.filter((fila) => visibles.has(fila.dept))
+  }, [control.filas, deptSeleccionados])
 
   // Personas con horas imputadas pero coste 0 EUR en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
@@ -704,6 +714,18 @@ export function HoursView({
               ultima columna es <b>presupuesto consumido / asignado</b>: por debajo de 100 % va
               dentro de su parte; por encima (rojo) se esta pasando.
             </p>
+            {estaFiltrado && (
+              <p className="mt-1 text-[11px] font-medium text-ink-soft">
+                Filtrado por <span className="font-bold text-ink">{personasSel.length} personas</span>
+                {deptSeleccionados.size > 0 && (
+                  <>
+                    {' '}
+                    y <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
+                  </>
+                )}
+                .
+              </p>
+            )}
           </div>
 
           {/* Tabla de reparto y control */}
@@ -723,7 +745,7 @@ export function HoursView({
                 </tr>
               </thead>
               <tbody>
-                {control.filas.map((f) => {
+                {filasControlVisibles.map((f) => {
                   const barColor =
                     f.estado === 'exceso'
                       ? 'bg-danger'
@@ -895,18 +917,6 @@ export function HoursView({
                 tarea para seleccionar las personas vinculadas y verlas juntas en la tabla de
                 participantes.
               </p>
-              {estaFiltrado && (
-                <p className="mt-1 text-[11px] font-medium text-ink-soft">
-                  Filtrado por <span className="font-bold text-ink">{personasSel.length} personas</span>
-                  {deptSeleccionados.size > 0 && (
-                    <>
-                      {' '}
-                      y <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
-                    </>
-                  )}
-                  .
-                </p>
-              )}
             </div>
 
             {hayTareas ? (
