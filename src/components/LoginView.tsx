@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import tdsLogoWhite from '../assets/tds-logo-white.svg'
 import { beginSsoLogin } from '../lib/auth'
 
 function EyeOffIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6">
-      <path
-        d="M3 3l18 18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M3 3l18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path
         d="M10.6 10.7a2 2 0 0 0 2.7 2.7"
         fill="none"
@@ -49,14 +44,7 @@ function EyeIcon() {
         strokeWidth="2"
         strokeLinejoin="round"
       />
-      <circle
-        cx="12"
-        cy="12"
-        r="2.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+      <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
   )
 }
@@ -84,9 +72,11 @@ export function LoginView() {
   return (
     <div className="flex min-h-full items-center justify-center bg-[#285F68] px-6 py-10 text-white">
       <form onSubmit={submit} className="w-full max-w-[345px]">
-        <h1 className="mb-5 text-center font-display text-[34px] font-extrabold leading-tight text-white">
-          Login
-        </h1>
+        <img
+          src={tdsLogoWhite}
+          alt="TYPSA Digital Solutions"
+          className="mx-auto mb-7 h-20 w-auto object-contain"
+        />
 
         <label className="block">
           <span className="mb-2 block text-base font-bold text-white">Email</span>
@@ -108,7 +98,7 @@ export function LoginView() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="h-10 w-full rounded-full border border-transparent bg-[#E9F1FF] px-4 pr-12 text-base font-semibold text-black outline-none transition placeholder:text-black/50 focus:border-accent-300 focus:ring-4 focus:ring-accent-300/25"
-              placeholder="••••••••••••"
+              placeholder="************"
               autoComplete="current-password"
             />
             <button
