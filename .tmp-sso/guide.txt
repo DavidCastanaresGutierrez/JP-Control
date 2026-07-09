@@ -1,0 +1,2552 @@
+
+--- PAGE 1 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página1 de 85
+TYPSA SSO
+Documento Integración de TYPSA SSO
+Proyecto TYPSA SSO
+Código
+Autores: Firma SSI
+Fecha: 06/10/2026
+Verificado Firmado: RIC
+Fecha: 10/06/2026
+Destinatario
+Notas
+Confidencialidad Interno
+
+--- PAGE 2 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página2 de 85
+Contenido
+1. Introducción ...........................................................................................................................................................................................................6
+1.1. Objetivo....................................................................................................................................................................................................6
+1.2. Ámbito......................................................................................................................................................................................................6
+1.3. Destinatarios ............................................................................................................................................................................................7
+2. Descripción general de la arquitectura ..................................................................................................................................................................8
+2.1. Arquitectura de autenticación .................................................................................................................................................................8
+2.2. Resumen del flujo de autenticación........................................................................................................................................................8
+3. Servicio SSO .......................................................................................................................................................................................................11
+3.1. Descripción general del servicio.............................................................................................................................................................11
+3.2. Configuración del entorno......................................................................................................................................................................12
+3.3. Puntos finales disponibles......................................................................................................................................................................13
+3.4. Inicio de la autenticación (GET /sso) .....................................................................................................................................................13
+3.5. Procesamiento de la llamada de retorno de autenticación (GET /sso/callback)....................................................................................16
+3.6. Servicio de actualización de token (POST /sso/refresh-token) ..............................................................................................................18
+3.7. Servicios de perfil de usuario .................................................................................................................................................................22
+3.7.1. Servicio de foto de perfil (GET /sso/me) ..................................................................................................................................22
+3.7.2. Servicio de información de perfil (GET /sso/me/profile) ...........................................................................................................23
+3.7.3. Servicios de registro de usuarios .............................................................................................................................................24
+3.8. Resumen................................................................................................................................................................................................24
+4. Integración del frontend .......................................................................................................................................................................................26
+4.1. Descripción general................................................................................................................................................................................26
+4.2. Configuración del entorno......................................................................................................................................................................26
+4.3. Rutas necesarias ...................................................................................................................................................................................27
+4.4. Flujo de inicio de sesión.........................................................................................................................................................................28
+4.5. Procesamiento de rutas de devolución de llamada................................................................................................................................29
+4.6. Interceptor HTTP y gestión de tokens ...................................................................................................................................................30
+4.7. Estrategia de almacenamiento del lado del cliente................................................................................................................................31
+4.8. Proceso de cierre de sesión ..................................................................................................................................................................32
+4.9. Recomendaciones de seguridad para el frontend..................................................................................................................................32
+4.10. Resumen................................................................................................................................................................................................33
+5. Integración del backend ......................................................................................................................................................................................34
+5.1. Descripción general................................................................................................................................................................................34
+
+--- PAGE 3 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página3 de 85
+5.2. Configuración del entorno......................................................................................................................................................................35
+5.3. Configuración de CORS.........................................................................................................................................................................36
+5.4. Puntos finales de autenticación necesarios..........................................................................................................................................37
+5.5. Punto final de inicio de sesión................................................................................................................................................................38
+5.6. Punto final de cierre de sesión...............................................................................................................................................................40
+5.7. Recomendaciones de seguridad del backend .......................................................................................................................................41
+5.8. Resumen................................................................................................................................................................................................41
+6. Validación y actualización de tokens ...................................................................................................................................................................42
+6.1. Descripción general................................................................................................................................................................................42
+6.2. Capa 1: validación de tokens de Cognito...............................................................................................................................................43
+6.3. Proceso de actualización del token de Cognito.....................................................................................................................................44
+6.4. Capa 2: validación de JWT en la aplicación ..........................................................................................................................................45
+6.5. Renovación de JWT de la aplicación .....................................................................................................................................................46
+6.6. Adición automática de tokens................................................................................................................................................................47
+6.7. Gestión de errores de autenticación .....................................................................................................................................................48
+6.8. Resumen................................................................................................................................................................................................49
+7. Especificaciones de las cookies ..........................................................................................................................................................................50
+7.1. Descripción general................................................................................................................................................................................50
+7.2. Inventario de cookies .............................................................................................................................................................................51
+7.3. Finalidad y uso de las cookies ...............................................................................................................................................................51
+7.4. Atributos de seguridad de las cookies ...................................................................................................................................................53
+7.5. Configuración del dominio de las cookies..............................................................................................................................................53
+7.6. Por qué el token de identificación de Cognito no es solo HTTP ............................................................................................................54
+7.7. Ciclo de vida de las cookies...................................................................................................................................................................55
+7.8. Cierre de sesión y limpieza de cookies..................................................................................................................................................56
+7.9. Resumen................................................................................................................................................................................................56
+8. Referencia de encabezados HTTP......................................................................................................................................................................57
+8.1. Descripción general................................................................................................................................................................................57
+8.2. Encabezados de solicitud (Frontend → Backend).................................................................................................................................57
+8.3. Encabezados de solicitud de inicio de sesión........................................................................................................................................58
+8.4. Encabezados de respuesta (servidor → interfaz)..................................................................................................................................59
+8.5. Encabezados de actualización de Cognito ............................................................................................................................................60
+8.6. Encabezados de solicitud (Frontend → Servicio SSO) .........................................................................................................................61
+
+--- PAGE 4 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página4 de 85
+8.7. Requisitos de los encabezados CORS ..................................................................................................................................................61
+8.8. Prácticas recomendadas de seguridad para encabezados ...................................................................................................................62
+8.9. Resumen................................................................................................................................................................................................63
+9. Diagramas de secuencia.....................................................................................................................................................................................64
+9.1. Descripción general................................................................................................................................................................................64
+9.2. Flujo completo de inicio de sesión .........................................................................................................................................................64
+9.3. Flujo de actualización silenciosa de tokens ...........................................................................................................................................66
+9.4. Flujo de cierre de sesión........................................................................................................................................................................68
+9.5. Directrices de uso de los diagramas......................................................................................................................................................71
+9.6. Resumen................................................................................................................................................................................................71
+10. Consideraciones de seguridad ............................................................................................................................................................................72
+10.1. Descripción general................................................................................................................................................................................72
+10.2. Modelo de responsabilidad compartida..................................................................................................................................................72
+10.3. Modelo de seguridad de autenticación..................................................................................................................................................72
+10.4. Resumen................................................................................................................................................................................................73
+11. Solución de problemas.........................................................................................................................................................................................74
+11.1. Descripción general................................................................................................................................................................................74
+11.2. Errores de inicio de sesión.....................................................................................................................................................................74
+11.3. Problemas con las cookies ....................................................................................................................................................................75
+11.4. Problemas con CORS ............................................................................................................................................................................76
+11.5. Problemas con Azure Active Directory...................................................................................................................................................76
+12. Implementaciones de referencia..........................................................................................................................................................................78
+12.1. Descripción general................................................................................................................................................................................78
+12.2. Arquitectura de autenticación recomendada .......................................................................................................................................78
+12.3. Implementación de referencia del frontend............................................................................................................................................79
+12.4. Implementación de referencia del backend............................................................................................................................................79
+12.5. Patrón de referencia de NestJS.............................................................................................................................................................80
+12.6. Patrón de actualización de tokens.........................................................................................................................................................80
+13. Glosario ...............................................................................................................................................................................................................82
+13.1. Resumen................................................................................................................................................................................................82
+13.2. Términos de autenticación ....................................................................................................................................................................82
+13.3. Terminología de los tokens ....................................................................................................................................................................82
+13.4. Términos de la plataforma TYPSA .........................................................................................................................................................83
+
+--- PAGE 5 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página5 de 85
+13.5. Términos de Microsoft Azure Active Directory........................................................................................................................................83
+13.6. Términos de AWS Cognito .....................................................................................................................................................................83
+13.7. Términos de seguridad ..........................................................................................................................................................................84
+13.8. Resumen................................................................................................................................................................................................84
+
+--- PAGE 6 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página6 de 85
+1. Introducción
+1.1. Objetivo
+El objetivo  de este documento  es proporcionar  una guía completa  para la integración  de aplicaciones  web con la plataforma  de inicio de 
+sesión  único (SSO) de TYPSA.
+La plataforma  TYPSA  SSO ofrece  servicios  centralizados  de autenticación  y autorización  mediante  la integración  de Microsoft  Azure 
+Active Directory,  AWS Cognito  y mecanismos  de autenticación  específicos  de cada aplicación.
+Esta guía describe  las implementaciones  de frontend  y backend  necesarias,  los flujos de autenticación,  los procesos  de gestión  de 
+tokens,  las consideraciones  de seguridad  y los requisitos  operativos  necesarios  para integrar  con éxito una nueva aplicación  en el 
+ecosistema  de autenticación  de TYPSA.
+El documento  sirve  como  referencia  oficial  para  los equipos  de desarrollo  responsables  de implementar  la autenticación  y la 
+autorización  en las aplicaciones  TYPSA.
+1.2. Ámbito
+Este  documento  abarca  el proceso  completo  de integración  entre  una  aplicación  cliente  y la plataforma  TYPSA  SSO.
+El alcance  incluye:
+▪ Configuración  y uso del servicio  TYPSA  SSO.
+▪ Autenticación  a través de Microsoft  Azure Active Directory.
+▪ Federación  a través de AWS Cognito.
+▪ Requisitos  de implementación  del frontend.
+▪ Requisitos  de implementación  del backend.
+▪ Generación  y validación  de JWT de la aplicación.
+▪ Mecanismos  de validación  y actualización  de tokens  de Cognito.
+▪ Gestión  de cookies  compartidas.
+▪ Controles  de seguridad  y mejores  prácticas  de autenticación.
+▪ Solución de problemas y orientación operativa.
+El enfoque  de integración  descrito  en este documento  es independiente  de la tecnología  y puede  implementarse  utilizando  cualquier  
+marco  de trabajo  de frontend  o backend  capaz de admitir  la comunicación  HTTP,  el procesamiento  de JWT y el manejo  seguro  de 
+cookies.
+Algunos  ejemplos  son:
+▪ Angular
+▪ NestJS
+▪ Express.js
+
+--- PAGE 7 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página7 de 85
+1.3. Público  destinatario
+1. Este documento  está dirigido  a los equipos  técnicos  que participan  en el desarrollo,  el mantenimiento  y la gestión  de 
+aplicaciones  integradas  con la plataforma  TYPSA  SSO.
+2. El público  principal  incluye:
+Función Responsabilidad
+Desarrolladores frontend Implementar  flujos de autenticación,  gestión  de callbacks,  almacenamiento  de tokens  e 
+interceptores  HTTP.
+Desarrolladores de backend Implementar  la validación  de tokens,  los mecanismos  de actualización,  la generación  de 
+JWT de la aplicación  y la gestión  segura  de cookies.
+Arquitectos de soluciones Definir  la arquitectura  de autenticación  y las estrategias  de integración.
+Administradores de plataforma Mantienen  la configuración  de los inquilinos,  los ajustes  de Cognito  y la integración  con 
+Azure AD.
+Ingenieros de DevOps Configuran  entornos  de implementación,  políticas  CORS,  dominios  y ajustes  de seguridad.
+3. Se recomienda  tener  conocimientos  básicos  sobre  OAuth  2.0,  OpenID  Connect  (OIDC),  tokens  web  JSON  (JWT),  
+Microsoft  Azure  Active  Directory  y AWS  Cognito  antes  de implementar  la integración  descrita  en esta  guía.
+
+--- PAGE 8 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página8 de 85
+2. Descripción general de la arquitectura
+2.1. Arquitectura de autenticación
+La plataforma  de inicio de sesión  único (SSO) de TYPSA  sigue un modelo  de autenticación  centralizado  que permite  a múltiples  
+aplicaciones  autenticar  a los usuarios  a través de una infraestructura  común  de proveedor  de identidad.
+La arquitectura  combina  Microsoft  Azure Active Directory,  AWS Cognito  y el servicio  TYPSA  SSO para proporcionar  una autenticación  
+segura  y escalable  en múltiples  dominios  y aplicaciones  corporativas.
+La solución  está diseñada  para admitir  escenarios  de autenticación  multitenant  en los que diferentes  organizaciones  se autentican  a 
+través de sus propios  tenants  de Azure Active Directory,  al tiempo  que se mantiene  una experiencia  de autenticación  unificada.
+La arquitectura  consta  de cuatro  componentes  principales:
+Componente Responsabilidad
+Navegador / Aplicación 
+front-end
+Inicia la autenticación,  procesa  las devoluciones  de llamada  y utiliza las API de la aplicación.
+Servicio TYPSA SSO
+Gestiona  la resolución  de inquilinos,  la redirección  de Azure AD, el intercambio  de tokens  y las 
+operaciones  de actualización  de tokens.
+Microsoft Azure Active 
+Directory
+Proporciona  autenticación  de usuarios  corporativos  y gestión  de identidades.
+AWS Cognito
+Actúa como capa de federación  y proveedor  de tokens  entre Azure AD y las aplicaciones  
+TYPSA.
+Backend de la aplicación
+Valida  los tokens  de Cognito,  genera  JWT específicos  de la aplicación  y gestiona  las cookies  de 
+sesión.
+A continuación  se ilustra la arquitectura  de autenticación.
+Diagrama de arquitectura
+🡪  de usuario Interfaz de usuario🡪  Servicio TYPSA SSO🡪  Azure Active Directory🡪 AWS Cognito🡪  Backend de la aplicación🡪  API  protegidas
+2.2. Resumen del flujo de autenticación
+La autenticación  se lleva a cabo mediante  una secuencia  de interacciones  coordinadas  entre la aplicación  front-end,  el servicio  TYPSA  
+SSO, Azure Active Directory,  AWS Cognito  y el backend  de la aplicación.
+El proceso  comienza  cuando  un usuario  introduce  una dirección  de correo  electrónico  corporativa  y continúa  hasta que se ha emitido  un 
+token de autorización  específico  de la aplicación.
+A continuación  se describe  el flujo de autenticación  a alto nivel.
+
+--- PAGE 9 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página9 de 85
+Paso 1: solicitud de inicio de sesión del usuario
+El usuario accede a la página de inicio de sesión de la aplicación e introduce una dirección de correo electrónico 
+corporativa. La aplicación front-end reenvía la solicitud al servicio TYPSA SSO.
+Paso 2: resolución del inquilino
+El servicio  TYPSA  SSO analiza  el dominio  de correo  electrónico  e identifica  el inquilino  de Azure Active Directory  correspondiente.
+Si el inquilino  no está registrado  en la plataforma,  se rechaza  la autenticación
+Paso 3: Autenticación de Azure AD
+El usuario  es redirigido  a la página  de inicio de sesión  de Microsoft  Azure Active Directory.
+Azure AD valida las credenciales  corporativas  del usuario  y aplica los controles  de seguridad  configurados,  tales como:
+▪ Autenticación  multifactor  (MFA)
+▪ Políticas  de acceso  condicional
+▪ Verificación  del cumplimiento  de los dispositivos
+▪ Políticas  de seguridad  corporativas
+Paso 4: emisión del token de Cognito
+Tras una autenticación  correcta,  Azure AD devuelve  un código  de autorización  a AWS Cognito.  AWS Cognito  
+intercambia  el código  de autorización  y genera  los siguientes  tokens:
+Token Finalidad
+Token de identificación Contiene  las reclamaciones  de identidad  del usuario.
+Token  de acceso Otorga  acceso  a los recursos  protegidos  de Cognito.
+Token de actualización Permite  renovar  el token sin necesidad  de volver a autenticarse.
+Paso 5: Procesamiento de la llamada de retorno del frontend
+El servicio  TYPSA  SSO redirige  el navegador  de vuelta a la ruta de callback  de la aplicación.  La URL de callback  
+contiene  los tokens  de Cognito  necesarios  para la siguiente  fase de autenticación.  El frontend  extrae  estos 
+valores  y prepara  la solicitud  de inicio de sesión  de la aplicación.
+Paso 6: Autenticación de la aplicación
+El frontend envía los tokens de Cognito al backend de la aplicación utilizando el punto final de inicio de sesión SSO dedicado.
+
+--- PAGE 10 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página10 de 85
+El backend  valida la identidad  de Cognito  y recupera  o crea la cuenta  de usuario  correspondiente  dentro  de la aplicación.
+Paso 7: Generación del token de la aplicación
+Tras una validación  satisfactoria,  el backend  genera  un JWT específico  de la aplicación  que contiene  información  de autorización,  como:
+▪ Identificador de usuario
+▪ Nombre
+▪ Dirección de correo electrónico
+▪ Roles asignados
+▪ Identificador de sesión
+Este token es independiente  del token de Cognito  y se utiliza para la autorización  de la aplicación.
+Paso 8: Establecimiento de la sesión
+El backend  crea las cookies  de autenticación  TYPSA  necesarias  y devuelve  el JWT de la aplicación  al frontend.
+El frontend  almacena  el token  de la aplicación  e inicia  la comunicación  autenticada  con  los servicios  protegidos  de la aplicación.
+Resumen del flujo de identidad
+El proceso  completo  de autenticación  se puede  resumir  de la siguiente  manera:
+1. El usuario introduce su correo electrónico corporativo.
+2. El frontend redirige al servicio SSO de TYPSA.
+3. Se identifica al inquilino mediante el dominio de correo electrónico.
+4. Azure Active Directory autentica al usuario.
+5. AWS Cognito emite tokens de autenticación.
+6. El frontend recibe los tokens de Cognito.
+7. El backend valida la identidad de Cognito.
+8. El backend  genera  el JWT de la aplicación.
+9. Se crean cookies de autenticación.
+10. El usuario obtiene acceso a los recursos protegidos.
+
+--- PAGE 11 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página11 de 85
+3. Servicio SSO
+3.1. Descripción general del servicio
+El servicio  de inicio de sesión  único (SSO) de TYPSA  actúa como puerta  de enlace  de autenticación  central  para todas las aplicaciones  
+integradas  en el ecosistema  TYPSA.
+El servicio  se encarga  de gestionar  las solicitudes  de autenticación,  la resolución  de inquilinos,  la federación  de Azure Active Directory,  el 
+intercambio  de tokens  de AWS Cognito,  las operaciones  de actualización  de tokens  y la recuperación  de perfiles  de usuario.  Al centralizar  
+las responsabilidades  de autenticación,  la plataforma  garantiza  una experiencia  de usuario  coherente,  una incorporación  simplificada  de 
+aplicaciones  y una mayor  seguridad  en todas las aplicaciones  de TYPSA.
+El servicio  SSO se implementa  como una solución  sin servidor  alojada  en AWS y expuesta  a través de Amazon  API Gateway.  El servicio  
+admite  múltiples  inquilinos  de Azure Active Directory  y permite  a las organizaciones  autenticarse  utilizando  sus credenciales  corporativas  
+existentes.
+Los objetivos  principales  del servicio  SSO son:
+▪ Centralizar  la autenticación  de usuarios.
+▪ Admitir  la integración  de Azure Active Directory  multitenant.
+▪ Simplificar  la incorporación  de aplicaciones.
+▪ Proporcionar  una gestión  segura  de tokens.
+▪ Estandarizar  los flujos de autenticación  en todas las aplicaciones.
+▪ Reducir  el esfuerzo  de implementación  relacionado  con la autenticación  para los equipos  de desarrollo.
+Responsabilidades clave
+El servicio  SSO realiza  las siguientes  funciones:
+Responsabilidad Descripción
+Resolución de inquilinos
+Identifica  el inquilino  correcto  de Azure Active Directory  en función  del dominio  de correo  electrónico  del 
+usuario.
+Enrutamiento de 
+autenticación
+Redirige  a los usuarios  al punto final de autenticación  de Azure AD adecuado  a través de AWS Cognito.
+Intercambio de tokens Intercambia  códigos  de autorización  por tokens  de autenticación  de Cognito.
+Actualización de tokens Genera  nuevos  tokens  de Cognito  cuando  caducan  los tokens  de acceso.
+Recuperación  del perfil de 
+usuario
+Recupera  la información  del perfil de usuario  y las fotos de perfil de Microsoft  Graph.
+Incorporación de clientes Admite  los procesos  de registro  y consentimiento  para nuevas  organizaciones.
+
+--- PAGE 12 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página12 de 85
+export  const environment  = {
+ssoUrl:  'https://{api-gateway-id}.execute-api.eu-west-1.amazonaws.com/dev/sso'};
+SSO_AWS_LAMBDA_URL=https://{api-gateway-id}.execute-api.eu-west-
+1.amazonaws.com/dev/sso/refresh-token
+Arquitectura del servicio
+El servicio  SSO se implementa  utilizando  los siguientes  componentes  de AWS:
+Componente Finalidad
+AWS Lambda Ejecuta  la lógica de autenticación  y gestión  de tokens.
+Amazon API Gateway Expone puntos finales REST públicos.
+AWS Cognito Proporciona  federación  de identidades  y emisión  de tokens.
+MongoDB Almacena  la configuración  de los inquilinos  y las asignaciones  de dominios.
+Microsoft  Azure AD Realiza  la autenticación  de usuarios  y la validación  de identidades.
+Posición de integración
+Dentro  de la arquitectura  de autenticación,  el servicio  SSO actúa como intermediario  entre las aplicaciones  cliente  y los proveedores  de 
+identidad  externos.
+El servicio  SSO no emite tokens  de autorización  específicos  de la aplicación.  En su lugar, proporciona  tokens  de autenticación  de Cognito  
+que posteriormente  son validados  por el backend  de la aplicación,  el cual genera  su propio  JWT de aplicación  con fines de autorización.
+3.2. Configuración del entorno
+Antes de integrar  una aplicación  con la plataforma  SSO de TYPSA,  se debe configurar  el punto final SSO adecuado  según el entorno  de 
+implementación.
+El punto final de SSO es utilizado  tanto por los componentes  frontend  como por los backend  durante  las operaciones  de autenticación  y 
+actualización  de tokens.
+Configuración del frontend
+Las aplicaciones  front-end  deben  almacenar  el punto final de SSO dentro  de su configuración  de entorno.
+Configuración del backend
+Las aplicaciones  de backend  deben  configurar  el punto final de actualización  de tokens  utilizando  la siguiente  variable  de entorno:
+Este punto de conexión  se utiliza cuando  los tokens  de Cognito  requieren  renovación.
+
+--- PAGE 13 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página13 de 85
+3.3. Puntos finales disponibles
+El servicio  TYPSA  SSO expone  varios puntos  finales  REST que admiten  la autenticación,  la gestión  de tokens,  la recuperación  de perfiles  
+de usuario  y la administración  de inquilinos.
+La siguiente  tabla resume  los puntos  finales  disponibles  actualmente.
+Método Punto final Descripción
+GET /sso Inicia el proceso  de autenticación.
+GET /sso/callback Punto final interno  de callback  de OAuth.
+POST /sso/refresh-token Actualiza  los tokens  de autenticación  de Cognito.
+GET /sso/m e Recupera  la foto de perfil del usuario  autenticado.
+GET /sso/me/profile Recupera  la información  del perfil del usuario.
+GET /sso/tenant-register Inicia el registro  del inquilino.
+GET /sso/tenant-callback Gestiona  la llamada  de retorno  del registro  del inquilino.
+3.4. Inicio de la autenticación (GET /sso)
+El punto final de inicio de la autenticación  es el punto de entrada  al proceso  de inicio de sesión  único (SSO) de TYPSA.  Se encarga  de 
+identificar  la organización  del usuario,  resolver  el inquilino  de Azure Active Directory  correspondiente  y redirigir  al usuario  al proveedor  de 
+autenticación  adecuado  a través de AWS Cognito.
+Normalmente,  la aplicación  frontend  invoca  este punto final después  de que el usuario  introduzca  una dirección  de correo  electrónico  
+corporativa  en la página  de inicio de sesión.
+El punto final no realiza  la autenticación  directamente.  En su lugar, prepara  la solicitud  de autenticación  y redirige  al usuario  al proveedor  
+de identidad  responsable  de validar  las credenciales  del usuario.
+Resumen del punto final
+Propiedad Valor
+Método GET
+Punto final /sso
+Autenticación  requerida No
+Consumidor Aplicación front-end
+Tipo de respuesta Redireccionamiento HTTP (302)
+
+--- PAGE 14 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página14 de 85
+GET {ssoUrl} ?email=user@company.com  Referer:  
+https://your-frontend-domain.com
+Formato de la solicitud
+La aplicación  frontend  inicia la autenticación  redirigiendo  el navegador  al servicio  SSO. Ejemplo  de solicitud:
+Parámetros de la solicitud
+Parámetro Obligatorio Descripción
+correo 
+electrónico
+Sí Dirección  de correo  electrónico  corporativa  utilizada  para identificar  el inquilino  de Azure AD.
+redirect_uri No Sobrescritura  opcional  de la URL de devolución  de llamada.  Si no se proporciona,  se utiliza el 
+encabezado  Referer.
+Flujo de trabajo de procesamiento
+Cuando  se recibe una solicitud,  el servicio  SSO realiza  las siguientes  operaciones:
+Paso 1: validación del correo electrónico
+El servicio valida la dirección de correo electrónico proporcionada en la solicitud. Si la 
+dirección de correo electrónico no es válida o falta, la solicitud se rechaza. Paso 2: 
+resolución del inquilino
+El dominio  de correo  electrónico  se extrae  de la dirección  de correo  electrónico  proporcionada.
+user@company.com🡪  company.com
+A continuación,  el dominio  se compara  con la configuración  del inquilino  almacenada  en MongoDB.
+Paso 3: Verificación del inquilino
+La plataforma  verifica  que el dominio  identificado  se haya registrado  y aprobado  dentro  de la plataforma  TYPSA  SSO.
+Si no se encuentra  el inquilino:
+▪ Se puede  intentar  el descubrimiento  de Azure OpenID.
+▪ La solicitud  de autenticación  se rechaza  si no existe una configuración  de inquilino  válida.
+
+--- PAGE 15 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página15 de 85
+/login-success?error=domain_not_authorized
+Paso 4: Creación de la solicitud de autenticación
+El servicio  genera  una URL de autorización  de Cognito  que contiene:
+▪ Información  del proveedor  de identidad.
+▪ Sugerencia  de inicio de sesión.
+▪ Token de protección CSRF.
+▪ Dirección  de correo  electrónico  del usuario.
+▪ Información sobre la URL de retorno.
+El parámetro  «state»  se codifica  y se adjunta  a la solicitud  de autorización  para mantener  el contexto  de autenticación  durante  todo el 
+proceso.
+Paso 5: redireccionamiento al proveedor de autenticación
+El servicio  responde  con una redirección  HTTP 302.
+El usuario  es redirigido  a través de AWS Cognito  y, posteriormente,  al inquilino  de Azure Active Directory  correspondiente.
+Frontend 🡪  Servicio  TYPSA  SSO🡪 AWS Cognito 🡪 Azure Active Directory
+Resultado satisfactorio
+Tras una ejecución  correcta,  el navegador  es redirigido  a la página  de inicio de sesión  de Azure Active Directory,  donde  el usuario  puede  
+autenticarse  utilizando  sus credenciales  corporativas.
+Gestión de errores
+Si falla cualquier  paso de validación  o resolución  del inquilino,  el servicio  SSO redirige  al usuario  de vuelta a la página  de callback  de la 
+aplicación  con un mensaje  de error.
+Entre los escenarios  de error más comunes  se incluyen
+Escenario de error Descripción
+Correo  electrónico  no válido Falta la dirección  de correo  electrónico  o tiene un formato  incorrecto.
+Dominio  desconocido El dominio  no está registrado  en la plataforma  TYPSA  SSO.
+Error de configuración  del inquilino La configuración  de Azure AD o Cognito  no es válida.
+Error de detección No se puede  resolver  la información  del inquilino.
+
+--- PAGE 16 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página16 de 85
+window.location.href =
+`${ssoUrl}?email=${encodeURIComponent(email)}`;
+Consideraciones de seguridad
+El punto final de inicio de la autenticación  incluye  varios mecanismos  de seguridad  para proteger  el proceso  de autenticación.
+Entre ellos se incluyen:
+▪ Protección  CSRF mediante  parámetros  de estado.
+▪ Validación  del dominio  antes de la autenticación.
+▪ Gestión  controlada  de redireccionamientos.
+▪ Aplicación  del aislamiento  de inquilinos.
+▪ Validación  de la integridad  de la solicitud  de autenticación.
+Solo los dominios  registrados  en la plataforma  TYPSA  pueden  pasar por el flujo de trabajo  de autenticación.
+Recomendación  de implementación
+Las aplicaciones  front-end  deben  redirigir  el navegador  directamente  al servicio  SSO en lugar de invocar  el punto final mediante  solicitudes  
+AJAX.
+Implementación recomendada:
+Este enfoque  garantiza  que las redirecciones  del navegador,  las cookies  de autenticación  y las interacciones  con el proveedor  de identidad  
+funcionen  correctamente  durante  todo el proceso  de autenticación.
+3.5. Procesamiento de la llamada de retorno de autenticación (GET /sso/callback)
+El punto final de devolución  de llamada  de autenticación  es un punto final interno  utilizado  por AWS Cognito  durante  el proceso  de 
+autenticación  OAuth.
+Este punto final no está pensado  para ser invocado  directamente  por aplicaciones  front-end  o back-end.
+Su función  principal  es recibir el código  de autorización  emitido  tras una autenticación  correcta  en Azure Active Directory  e intercambiar  
+dicho código  por tokens  de autenticación  de Cognito.
+A continuación,  los tokens  resultantes  se reenvían  a la aplicación  front-end  a través de un proceso  de redireccionamiento  controlado.
+
+--- PAGE 17 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página17 de 85
+/login-success? id_token=xxxxx& 
+access_token=xxxxx& 
+refresh_token=xxxxx
+Resumen del punto final
+Propiedad Valor
+Método GET
+Punto final /sso/callback
+Autenticación  requerida Interna
+Consumidor AWS Cognito
+Tipo de respuesta Redireccionamiento HTTP (302)
+Flujo de autenticación
+El proceso  de devolución  de llamada  comienza  inmediatamente  después  de que el usuario  se autentique  correctamente  con Azure Active 
+Directory.
+Se ejecuta  la siguiente  secuencia:
+1. El usuario  se autentica  con Azure AD.
+2. Azure AD devuelve  un código  de autorización.
+3. Cognito  reenvía  el código  al punto final de devolución  de llamada  del servicio  SSO.
+4. El servicio  SSO canjea  el código  por tokens  de Cognito.
+5. El servicio  SSO redirige  al usuario  de vuelta a la aplicación  frontend.
+Intercambio de tokens
+El código  de autorización  se canjea  por los siguientes  tokens  de Cognito:
+Token Finalidad
+Token de identificación Información  de identidad  del usuario.
+Token  de acceso Acceso  a los recursos  protegidos  por Cognito.
+Token de actualización Renovación  futura del token.
+Respuesta de redireccionamiento
+Tras generar  correctamente  el token, se redirige  al usuario  a la ruta de callback  del frontend.
+
+--- PAGE 18 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página18 de 85
+La aplicación  frontend  se encarga  de procesar  estos valores  e iniciar el proceso  de inicio de sesión  en la aplicación.
+Responsabilidades del frontend
+La ruta de callback  debe:
+1. Leer los parámetros  de la consulta.
+2. Validar  la respuesta.
+3. Extraer  los tokens  de Cognito.
+4. Almacenar  los tokens  temporalmente  en la memoria.
+5. Llamar  al punto final de inicio de sesión  del backend  de la aplicación.
+6. Elimina  la información  confidencial  del historial  del navegador  siempre  que sea posible.
+Gestión de errores
+Si falla el intercambio  de tokens,  se redirige  al usuario  de vuelta a la aplicación  frontend  con un parámetro  de error. Ejemplo:  /login-
+success?error=authentication_failed
+La aplicación  frontend  debe mostrar  un mensaje  de error adecuado  y permitir  al usuario  reiniciar  el proceso  de autenticación.
+Consideraciones de seguridad
+Dado que los tokens  de Cognito  se incluyen  temporalmente  en los parámetros  de consulta  de la URL, las aplicaciones  front-end  deben:
+▪ Procesar  los tokens  inmediatamente.
+▪ Evitar registrar las URL de devolución de llamada.
+▪ Eliminar  los tokens  del historial  del navegador  siempre  que sea posible.
+▪ No guardar  nunca los tokens  de actualización  en localStorage.
+Esto minimiza  la exposición  de los datos de autenticación  y favorece  el establecimiento  seguro  de la sesión.
+3.6. Servicio de actualización de tokens (POST /sso/refresh-token)
+El servicio  de actualización  de tokens  se encarga  de generar  nuevos  tokens  de autenticación  de Cognito  cuando  un token de acceso  o de 
+identidad  existente  ha caducado.
+Esta funcionalidad  permite  a las aplicaciones  mantener  sesiones  autenticadas  sin que los usuarios  tengan  que iniciar sesión  repetidamente  
+a través de Azure Active Directory.
+El proceso  de actualización  está diseñado  para ser transparente  para los usuarios  finales  y, por lo general,  lo inician  los backends  de las 
+aplicaciones  cada vez que se detecta  un token de Cognito  caducado  durante  la validación  de la solicitud.
+El punto de conexión  no debe llamarse  directamente  desde aplicaciones  basadas  en navegador.
+
+--- PAGE 19 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página19 de 85
+POST {ssoUrl}/refresh-token  Content-
+Type: application/json
+{
+"refreshToken": "<cognito_refresh_token>", "username": 
+"<cognito_username>"
+}
+Resumen  del punto de conexión
+Propiedad Valor
+Método POST
+Punto final /sso/refresh-token
+Autenticación  requerida Token de actualización
+Consumidor Servidor de la aplicación
+Tipo de respuesta JSON
+Propósito
+El objetivo  principal  del servicio  de actualización  es prolongar  las sesiones  de los usuarios  de forma segura,  conservando  al mismo  tiempo  
+el contexto  de autenticación  original  establecido  durante  el inicio de sesión.
+Al utilizar  el token de actualización  de Cognito,  la plataforma  puede  generar  nuevos  tokens  de autenticación  sin que el usuario  tenga que 
+repetir  el proceso  de autenticación.
+Esto mejora  tanto la experiencia  del usuario  como la eficiencia  operativa.
+Formato de la solicitud
+El backend  de la aplicación  envía el token de actualización  de Cognito  junto con el nombre  de usuario  de Cognito.  Ejemplo  
+de solicitud:
+Parámetros de la solicitud
+Parámetro Obligatorio Descripción
+refreshToken Sí Token  de actualización  de Cognito  emitido  durante  la autenticación.
+nombre de usuario Sí Nombre  de usuario  de Cognito  asociado  al usuario  autenticado.
+
+--- PAGE 20 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página20 de 85
+{
+"accessToken": "eyJhbGciOi...", "idToken": 
+"eyJhbGciOi...", "expiresIn": 3600
+}
+Flujo de trabajo de procesamiento
+El servicio  de actualización  realiza  las siguientes  acciones:
+Paso 1: validación de la solicitud
+El servicio  valida la carga útil de la solicitud  entrante  y comprueba  que se hayan proporcionado  todos los parámetros  necesarios.
+Paso 2: solicitud de autenticación de Cognito
+El servicio invoca AWS Cognito utilizando el flujo de autenticación REFRESH_TOKEN_AUTH. El token de 
+actualización se envía junto con el nombre de usuario de Cognito.
+Paso 3: generación  de tokens
+AWS Cognito  valida el token de actualización  y genera  un nuevo conjunto  de tokens  de autenticación.  Estos incluyen:
+▪ Nuevo  token de identificación
+▪ Nuevo  token de acceso
+▪ Información  de caducidad  actualizada
+El token de actualización  original  suele seguir siendo  válido hasta su fecha de caducidad  configurada.
+Paso 4: generación de la respuesta
+Los tokens  recién generados  se devuelven  al backend  de la aplicación.
+Respuesta correcta
+Ejemplo de respuesta:
+Campos de respuesta
+Campo Descripción
+accessToken Token  de acceso  de Cognito  recién generado.
+idToken Token  de identidad  de Cognito  recién generado.
+expiresIn Periodo  de validez  del token en segundos.
+
+--- PAGE 21 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página21 de 85
+{
+"message":  "Error al actualizar  el token"
+}
+Respuesta de error
+Si la operación  de actualización  no se puede  completar,  el servicio  devuelve  un error de autenticación.  Ejemplo:
+Escenarios  de fallo habituales
+Escenario Descripción
+El token de actualización ha caducado Se ha superado  el tiempo  de vida del token.
+Token de actualización revocado El token ha sido invalidado.
+Nombre  de usuario  no válido El nombre  de usuario  de Cognito  no coincide  con el propietario  del token.
+Error del servicio  Cognito AWS Cognito  no está disponible  o está mal configurado.
+Carga útil de la solicitud  no válida Faltan  campos  obligatorios.
+Consideraciones de seguridad
+El punto final de actualización  solo debe ser utilizado  por servicios  de backend  de confianza.  El 
+token de actualización  debe:
+▪ No debe exponerse  nunca al JavaScript  del navegador.
+▪ No almacenarse  nunca en localStorage.
+▪ Almacenarse  en cookies  seguras  que solo admitan  HTTP.
+▪ Transmitirse  únicamente  a través de conexiones  HTTPS.
+Este enfoque  reduce  significativamente  el riesgo de robo de tokens  y secuestro  de sesión.
+Notas  de implementación
+Las aplicaciones  deben  invocar  automáticamente  el servicio  de actualización  cada vez que la validación  de tokens  detecte  un token de ID 
+de Cognito  caducado.
+El proceso  de actualización  debe realizarse  antes de rechazar  una solicitud  para evitar una reautenticación  innecesaria  del usuario.
+
+--- PAGE 22 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página22 de 85
+GET {ssoUrl}/me
+Autorización: <cognito_id_token>
+3.7. Servicios de perfil de usuario
+La plataforma  TYPSA  SSO proporciona  puntos  finales  de perfil de usuario  que permiten  a las aplicaciones  recuperar  información  del 
+usuario  e imágenes  de perfil de los servicios  de Microsoft.
+Estos puntos  finales  ayudan  a las aplicaciones  a mostrar  información  coherente  del usuario  sin necesidad  de mantener  repositorios  de 
+perfiles  independientes.
+3.7.1. Servicio de foto de perfil (GET /sso/me)
+El servicio  de foto de perfil recupera  la imagen  de perfil del usuario  autenticado  de Microsoft  Graph  y la devuelve  a la aplicación  
+consumidora.
+Este punto final se utiliza habitualmente  para mostrar  avatares  de perfil en aplicaciones  front-end.
+Resumen  de puntos  finales
+Propiedad Valor
+Método GET
+Punto final /sso/m e
+Autenticación  requerida Token  de Cognito  ID
+Tipo de respuesta Imagen JPEG
+Formato de la solicitud
+Requisitos de autenticación
+A diferencia  de los patrones  de autenticación  estándar  de la API, este punto final espera  el token de ID de Cognito  sin procesar  en el 
+encabezado  de autorización.
+Ejemplo: Autorización: eyJhbGciOi... No se debe 
+incluir el prefijo «Bearer». Respuesta  correcta
+El punto final devuelve:
+▪ Contenido  de imagen  JPEG
+▪ Cuerpo  de respuesta  binario
+▪ Encabezados  de contenido  de imagen  adecuados
+
+--- PAGE 23 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página23 de 85
+Las aplicaciones  pueden  mostrar  la imagen  directamente  dentro  de los componentes  del perfil.
+Gestión de errores
+Si no se puede  recuperar  la imagen,  el servicio  devuelve  una imagen  de marcador  de posición  predeterminada.
+Esto garantiza  que las interfaces  de usuario  sigan funcionando  incluso  cuando  las imágenes  de perfil no estén disponibles.
+Casos de uso típicos
+▪ Páginas  de perfil de usuario
+▪ Menús  de navegación
+▪ Directorios de equipos
+▪ Tarjetas  de usuario  en el panel de control
+▪ Flujos de trabajo  de aprobación
+3.7.2. Servicio de información de perfil (GET /sso/me/profile)
+El Servicio  de información  de perfil recupera  la información  de los usuarios  de Microsoft  Graph  y la pone a disposición  de las aplicaciones  
+integradas.
+Esta información  se puede  utilizar  para rellenar  interfaces  de usuario  y sincronizar  datos de perfil.
+Resumen  del punto de conexión
+Propiedad Valor
+Método GET
+Punto final /sso/me/profile
+Autenticación  requerida Token  de Cognito  ID
+Tipo de respuesta JSON
+Información disponible
+En función  de los permisos  del inquilino  y de la disponibilidad  de Microsoft  Graph,  el servicio  puede  devolver:
+Información Descripción
+Nombre  para mostrar Nombre  completo  del usuario.
+Nombre Nombre.
+Apellido Apellido.
+Dirección de correo electrónico Correo  electrónico  corporativo.
+Cargo Función  o cargo del usuario.
+Departamento Departamento  de la organización.
+Foto de perfil Imagen  de referencia  del usuario.
+
+--- PAGE 24 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página24 de 85
+Casos de uso habituales
+Las aplicaciones  suelen  utilizar  la información  del perfil para:
+▪ Páginas  de cuentas  de usuario
+▪ Personalización del panel de control
+▪ Flujos de trabajo  de aprobación
+▪ Sistemas  de informes
+▪ Interfaces  de gestión  de equipos
+3.7.3. Servicios de registro de inquilinos
+Los puntos  finales  de registro  de usuarios  permiten  incorporar  nuevas  organizaciones  a la plataforma  TYPSA  SSO. Estos puntos  finales  
+suelen  ser utilizados  por los administradores  de la plataforma,  más que por los equipos  de desarrollo  de aplicaciones.  Puntos  finales  
+disponibles
+Punto final Finalidad
+/sso/tenant-register Inicia el registro  de un inquilino  de Azure AD.
+/sso/tenant-callback Completa  el proceso  de registro  del inquilino.
+Proceso de registro
+El flujo de trabajo  de incorporación  de un inquilino  consta  de:
+1. Inicio del registro  del inquilino.
+2. Consentimiento  del administrador  de Azure AD.
+3. Verificación del inquilino.
+4. Asignación  de la configuración  de Cognito.
+5. Registro del dominio.
+6. Activación de la plataforma.
+Solo los dominios  verificados  pueden  autenticarse  a través de la plataforma  TYPSA  SSO.
+3.8. Resumen
+El servicio  TYPSA  SSO proporciona  las capacidades  de autenticación  básicas  que requieren  todas las aplicaciones  integradas.
+Sus responsabilidades  incluyen:
+▪ Inicio de la autenticación.
+▪ Federación de Azure AD.
+▪ Gestión  de tokens  de Cognito.
+▪ Renovación  de sesión.
+
+--- PAGE 25 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página25 de 85
+▪ Recuperación  del perfil de usuario.
+▪ Incorporación de clientes.
+Al centralizar  estas capacidades,  la plataforma  garantiza  una experiencia  de autenticación  coherente  al tiempo  que reduce  la complejidad  
+de la implementación  para las aplicaciones  individuales.
+
+--- PAGE 26 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página26 de 85
+4. Integración de frontend
+4.1. Descripción general
+La aplicación  frontend  se encarga  de iniciar el proceso  de autenticación,  gestionar  las devoluciones  de llamada  de autenticación,  
+administrar  los tokens  de la aplicación  y proporcionar  una experiencia  de usuario  fluida a lo largo de todo el ciclo de vida de la 
+autenticación.
+El frontend  no autentica  a los usuarios  directamente.  En su lugar, delega  la autenticación  al servicio  TYPSA  SSO y a Azure Active 
+Directory,  al tiempo  que gestiona  la sesión  específica  de la aplicación  establecida  tras una autenticación  satisfactoria.
+El enfoque  de integración  descrito  en este documento  es independiente  del marco  de trabajo  y puede  implementarse  utilizando  Angular,  
+React,  Vue.js  o cualquier  marco  moderno  de aplicaciones  de página  única (SPA).
+El flujo de trabajo  de autenticación  del frontend  consta  de las siguientes  etapas:
+1. El usuario  introduce  su correo  electrónico  corporativo.
+2. La interfaz  de usuario  redirige  al usuario  al servicio  TYPSA  SSO.
+3. El usuario  se autentica  mediante  Azure Active Directory.
+4. El frontend  recibe los tokens  de Cognito.
+5. El frontend  llama al backend  de la aplicación.
+6. El backend  devuelve  un JWT de la aplicación.
+7. El frontend  almacena  el JWT de la aplicación.
+8. El usuario  obtiene  acceso  a los recursos  protegidos.
+4.2. Configuración del entorno
+Antes de implementar  la autenticación,  la aplicación  frontend  debe configurarse  con las variables  de entorno  necesarias.
+Estos valores permiten que la aplicación se comunique tanto con el backend de la aplicación como con el servicio TYPSA SSO.
+Variables  necesarias
+Variable Descripción Ejemplo
+apiUrl URL base del backend  de la aplicación https://myapp.api.typsadev.com/api
+ssoUrl URL del servicio SSO de TYPSA
+https://xxxxx.execute-api.eu-west-
+1.amazonaws.com/dev/sso
+
+--- PAGE 27 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página27 de 85
+export  const environment  = { 
+production:  false,
+apiUrl: 'https://myapp.api.typsadev.com/api',
+ssoUrl:  'https://xxxxx.execute-api.eu-west-1.amazonaws.com/dev/sso'
+};
+Ejemplo de configuración
+Recomendaciones de configuración
+Las variables  de entorno  deben  gestionarse  por separado  para:
+▪ Desarrollo local
+▪ Desarrollo
+▪ Pruebas
+▪ Puesta en escena
+▪ Producción
+Esto garantiza  que las solicitudes  de autenticación  se dirijan al entorno  correcto  a lo largo del ciclo de vida de la aplicación.
+4.3. Rutas necesarias
+La aplicación  frontend  debe implementar  rutas específicas  para dar soporte  al flujo de trabajo  de autenticación.  Estas rutas se 
+encargan  de iniciar las solicitudes  de inicio de sesión  y de procesar  las respuestas  de autenticación.  Rutas  de autenticación
+Ruta Propósito
+/login Punto de entrada  de la autenticación  de usuario
+/login-success Procesamiento de la llamada de retorno de autenticación
+Responsabilidades de la ruta de inicio de sesión
+La página  de inicio de sesión  debe:
+▪ Aceptar  una dirección  de correo  electrónico  corporativa.
+▪ Validar  el formato  del correo  electrónico.
+▪ Detectar  sesiones  existentes.
+▪ Iniciar solicitudes  de autenticación.
+▪ Mostrar  los errores  de autenticación.
+La página  debe seguir siendo  ligera y centrarse  exclusivamente  en la autenticación.
+
+--- PAGE 28 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página28 de 85
+Responsabilidades de la ruta de devolución de llamada
+La página  de callback  procesa  la información  de autenticación  devuelta  por el servicio  TYPSA  SSO. Sus 
+responsabilidades  incluyen:
+1. Leer los parámetros  de consulta.
+2. Extraer  tokens  de Cognito.
+3. Gestionar  los errores  de autenticación.
+4. Llamar  al punto final de inicio de sesión  del backend  de la aplicación.
+5. Establecer  la sesión  de la aplicación.
+6. Redirigir  a los usuarios  a la página  de destino  adecuada.
+4.4. Flujo de inicio de sesión
+El proceso  de inicio de sesión  comienza  cuando  un usuario  introduce  una dirección  de correo  electrónico  corporativa  válida.
+La aplicación  frontend  inicia el flujo de trabajo  de autenticación  redirigiendo  el navegador  al servicio  TYPSA  SSO.
+Paso 1: solicitud  de autenticación  del usuario
+El usuario  introduce  una dirección  de correo  electrónico  
+corporativa.  Ejemplo:  user@company.com
+La interfaz  valida el formato  del correo  electrónico  antes de continuar.
+Paso 2: redireccionamiento al servicio SSO de TYPSA 
+El navegador es redirigido al servicio SSO. Ejemplo:
+window.location.href =
+`${ssoUrl}?email=${encodeURIComponent(email)}`;
+La redirección  del navegador  es necesaria  para admitir  la autenticación  de Azure AD y los flujos de autorización  de Cognito.
+Paso 3: Autenticación de Azure AD
+El usuario  se autentica  utilizando  credenciales  corporativas.
+Dependiendo  de las políticas  de la organización,  el proceso  de autenticación  puede  incluir:
+▪ Autenticación  multifactor  (MFA)
+▪ Políticas  de acceso  condicional
+▪ Comprobaciones  de cumplimiento  de dispositivos
+▪ Autenticación basada en el riesgo
+
+--- PAGE 29 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página29 de 85
+Paso 4: Procesamiento de la llamada de retorno
+Tras una autenticación  correcta,  el frontend  recibe los siguientes  parámetros:
+Parámetro Descripción
+id_token Token  de identidad  de Cognito
+access_token Token  de acceso  de Cognito
+refresh_token Token  de actualización  de Cognito
+error Mensaje  de error de autenticación
+Paso 5: Inicio de sesión  en el backend
+El frontend  envía los tokens  de Cognito  al backend  de la aplicación.
+El backend  valida la identidad  de Cognito  y devuelve  un JWT específico  de la aplicación.
+Paso 6: Establecimiento de la sesión
+El frontend  almacena  el JWT de la aplicación  y actualiza  el estado  de la aplicación  para reflejar  la sesión  autenticada.
+A continuación,  se redirige  al usuario  a la página  de inicio o al panel de control  de la aplicación.
+4.5. Procesamiento de la ruta de callback
+La ruta de callback  desempeña  un papel fundamental  en la finalización  del flujo de trabajo  de autenticación.
+Al recibir una respuesta  del servicio  TYPSA  SSO, el componente  de callback  debe procesar  inmediatamente  los parámetros  devueltos
+Autenticación correcta
+Cuando  la autenticación  se realiza  correctamente,  la ruta de devolución  de llamada  debe:
+1. Leer los parámetros  de la consulta.
+2. Extraer  los tokens  de Cognito.
+3. Validar  los valores  obligatorios.
+4. Almacenar  temporalmente  los tokens  de Cognito  en la memoria.
+5. Llamar  al punto final de inicio de sesión  del backend.
+6. Recibir  el JWT de la aplicación.
+7. Redirigir  al usuario.
+
+--- PAGE 30 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página30 de 85
+Autenticación fallida
+Si hay un parámetro  de error:
+/login-success?error=authentication_failed La interfaz 
+debería:
+▪ Mostrar  un mensaje  de error.
+▪ Registrar  el fallo adecuadamente.
+▪ Permitir  al usuario  reiniciar  la autenticación.
+Recomendación de seguridad
+Los parámetros  de autenticación  deben  eliminarse  del historial  del navegador  tras su procesamiento  siempre  que sea posible.  Esto 
+reduce  la probabilidad  de que la información  confidencial  quede  expuesta  a través del historial  del navegador  o de los registros  de 
+diagnóstico.
+4.6. Interceptor  HTTP y gestión  de tokens
+La aplicación  frontend  debe implementar  un interceptor  HTTP centralizado  encargado  de adjuntar  los encabezados  de autenticación  y 
+procesar  las respuestas  de autenticación.
+Este enfoque  garantiza  un comportamiento  de autenticación  coherente  en toda la aplicación.
+Responsabilidades
+El interceptor  debe:
+▪ Adjuntar  los JWT de la aplicación.
+▪ Incluir credenciales  en las solicitudes.
+▪ Gestionar  los tokens  actualizados.
+▪ Procesar  los encabezados  de autorización.
+▪ Gestionar  los errores  de autenticación.
+Configuración estándar de la solicitud
+Configuración Valor
+Autorización Portador  JWT de la aplicación
+con credenciales true
+Encabezados de solicitud de inicio de sesión
+Para las solicitudes  de inicio de sesión,  se deben  incluir encabezados  Cognito  adicionales.
+
+--- PAGE 31 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página31 de 85
+Encabezado Propósito
+x-cognito-id-token Token  de identidad  de Cognito
+x-cognito-refresh-token Token  de actualización  de Cognito
+Gestión de la actualización de tokens
+Siempre  que el backend  devuelva  un nuevo token de aplicación  en el encabezado  de autorización,  el frontend  debe sustituir  el token 
+existente  inmediatamente.
+Esto garantiza  que las futuras  solicitudes  utilicen  siempre  el token más reciente.
+Gestión de errores de autenticación
+Si una solicitud  recibe una respuesta  401 No autorizado:
+1. Borra los datos de autenticación  locales.
+2. Elimina  los tokens  de aplicación.
+3. Redirija  al usuario  a la página  de inicio de sesión.
+4. Reinicie  la autenticación  si es necesario.
+4.7. Estrategia de almacenamiento del lado del cliente
+El almacenamiento  adecuado  de los tokens  es fundamental  para mantener  la seguridad  de la aplicación.
+Los diferentes  tipos de tokens  deben  almacenarse  de acuerdo  con sus requisitos  de seguridad.
+Ubicaciones  de almacenamiento  recomendadas
+Ubicación de almacenamiento Contenido
+Estado  en memoria Tokens  de Cognito
+localStorage JWT de la aplicación
+Almacenamiento de sesión Información  del perfil de usuario
+Cookies Datos de sesión  de Cognito
+Principios de almacenamiento
+El frontend  debe:
+▪ Almacenar  los tokens  de Cognito  en memoria  siempre  que sea posible.
+▪ Evitar el almacenamiento  a largo plazo de los tokens  de actualización.
+▪ Minimizar  la exposición  de los tokens  a los scripts  del navegador.
+▪ Eliminar  la información  de autenticación  al cerrar sesión.
+
+--- PAGE 32 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página32 de 85
+localStorage.removeItem(`${APP_PREFIX}id_token`); 
+sessionStorage.removeItem(`${APP_PREFIX}profile`); 
+clearInMemoryTokens();
+await api.post('/auth/logout/sso'); 
+router.navigate(['/login']);
+4.8. Proceso de cierre de sesión
+El proceso  de cierre de sesión  finaliza  la sesión  actual de la aplicación  y elimina  toda la información  de autenticación  almacenada  
+localmente.
+Flujo de trabajo de cierre de sesión
+El frontend  debe ejecutar  los siguientes  pasos:
+1. Eliminar  el JWT de la aplicación.
+2. Borrar  la información  del perfil de usuario.
+3. Borrar  el estado  de autenticación  en memoria.
+4. Llamar  al punto final de cierre de sesión  del backend.
+5. Redirigir  al usuario  a la página  de inicio de sesión.
+Ejemplo de secuencia de cierre de sesión
+Resultado esperado
+Tras el cierre de sesión:
+▪ Se elimina  el JWT de la aplicación.
+▪ Se borra la información  del perfil de usuario.
+▪ El backend  elimina  las cookies  de TYPSA.
+▪ Ya no se puede  acceder  a los recursos  protegidos.
+▪ El usuario  es redirigido  a la página  de inicio de sesión.
+4.9. Recomendaciones de seguridad para el frontend
+Para garantizar  una integración  segura  con la plataforma  TYPSA  SSO, las aplicaciones  front-end  deben  cumplir  las siguientes  
+recomendaciones:
+▪ Utilice siempre  HTTPS.
+▪ Evita guardar  los tokens  de actualización  en el almacenamiento  del navegador.
+▪ Procesa  los tokens  de devolución  de llamada  inmediatamente.
+▪ Elimina  los datos de autenticación  al cerrar sesión.
+▪ Gestiona  los errores  de autenticación  de forma coherente.
+▪ Utilice configuraciones  de cookies  seguras.
+▪ Implemente  un manejo  centralizado  de la autenticación.
+▪ Evite que se registre  información  confidencial.
+
+--- PAGE 33 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página33 de 85
+Seguir estas recomendaciones ayuda a garantizar una experiencia de autenticación segura y fiable en todas las aplicaciones TYPSA.
+4.10. Resumen
+La aplicación  frontend  se encarga  de iniciar la autenticación,  procesar  los tokens  de Cognito,  gestionar  las sesiones  de la aplicación  y 
+garantizar  una comunicación  segura  con los servicios  backend  protegidos.
+Al seguir el enfoque  de integración  descrito  en esta sección,  las aplicaciones  pueden  ofrecer  una experiencia  de autenticación  coherente  al 
+tiempo  que aprovechan  las capacidades  centralizadas  de la plataforma  TYPSA  SSO.
+
+--- PAGE 34 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página34 de 85
+5. Integración del backend
+5.1. Descripción general
+El backend  de la aplicación  actúa como límite de seguridad  entre la aplicación  frontend  y los servicios  empresariales  subyacentes.
+Mientras  que el servicio  TYPSA  SSO gestiona  la autenticación  de usuarios  a través de Azure Active Directory  y AWS Cognito,  el backend  
+de la aplicación  se encarga  de validar  las identidades  autenticadas,  establecer  sesiones  de aplicación,  generar  tokens  de autorización  
+específicos  de la aplicación  y aplicar  políticas  de control  de acceso.
+Esta separación  de responsabilidades  garantiza  que la autenticación  siga siendo  centralizada,  mientras  que la autorización  sigue siendo  
+específica  de cada aplicación.
+El backend  actúa  como  el principal  consumidor  de los datos  de autenticación  de Cognito  y proporciona  la capa  de autorización  
+requerida  por  los servicios  empresariales  y las API  protegidas.
+Responsabilidades del backend
+El backend  es responsable  de las siguientes  actividades:
+Responsabilidad Descripción
+Validación de Cognito Validar  la información  de identidad  de Cognito  recibida  durante  el inicio de sesión.
+Gestión de usuarios Recuperar  o crear usuarios  de la aplicación.
+Generación  de JWT de la aplicación Generar  tokens  de autorización  específicos  de la aplicación.
+Gestión de cookies Crear y mantener  cookies  de autenticación  TYPSA.
+Actualización de tokens Gestiona  la renovación  automática  de tokens  de Cognito  y de la aplicación.
+Protección de rutas Protege  los recursos  de la aplicación  mediante  controles  de autenticación.
+Gestión de sesiones Mantén  las sesiones  de los usuarios  autenticados.
+Posición de la autenticación en la arquitectura
+El backend  recibe la información  de autenticación  de Cognito  desde el frontend  y convierte  esa identidad  en una sesión  específica  de la 
+aplicación.
+
+--- PAGE 35 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página35 de 85
+Frontend
+↓
+Backend de la aplicación
+│
+├──  Validar  identidad  de Cognito
+├──  Recuperar/crear  usuario
+├──  Generar  JWT  de la aplicación
+├──  Crear  cookies  de autenticación
+↓
+API protegidas
+Flujo de autenticación del backend
+5.2. Configuración del entorno
+Antes de integrarse  con la plataforma  TYPSA  SSO, el backend  debe configurarse  con las variables  de entorno  necesarias.
+Estos valores  controlan  la generación  de tokens,  la configuración  de cookies,  las operaciones  de actualización  y el comportamiento  
+específico  del entorno.
+Variables necesarias
+Variable Requerida Descripción
+SSO_AWS_LAMBDA_URL Sí URL utilizada  para actualizar  los tokens  de Cognito.
+JWT_SECRET Sí Clave secreta  utilizada  para firmar los JWT de la aplicación.
+JWT_TOKEN_EXPIRY Sí Vigencia  del token de la aplicación.
+NODE_ENV Sí Entorno actual.
+DEV_DOMAIN Desarrollo Dominio  de cookies  utilizado  en desarrollo.
+PROD_DOMAIN Producción Dominio  de cookies  utilizado  en producción.
+CORS_* Sí Orígenes  de frontend  permitidos.
+
+--- PAGE 36 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página36 de 85
+SSO_AWS_LAMBDA_URL=https://xxxxx.amazonaws.com/dev/sso/refresh-token
+JWT_SECRET=xxxxxxxxxxxxxxxxxx
+JWT_TOKEN_EXPIRY=24h
+NODE_ENV=desarrollo
+DEV_DOMAIN=.typsadev.com
+PROD_DOMAIN=.typsa.com
+Ejemplo de configuración
+Recomendaciones de entorno
+Se deben  mantener  configuraciones  separadas  para:
+▪ Desarrollo local
+▪ Desarrollo
+▪ Pruebas
+▪ Entorno de staging
+▪ Producción
+Los valores  de configuración  nunca deben  estar codificados  de forma fija en el código  fuente  de la aplicación.
+5.3. Configuración de CORS
+El intercambio  de recursos  entre  orígenes  (CORS)  debe  configurarse  correctamente  para  permitir  que  las aplicaciones  front-end  se 
+comuniquen  con  los servicios  back-end,  manteniendo  al mismo  tiempo  un manejo  seguro  de las cookies.
+Configuración CORS necesaria
+La aplicación  de backend  debe configurarse  para admitir  solicitudes  de origen  cruzado  procedentes  de aplicaciones  frontend  autorizadas,  al 
+tiempo  que permite  una autenticación  segura  basada  en cookies.
+Los siguientes  ajustes  son necesarios  para una integración  satisfactoria  con la plataforma  TYPSA  SSO.
+Configuración Valor
+Configuración Propósito
+credenciales Permite  a los navegadores  enviar cookies  de autenticación  con las solicitudes.
+exposedHeaders
+Permite  a las aplicaciones  frontend  acceder  a los tokens  JWT de Cognito  y de la aplicación  actualizados  que 
+devuelve  el backend.
+orígenes permitidos Restringe  el acceso  a la API a las aplicaciones  front-end  aprobadas.
+
+--- PAGE 37 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página37 de 85
+app.use(cors({
+origin: allowedOrigins,  credentials:  
+true, exposedHeaders:  [
+"x-cognito-new-id-token", 
+"authorization"
+],
+allowedHeaders: [ 
+"Content-Type", 
+"Authorization",
+"x-api-key",
+"x-cognito-id-token",
+"x-cognito-refresh-token"
+]
+}));
+Ejemplo de configuración de Express
+¿Por qué exponer  el encabezado  de autorización?
+El backend  puede  generar  JWT de aplicación  actualizados  durante  el procesamiento  de la solicitud.
+El frontend  debe poder leer el encabezado  de autorización  y sustituir  el token existente.  Si no se expone  el encabezado  a 
+través de CORS,  los navegadores  bloquearán  el acceso  al token actualizado.
+5.4. Puntos finales de autenticación obligatorios
+Todas  las aplicaciones  que se integren  con TYPSA  SSO deben  exponer  puntos  finales  dedicados  para las operaciones  de inicio y cierre de 
+sesión.
+Estos puntos  finales  establecen  y terminan  las sesiones  de la aplicación.
+Puntos finales obligatorios
+Método Punto de conexión Descripción
+POST /auth/login/sso Crea una sesión  de aplicación  autenticada.
+POST /auth/logout/sso Finaliza  la sesión  de la aplicación  autenticada.
+
+--- PAGE 38 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página38 de 85
+Frontend
+↓
+POST /auth/login/sso
+↓
+Validar  identidad  de Cognito
+↓
+Generar  JWT de la aplicación
+↓
+Configurar  cookies  de autenticación
+↓
+Devolver  el token de la aplicación
+Flujo de autenticación
+5.5. Punto final de inicio de sesión
+El punto final de inicio de sesión  se encarga  de convertir  a un usuario  autenticado  por Cognito  en un usuario  autenticado  por la 
+aplicación.
+Este punto final sirve de puente  entre la autenticación  centralizada  y la autorización  específica  de la aplicación.
+Resumen del punto final
+Propiedad Valor
+Método POST
+Punto final /auth/login/sso
+Autenticación Cognito  Validación  requerida
+Consumidor Aplicación frontend
+Proceso de inicio de sesión
+La operación  de inicio de sesión  realiza  la siguiente  secuencia:
+Paso 1: validar la identidad de Cognito
+El token de identidad  de Cognito  se valida a través del middleware  de autenticación.  Los tokens  no 
+válidos  dan lugar al rechazo  inmediato  de la solicitud.
+Paso 2: extraer la información del usuario
+El backend  extrae  los atributos  del usuario  del token de Cognito.  Entre los atributos  
+habituales  se incluyen:
+▪ Dirección de correo electrónico
+▪ Nombre  completo
+
+--- PAGE 39 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página39 de 85
+{
+"data":  {
+"accessToken": "<application_jwt>"
+}
+}
+▪ Nombre
+▪ Apellidos
+▪ Nombre  de usuario  de Cognito
+Paso 3: Recuperar o crear usuario
+La aplicación  busca un registro  de usuario  existente.
+Si el usuario  no existe,  se crea automáticamente  una nueva cuenta  de usuario.
+Paso 4: generar el JWT de la aplicación
+Se genera  un JWT específico  de la aplicación.  Las 
+reclamaciones  típicas  incluyen:
+Reclamación Finalidad
+id Identificador de usuario
+nombre Nombre  de visualización
+correo Correo  electrónico  del usuario
+función Rol de la aplicación
+id_de_sesión Identificador de sesión
+Paso 5: Crear cookies de autenticación
+El backend  crea las cookies  de autenticación  TYPSA  necesarias.
+Estas cookies  permiten  que las futuras  solicitudes  de autenticación  se procesen  sin necesidad  de volver a autenticarse.
+Paso 6: devolver la respuesta de autenticación
+El backend  devuelve  el token de aplicación  generado  al frontend.  Ejemplo:
+
+--- PAGE 40 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página40 de 85
+{
+"success": true,
+"message":  "Cierre  de sesión  completado"
+}
+5.6. Punto final de cierre de sesión
+El punto final de cierre de sesión  finaliza  la sesión  de la aplicación  y elimina  todas las cookies  relacionadas  con la autenticación.
+Resumen del punto final
+Propiedad Valor
+Método POST
+Punto final /auth/logout/sso
+Autenticación No requerida
+Consumidor Aplicación frontend
+Cerrar sesión Responsabilidades
+El backend  realiza  las siguientes  acciones:
+1. Identificar  todas las cookies  de autenticación.
+2. Eliminar las cookies TYPSA.
+3. Eliminar  las cookies  de la aplicación.
+4. Devuelve  una respuesta  de éxito.
+Cookies eliminadas
+La operación  de cierre de sesión  debe borrar:
+▪ typsa_refresh_token_*
+▪ typsa_cognito_token_*
+▪ typsa_sub_*
+▪ typsa_active_email
+▪ {APP_PREFIX}_active_email
+Respuesta correcta
+
+--- PAGE 41 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página41 de 85
+5.7. Recomendaciones de seguridad para el backend
+Las aplicaciones de backend deben seguir las prácticas de seguridad que se indican a continuación para garantizar una integración segura con 
+la plataforma TYPSA SSO.
+Autenticación
+▪ Valida  todos los tokens  de Cognito.
+▪ Nunca  confíe en los datos de identidad  proporcionados  por el cliente.
+▪ Rechaza  inmediatamente  los tokens  no válidos  o caducados.
+Gestión de JWT
+▪ Utilice claves  de firma seguras.
+▪ Configure  períodos  de caducidad  adecuados.
+▪ Regenera  los tokens  cuando  sea necesario.
+Seguridad de las cookies
+▪ Utilice cookies  seguras.
+▪ Utilice SameSite=None.
+▪ Almacene  los tokens  de actualización  como cookies  solo HTTP.
+▪ Restringe  los dominios  de las cookies  adecuadamente.
+Registro
+Evita el registro:
+▪ Tokens  de acceso
+▪ Tokens de actualización
+▪ Encabezados  de autorización
+▪ Cookies  de autenticación
+5.8. Resumen
+El backend  de la aplicación  transforma  la autenticación  centralizada  de Cognito  en una autorización  específica  para la aplicación.
+Al validar  las identidades  de Cognito,  generar  JWT de la aplicación,  gestionar  las cookies  de autenticación  y proteger  los servicios  
+empresariales,  el backend  proporciona  la base segura  que requieren  todas las aplicaciones  integradas  con TYPSA.
+
+--- PAGE 42 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página42 de 85
+6. Validación  y actualización  de tokens
+6.1. Descripción
+El modelo  de autenticación  de TYPSA  utiliza una estrategia  de validación  multicapa  para garantizar  que las identidades  de los usuarios  
+sigan siendo  válidas  durante  todo el ciclo de vida de una sesión  autenticada.
+Este enfoque  proporciona  un equilibrio  entre la seguridad  y la experiencia  del usuario,  ya que permite  que los tokens  caducados  se 
+renueven  automáticamente  sin que los usuarios  tengan  que autenticarse  repetidamente  a través de Azure Active Directory.
+El backend  se encarga  de validar  tanto los tokens  emitidos  por Cognito  como los JWT específicos  de la aplicación  antes de permitir  el 
+acceso  a los recursos  protegidos.
+Cada solicitud  autenticada  debe pasar por dos capas de validación  independientes.
+Flujo de validación de la autenticación
+Arquitectura  de validación  de la autenticación
+Solicitud
+Lógica  de negocio
+¿Por qué dos capas?
+El modelo  de dos capas separa  la validación  de identidad  de la autorización  de la aplicación.
+Capa Propósito
+Validación de Cognito Confirma  que la identidad  del usuario  sigue siendo  válida.
+Validación  de JWT de la aplicación Confirma  que el usuario  está autorizado  para acceder  a los recursos  de la aplicación.
+Este diseño  permite  que la autorización  de la aplicación  siga siendo  independiente  del proveedor  de identidad  externo.
+Capa 1
+Validación  del token de Cognito
+Validación  de JWT de 
+la aplicación  de la capa 2
+
+--- PAGE 43 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página43 de 85
+user@company.com
+↓
+base64url(user@company.com )
+↓
+dXNlckBjb21wYW55LmNvbQ
+6.2. Capa 1: validación del token de Cognito
+La primera  capa de autenticación  valida el token de identidad  de Cognito  asociado  a la sesión  actual del usuario.
+Esta validación  garantiza  que la identidad  autenticada  proviene  de un inquilino  de Azure Active Directory  de confianza  y sigue siendo  válida.
+Responsabilidades de validación
+La capa de validación  de Cognito  realiza  las siguientes  tareas:
+▪ Identificar  la sesión  de usuario  activa.
+▪ Recuperar  los tokens  de autenticación  de Cognito.
+▪ Validar  la integridad  del token.
+▪ Detectar  tokens  caducados.
+▪ Actualizar  los tokens  cuando  sea necesario.
+▪ Adjuntar  la información  de identidad  del usuario  al contexto  de la solicitud.
+Resolución de correo electrónico activo
+El backend  determina  la dirección  de correo  electrónico  activa utilizando  el siguiente  orden de prioridad.
+Prioridad Fuente
+1 Cookie {APP_PREFIX}_active_email
+2 Cookie typsa_active_email
+3 Carga útil de la solicitud  (correo  electrónico)
+La dirección  de correo  electrónico  resuelta  se utiliza para localizar  las cookies  de Cognito  correspondientes.
+Generación del identificador de la cookie
+La dirección  de correo  electrónico  se convierte  en un identificador  seguro  que se utiliza en los 
+nombres  de las cookies.  Ejemplo:
+Este valor se denomina  safeEmail  a lo largo de todo el proceso  de autenticación.
+Fuentes de tokens
+Dependiendo  de la fase de autenticación,  los tokens  de Cognito  pueden  obtenerse  de diferentes  fuentes.
+
+--- PAGE 44 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página44 de 85
+req.cognito  = {
+email: "user@company.com  ", name:  
+"John Doe", username:  "abcd1234"
+};
+Fuente Token  de ID de Cognito Token de actualización
+Cookies typsa_cognito_token_{safeEmail} typsa_refresh_token_{safeEmail}
+Encabezados de inicio de 
+sesión
+x-cognito-id-token x-cognito-refresh-token
+Validación correcta
+Cuando  el token de Cognito  es válido:
+1. Se verifica  la firma del token.
+2. Se comprueba  la fecha de caducidad.
+3. Se extrae  la información  del usuario.
+4. La identidad  del usuario  se adjunta  a la solicitud.
+Ejemplo  de datos adjuntos:
+A continuación,  la solicitud  pasa a la segunda  capa de autenticación.
+6.3. Proceso de actualización del token de Cognito
+Si el token de identidad  de Cognito  ha caducado,  el backend  intenta  actualizarlo  automáticamente.  Este proceso  se lleva a 
+cabo sin intervención  del usuario.
+Flujo de trabajo de actualización
+Paso 1: Detectar la caducidad
+El backend  identifica  que el token de identidad  de Cognito  ha caducado.
+Paso 2: recuperar la información de actualización
+El backend  recupera:
+Cookie Propósito
+typsa_refresh_token_{safeEmail} Token  de actualización  de Cognito
+typsa_sub_{safeEmail} Nombre  de usuario  de Cognito
+
+--- PAGE 45 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página45 de 85
+POST {SSO_AWS_LAMBDA_URL}
+{
+"refreshToken":  "<refresh_token>",  "username":  
+"<cognito_username>"
+}
+Paso 3: llamar al servicio de actualización
+El backend  invoca  el punto final de actualización  de TYPSA.  
+Ejemplo:
+Paso 4: recibir los tokens actualizados
+El servicio SSO devuelve:
+▪ Nuevo  token de identificación  de Cognito
+▪ Nuevo  token de acceso  de Cognito
+▪ Información  de caducidad  actualizada
+Paso 5: actualizar la sesión
+El backend  actualiza  la cookie  de Cognito  y continúa  procesando  la solicitud.  El usuario  permanece  
+autenticado  sin interrupciones.
+Error de actualización
+Si falla la actualización  del token:
+1. Se eliminan  las cookies  de autenticación.
+2. Se rechaza  la solicitud.
+3. Se devuelve un código HTTP 401.
+4. La interfaz  redirige  al usuario  a la página  de inicio de sesión.
+6.4. Capa 2: validación del JWT de la aplicación
+La segunda  capa de autenticación  valida el JWT específico  de la aplicación  generado  por el backend  durante  el inicio de sesión.
+Mientras  que Cognito  valida la identidad,  el JWT de la aplicación  controla  el acceso  a los recursos  empresariales.
+Responsabilidades de validación
+La capa de JWT de la aplicación  se encarga  de:
+▪ Verificar  la integridad  del token.
+▪ Comprobar  la caducidad  del token.
+
+--- PAGE 46 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página46 de 85
+req.user = { id: 
+"12345",
+correo  electrónico:  
+«user@company.com  », función:  
+«ADMIN»
+};
+▪ Validar  los permisos  del usuario.
+▪ Adjuntar  el contexto  del usuario.
+▪ Actualizar  los tokens  cuando  sea posible.
+Origen del token
+El JWT de la aplicación  se proporciona  a través del encabezado  Authorization.  
+Ejemplo:  Authorization:  Bearer  <application_jwt>
+Validación correcta
+Cuando  la validación  se realiza  correctamente:
+1. Se verifica  la firma JWT.
+2. Se extraen  las reclamaciones.
+3. Se adjunta  el contexto  del usuario.
+4. La solicitud  pasa a la lógica de negocio.
+Ejemplo:
+6.5. Renovación del JWT de la aplicación
+Si el JWT de la aplicación  ha caducado,  el backend  puede  generar  un token de sustitución  utilizando  la información  de identidad  de Cognito  
+actualizada.
+Este proceso  evita cierres  de sesión  innecesarios  de los usuarios.
+Proceso  de renovación
+Paso 1: Actualizar la identidad de Cognito
+El backend  se asegura  de que exista un token de identidad  de Cognito  válido.  
+Si es necesario,  se ejecuta  primero  el proceso  de actualización  de Cognito.
+Paso 2: generar un nuevo JWT de la aplicación
+Se genera  un nuevo JWT utilizando  las reclamaciones  de usuario  existentes.
+
+--- PAGE 47 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página47 de 85
+Las reclamaciones  típicas  incluyen:
+Reclamación Descripción
+id Identificador de usuario
+correo electrónico Correo  electrónico  del usuario
+rol Rol de la aplicación
+session_id Identificador de sesión
+Se puede  generar  un nuevo identificador  de sesión  para realizar  un seguimiento  de la sesión  actualizada.
+Paso 3: devolver  el nuevo  token
+El backend  devuelve  el token actualizado  en los encabezados  de la respuesta.
+Encabezado Valor
+authorization Nuevo  JWT de la aplicación
+Ejemplo: authorization: eyJhbGciOi...
+Responsabilidades del frontend
+El frontend  debe supervisar  el encabezado  de la respuesta  de autorización.  Cada 
+vez que se reciba un nuevo token:
+1. Sustituya  el token existente.
+2. Actualizar  el almacenamiento  local.
+3. Utilizar  el nuevo token para futuras  solicitudes.
+Este proceso  debe realizarse  automáticamente  a través del interceptor  HTTP.
+6.6. Adición automática de tokens
+Muchas  implementaciones  de backend  adjuntan  los tokens  actualizados  automáticamente  antes de enviar las respuestas.  Esto 
+garantiza  que el frontend  reciba siempre  la información  de autenticación  más reciente.
+Procesamiento de la respuesta
+Valor Acción
+Nuevo  token de Cognito Actualizar  la cookie  de Cognito
+Nuevo  JWT de la aplicación Devolución  a través del encabezado  de autorización
+
+--- PAGE 48 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página48 de 85
+Solicitud
+↓
+Validar  Cognito
+↓
+Validar  el JWT de la aplicación
+↓
+Actualizar tokens si es necesario
+↓
+Adjuntar  los tokens  actualizados
+↓
+Devolver la respuesta
+Ejemplo de respuesta Ciclo de vida
+Ejemplos  del marco
+Marco Implementación típica
+Express.js El middleware  actualiza  la respuesta  antes de res.send()
+NestJS Los guards  o interceptores  actualizan  los encabezados  de la respuesta
+6.7. Gestión de errores de autenticación
+Los errores  de autenticación  siempre  deben  seguir un enfoque  de seguridad  ante fallos.
+Siempre  que las operaciones  de validación  o actualización  no puedan  completarse  con éxito, se debe denegar  el acceso  de inmediato.
+Escenarios de fallo
+Escenario Acción
+Token  de Cognito  no válido Devolver HTTP 401
+Token de actualización caducado Devuelve HTTP 401
+JWT de aplicación  no válido Devuelve HTTP 401
+Error en el servicio de actualización Devuelve HTTP 401
+Faltan  datos de autenticación Respuesta HTTP 401
+
+--- PAGE 49 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página49 de 85
+Acciones del backend
+Cuando  falla la autenticación:
+1. Borrar  las cookies  de autenticación.
+2. Eliminar  la información  de sesión.
+3. Devolver HTTP 401 No autorizado.
+4. Incluir información  sobre el error cuando  sea pertinente.
+Acciones del frontend
+Al recibir el código  HTTP 401:
+1. Borrar  el almacenamiento  local.
+2. Borrar  el almacenamiento  de sesión.
+3. Elimina  el token de la aplicación.
+4. Redirigir  a la página  de inicio de sesión.
+5. Reinicia  el proceso  de autenticación.
+6.8. Resumen
+El modelo  de autenticación  de TYPSA  utiliza una sólida estrategia  de validación  de dos capas para mantener  sesiones  de usuario  seguras  
+e ininterrumpidas.
+Al combinar  la validación  de identidad  de Cognito  con la autorización  específica  de la aplicación,  la plataforma  garantiza  que los usuarios  
+autenticados  puedan  acceder  de forma segura  a los recursos  protegidos,  al tiempo  que minimiza  las solicitudes  de inicio de sesión  
+innecesarias.
+El proceso  de actualización  automática  de tokens  proporciona  una experiencia  de usuario  fluida, al tiempo  que mantiene  estrictos  controles  
+de seguridad  en todas las aplicaciones  integradas.
+
+--- PAGE 50 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página50 de 85
+7. Especificaciones de las cookies
+7.1. Descripción general
+La plataforma  TYPSA  SSO utiliza cookies  para mantener  el estado  de autenticación  en todas las aplicaciones,  dominios  y sesiones  de 
+usuario.
+Las cookies  desempeñan  un papel fundamental  a la hora de permitir  una autenticación  fluida, operaciones  de actualización  de tokens  y 
+experiencias  de usuario  entre aplicaciones.  La plataforma  define una estructura  de cookies  estandarizada  que debe implementarse  de 
+manera  coherente  en todas las aplicaciones  integradas.
+Al utilizar  un espacio  de nombres  de cookies  común,  las aplicaciones  pueden  compartir  el contexto  de autenticación  al tiempo  que  
+mantienen  controles  de autorización  específicos  de cada  aplicación.
+Finalidad de las cookies de autenticación
+Las cookies  de autenticación  se utilizan  para:
+▪ Mantener  la información  de la sesión  de Cognito.
+▪ Admitir  la autenticación  silenciosa.
+▪ Habilitar  operaciones  de actualización  de tokens.
+▪ Realizar  un seguimiento  de las sesiones  de usuario  activas.
+▪ Compartir  el estado  de autenticación  entre aplicaciones  TYPSA.
+▪ Mejorar  la experiencia  del usuario  reduciendo  las solicitudes  de inicio de sesión  repetidas.
+Estrategia de cookies
+El modelo  de autenticación  de TYPSA  separa  la información  confidencial  de la no confidencial  en diferentes  tipos de cookies.
+Tipo de cookie Finalidad
+Cookies  de identidad Almacenan  información  de autenticación  de Cognito.
+Cookies  de sesión Realizan  un seguimiento  de los usuarios  autenticados  activos.
+Cookies  de aplicación Admiten  flujos de autenticación  específicos  de la aplicación.
+Actualizar cookies Permiten  la renovación  automática  de tokens.
+
+--- PAGE 51 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página51 de 85
+Correo electrónico: user@company.com
+safeEmail: dXNlckBjb21wYW55LmNvbQ Cookies:
+typsa_refresh_token_dXNlckBjb21wYW55LmNvbQ typsa_cognito_token_dXNlckBjb21wYW55LmNvbQ 
+typsa_sub_dXNlckBjb21wYW55LmNvbQ
+7.2. Inventario de cookies
+Las siguientes  cookies  son necesarias  para una integración  adecuada  con la plataforma  TYPSA  SSO.
+Cookies de autenticación
+Nombre de la 
+cookie
+Patrón httpOnly Segura SameSite
+Vigenci
+a 
+máxim
+a
+Gestionado 
+por
+Token de 
+actualización de 
+Cognito
+typsa_refresh_token_{safeEmail} Sí Sí Ninguno 360
+Días
+Backend
+Token  de Cognito typsa_cognito_token_{safeEmail} No Sí Ninguno 360
+Días
+Backend
+Cognito Nombre de 
+usuario
+typsa_sub_{safeEmail} Sí Sí Ninguno 360
+Días
+Backend
+Correo  electrónico  
+activo
+typsa_active_email No Sí Ninguno 360
+Días
+Backend
+Aplicación 
+Correo 
+electrónico 
+activo
+{APP_PREFIX}_active_email No Sí Ninguno 360
+Días
+Backend
+Convención  de nomenclatura  de cookies
+Cada usuario  autenticado  recibe un conjunto  único de cookies  basado  en su dirección  de correo  electrónico.  
+Ejemplo:
+Este enfoque  evita conflictos  cuando  varios usuarios  se autentican  en el mismo  navegador.
+7.3. Finalidad y uso de las cookies
+Cada cookie  tiene una finalidad  específica  dentro  del ciclo de vida de la autenticación.
+Token de actualización de Cognito
+Patrón de la cookie: typsa_refresh_token_{safeEmail}
+Finalidad
+Almacena  el token de actualización  de Cognito  utilizado  para obtener  nuevos  tokens  de acceso  e identidad  de Cognito.
+
+--- PAGE 52 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página52 de 85
+Características
+▪ Solo HTTP
+▪ Seguro
+▪ No accesible  desde JavaScript
+▪ Requerido  para la renovación  automática  de tokens
+Token  de ID de Cognito
+Patrón de cookie: typsa_cognito_token_{safeEmail}
+Finalidad
+Almacena  el token de identidad  de Cognito  utilizado  por las aplicaciones  frontend  y los servicios  backend.
+Características
+▪ Legible  por las aplicaciones  front-end
+▪ Se utiliza para recuperar  información  del perfil
+▪ Se utiliza para detectar  sesiones  existentes
+▪ Se actualiza  automáticamente  tras las operaciones  de actualización
+Nombre de usuario de Cognito
+Patrón de la cookie: typsa_sub_{safeEmail}
+Finalidad
+Almacena  el nombre  de usuario  de Cognito  necesario  durante  las operaciones  de actualización  de tokens.
+Características
+▪ Solo HTTP
+▪ Solo acceso  al backend
+▪ Nunca  se expone  a los scripts  del navegador
+Cookie de correo electrónico activo
+Patrón de la cookie: typsa_active_email
+Finalidad
+Identifica  al usuario  actualmente  autenticado.
+Características
+▪ Compartida entre las aplicaciones de TYPSA
+▪ Admite  la detección  de sesión
+▪ Se utiliza durante  los flujos de trabajo  de inicio de sesión
+
+--- PAGE 53 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página53 de 85
+Cookie de correo electrónico activo de la aplicación
+Patrón de la cookie: {APP_PREFIX}_active_email
+Finalidad
+Mantiene  el contexto  de sesión  específico  de la aplicación.
+Características
+▪ Única por aplicación
+▪ Evita conflictos  entre varias aplicaciones
+▪ Admite  flujos de autenticación  específicos  de la aplicación
+7.4. Atributos de seguridad de las cookies
+Todas  las cookies  de autenticación  deben  configurarse  con los ajustes  de seguridad  adecuados  para proteger  las sesiones  de los usuarios.
+Atributos obligatorios
+Atributo Valor Finalidad
+Seguro true Restringe  la transmisión  de cookies  a conexiones  HTTPS.
+SameSite None Permite  compartir  cookies  entre dominios.
+Path / Hace que la cookie  esté disponible  en toda la aplicación.
+MaxAge 360 días Admite  sesiones  de actualización  de larga duración.
+Ventajas de seguridad
+Esta configuración  ayuda a proteger  contra:
+▪ Secuestro de sesión
+▪ Interceptación de cookies
+▪ Fallos de autenticación  entre sitios
+▪ Acceso  no autorizado  a tokens
+7.5. Configuración  del dominio  de las cookies
+Los dominios de cookies determinan qué aplicaciones pueden acceder a las cookies de autenticación.
+Para admitir  la autenticación  entre subdominios,  las cookies  deben  configurarse  con dominios  específicos  del entorno.
+
+--- PAGE 54 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página54 de 85
+{
+dominio:  '.typsadev.com',  seguro:  true,
+sameSite: 'none'
+}
+Configuración de dominios
+Entorno Dominio
+Desarrollo local localhost
+Desarrollo .typsadev.com
+Producción .typsa.com
+Ejemplo de configuración
+Autenticación entre dominios
+El uso de dominios  de cookies  compartidos  permite:
+▪ Inicio de sesión  único entre aplicaciones
+▪ Estado  de autenticación  compartido
+▪ Reducción  de la frecuencia  de inicio de sesión
+▪ Una experiencia  de usuario  coherente
+7.6. Por qué el token de identificación de Cognito no es solo HTTP
+A diferencia  del token de actualización  y de las cookies  de nombre  de usuario  de Cognito,  el token de identificación  de Cognito  es accesible  
+de forma intencionada  para las aplicaciones  front-end.
+Este diseño  da respuesta  a varios requisitos  del frontend.
+Casos de uso del frontend
+El token de identificación  de Cognito  es necesario  para:
+▪ Recuperación  de la imagen  de perfil
+▪ Recuperación  del perfil de usuario
+▪ Detección  de sesiones  existentes
+▪ Flujos de trabajo de inicio de sesión silencioso
+
+--- PAGE 55 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página55 de 85
+GET /sso/me
+Autorización: <cognito_id_token>
+Inicio de sesión  del usuario
+↓
+El backend  crea cookies
+↓
+Solicitudes  autenticadas
+↓
+Validación de tokens
+↓
+Actualización del token (si es necesario)
+↓
+Actualización  de la cookie
+↓
+Cerrar sesión
+↓
+Eliminación  de cookies
+Ejemplo
+Las aplicaciones  frontend  pueden  llamar a:
+para recuperar  la imagen  de perfil del usuario.
+Dado que el frontend  requiere  acceso  a este token, la cookie  no se puede  configurar  como «solo HTTP».
+Consideraciones de seguridad
+Aunque  es legible  por el frontend:
+▪ El token tiene una vida útil corta.
+▪ Los tokens  de actualización  siguen  estando  protegidos.
+▪ La autenticación  sigue dependiendo  de la validación  del backend.
+▪ El uso de HTTPS  es obligatorio  en entornos  no locales.
+Esto proporciona  un equilibrio  aceptable  entre funcionalidad  y seguridad.
+7.7. Ciclo de vida de las cookies
+El siguiente  diagrama  ilustra el ciclo de vida de las cookies  de autenticación.
+Ciclo de vida de las cookies de autenticación
+
+--- PAGE 56 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página56 de 85
+7.8. Cierre de sesión y limpieza de cookies
+Cuando  un usuario  cierra sesión,  todas las cookies  de autenticación  deben  eliminarse  
+inmediatamente.  Esto evita que se reutilicen  datos de autenticación  caducados  o no válidos.
+Cookies que se deben eliminar
+Las aplicaciones  deben  eliminar:
+▪ typsa_refresh_token_*
+▪ typsa_cognito_token_*
+▪ typsa_sub_*
+▪ typsa_active_email
+▪ {APP_PREFIX}_active_email
+Requisitos de limpieza
+El proceso  de eliminación  de cookies  debe utilizar  lo mismo:
+▪ Dominio
+▪ Ruta
+▪ Configuración  de seguridad
+▪ Configuración  de SameSite
+que se utilizaron  cuando  se creó originalmente  la cookie.
+Si no se utilizan  valores  coincidentes,  es posible  que las cookies  no se eliminen  correctamente.
+7.9. Resumen
+El modelo  de cookies  TYPSA  ofrece  un enfoque  seguro  y estandarizado  para mantener  sesiones  autenticadas  entre aplicaciones.
+Mediante  el uso de convenciones  de nomenclatura  compartidas,  atributos  de cookies  seguros  y dominios  específicos  para cada entorno,  
+las aplicaciones  pueden  ofrecer  una experiencia  de inicio de sesión  único coherente,  al tiempo  que mantienen  controles  de seguridad  
+rigurosos.
+
+--- PAGE 57 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página57 de 85
+Frontend
+│  Autorización
+│ x-cognito-id-token
+│ x-cognito-refresh-token
+▼
+Backend
+│  autorización
+│ x-cognito-new-id-token
+▼
+Frontend
+8. Referencia  de encabezados  HTTP
+8.1. Descripción general
+Los encabezados  HTTP se utilizan  en toda la plataforma  de autenticación  TYPSA  para intercambiar  información  de autenticación  entre 
+aplicaciones  front-end,  servicios  back-end  y el servicio  TYPSA  SSO.
+Estos encabezados  permiten  la transmisión  segura  de tokens  de aplicación,  información  de autenticación  de Cognito  y respuestas  de 
+actualización  de tokens.
+Una implementación  coherente  de estos encabezados  es esencial  para garantizar  la interoperabilidad  entre todas las aplicaciones  
+integradas  con TYPSA.
+Categorías de encabezados
+El flujo de autenticación  utiliza tres categorías  de encabezados:
+Categoría Propósito
+Frontend  → Backend Autenticar  las solicitudes  de la aplicación.
+Backend  → Frontend Devolver  tokens  de autenticación  actualizados.
+Frontend → Servicio SSO Acceder  a los servicios  de perfil de usuario.
+Flujo de autenticación  Flujo de 
+encabezados  de autenticación
+8.2. Encabezados de solicitud (Frontend → Backend)
+La aplicación  de interfaz  de usuario  envía información  de autenticación  a los servicios  de backend  a través de los encabezados  de solicitud  
+HTTP.
+Estos encabezados  identifican  al usuario  autenticado  y permiten  a los servicios  de backend  validar  la sesión  actual.
+
+--- PAGE 58 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página58 de 85
+GET /api/projects
+Authorization: Bearer eyJhbGciOi... Content-
+Type: application/json
+Encabezados de autenticación estándar
+Encabezado Cuándo  se utiliza Descripción
+Authorization Todas  las solicitudes  autenticadas JWT de la aplicación
+x-api-key Opcional Clave API específica  de la aplicación
+Tipo de contenido Cuerpo  de la solicitud  presente Indica el formato  de la carga útil
+Encabezado de autorización
+El encabezado  de autorización  contiene  el JWT de la aplicación  emitido  por el backend.  Ejemplo:  
+Authorization:  Bearer  eyJhbGciOi...
+Finalidad
+El JWT de la aplicación  se utiliza para:
+▪ Identificar  al usuario  autenticado.
+▪ Validar los permisos.
+▪ Aplicar  el control  de acceso.
+▪ Hacer posible  la gestión  de sesiones.
+Cada punto final de API protegido  debe validar  este encabezado.
+Solicitud autenticada típica
+8.3. Encabezados de la solicitud de inicio de sesión
+Durante  el proceso  de autenticación  inicial,  el frontend  debe proporcionar  la información  de autenticación  de Cognito  al backend.
+Estos encabezados  solo son necesarios  al llamar al punto final de inicio de sesión.
+Encabezados de inicio de sesión obligatorios
+Encabezado Descripción
+x-cognito-id-token Token  de identidad  de Cognito
+x-cognito-refresh-token Token  de actualización  de Cognito
+
+--- PAGE 59 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página59 de 85
+POST /auth/login/sso
+Content-Type: application/json x-cognito-
+id-token: eyJhbGciOi...
+x-cognito-refresh-token: eyJhbGciOi...
+{
+"email":  "user@company.com "
+}
+Ejemplo de solicitud de inicio de sesión
+Propósito
+El backend  utiliza estos valores  para:
+1. Validar  la identidad  de Cognito.
+2. Crear cookies  de autenticación.
+3. Generar  el JWT de la aplicación.
+4. Establecer  la sesión  autenticada.
+Recomendación de seguridad
+Estos encabezados  solo deben  transmitirse  durante  el inicio de sesión.  Las 
+solicitudes  posteriores  deben  basarse  en:
+▪ JWT de la aplicación
+▪ Cookies  de autenticación
+Esto minimiza  la exposición  innecesaria  del token.
+8.4. Encabezados de respuesta (backend → frontend)
+Los servicios  de backend  pueden  devolver  información  de autenticación  a través de los encabezados  de respuesta.
+Estos encabezados  permiten  a la aplicación  frontend  mantener  un estado  de autenticación  actualizado.
+Encabezados de respuesta disponibles
+Encabezado Propósito
+authorization JWT de la aplicación  actualizado
+x-cognito-new-id-token Token  de identificación  de Cognito  actualizado
+Set-Cookie Actualizaciones  de la cookie  de autenticación
+
+--- PAGE 60 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página60 de 85
+JWT de aplicación actualizado
+Cuando  el backend  genera  un JWT de aplicación  de sustitución,  devuelve  el token utilizando  el encabezado  de respuesta  de autorización.
+Ejemplo: authorization: eyJhbGciOi...
+A diferencia  de los encabezados  de solicitud,  el valor de la respuesta  no incluye  el prefijo Bearer.
+Responsabilidades del frontend
+Cuando  se recibe un nuevo encabezado  de autorización:
+1. Leer el encabezado.
+2. Sustituir  el token existente.
+3. Actualizar  el almacenamiento  local.
+4. Utilizar  el nuevo token para futuras  solicitudes.
+Este proceso  debe ser gestionado  automáticamente  por el interceptor  HTTP.
+8.5. Encabezados de actualización de Cognito
+Durante  las operaciones  de actualización  de tokens,  el backend  puede  devolver  un nuevo token de identidad  de Cognito.
+Definición del encabezado
+Encabezado Descripción
+x-cognito-new-id-token Token  de identidad  de Cognito  recién generado
+Respuesta  de ejemplo
+x-cognito-new-id-token:  eyJhbGciOi...
+Propósito
+El encabezado  permite  a las aplicaciones:
+▪ Actualizar  la información  de identidad  de Cognito.
+▪ Mantener  el acceso  a los servicios  de perfil.
+▪ Seguir  utilizando  puntos  finales  SSO autenticados.
+Uso opcional
+Este encabezado  es opcional  y depende  de la implementación  del backend.
+Algunas  aplicaciones  pueden  basarse  completamente  en cookies  actualizadas  en lugar de devolver  tokens  de Cognito  actualizados  a 
+través de los encabezados.
+
+--- PAGE 61 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página61 de 85
+GET /sso/me Autorización: 
+eyJhbGciOi...
+Authorization:  Bearer  eyJhbGciOi...
+8.6. Encabezados de solicitud (frontend → servicio SSO)
+Ciertos  puntos  finales  del servicio  SSO requieren  autenticación  directa  desde el frontend.  El ejemplo  
+más común  es la recuperación  de la imagen  de perfil.
+Punto final compatible
+Punto final Método de autenticación
+/sso/m e Token  de ID de Cognito  sin procesar
+Solicitud  de ejemplo
+Nota importante
+A diferencia  de los patrones  de autenticación  de API tradicionales,  este punto final espera  el token de ID de Cognito  sin 
+procesar.  No incluyas:
+La solicitud  debe contener  únicamente  el valor del token.
+8.7. Requisitos  de los encabezados  CORS
+Para admitir  flujos de trabajo  de autenticación  entre dominios,  los servicios  de backend  deben  exponer  encabezados  de respuesta  
+específicos.
+Sin esta configuración,  los navegadores  impedirán  que las aplicaciones  front-end  accedan  a la información  de autenticación  actualizada.
+Configuración CORS requerida
+Configuración Valor
+credentials true
+encabezados 
+expuestos
+["x-cognito-new-id-token",  "authorization"]
+orígenes permitidos Dominios  de interfaz  de usuario  permitidos
+allowedHeaders
+["Content-Type",  "Authorization",  "x-api-key",  "x-cognito-id-token",  "x-cognito-refresh-token"]
+
+--- PAGE 62 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página62 de 85
+app.use(cors({
+origin: allowedOrigins,  credentials:  
+true, exposedHeaders:  [
+"x-cognito-new-id-token", 
+"authorization"
+],
+allowedHeaders: [ 
+"Content-Type", 
+"Authorization",
+"x-api-key",
+"x-cognito-id-token",
+"x-cognito-refresh-token"
+]
+}));
+Por qué son importantes  estos encabezados
+Encabezado Propósito
+authorization Permite  que las aplicaciones  frontend  reciban  JWT de aplicación  actualizados.
+x-cognito-new-id-token Permite  que las aplicaciones  frontend  reciban  tokens  de Cognito  actualizados.
+Ejemplo de configuración
+8.8. Prácticas recomendadas de seguridad para los encabezados
+Los encabezados  de autenticación  contienen  información  confidencial  y deben  manejarse  con cuidado.  Las 
+aplicaciones  deben  seguir las recomendaciones  que se indican  a continuación.
+Hacer
+▪ Utilice HTTPS para todas las solicitudes.
+▪ Valide  todos los encabezados  de autenticación  entrantes.
+▪ Elimine  los tokens  caducados.
+▪ Rote los tokens  renovados  inmediatamente.
+▪ Protege  las API de backend  con middleware  de autenticación.
+No
+▪ Registrar  los encabezados  de autenticación.
+▪ Almacenar  tokens  de actualización  en el almacenamiento  local.
+▪ Exponer  encabezados  confidenciales  a dominios  no autorizados.
+▪ Aceptar  datos de autenticación  malformados.
+
+--- PAGE 63 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página63 de 85
+8.9. Resumen
+Los encabezados  HTTP proporcionan  el mecanismo  de comunicación  utilizado  para intercambiar  información  de autenticación  entre 
+aplicaciones  front-end,  servicios  back-end  y la plataforma  TYPSA  SSO.
+La implementación  adecuada  de los encabezados  de solicitud,  los encabezados  de respuesta  y la configuración  CORS  es esencial  para 
+garantizar  una autenticación  segura,  la actualización  automática  de tokens  y una experiencia  de usuario  fluida en todas las aplicaciones  
+TYPSA.
+
+--- PAGE 64 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página64 de 85
+9. Diagramas  de secuencia
+9.1. Descripción general
+Los siguientes  diagramas  de secuencia  ilustran  los flujos de trabajo  de autenticación  clave implementados  por la plataforma  TYPSA  SSO.
+Estos diagramas  ofrecen  una representación  visual de las interacciones  entre los usuarios,  las aplicaciones  front-end,  los servicios  back-
+end, Azure Active Directory,  AWS Cognito  y el servicio  TYPSA  SSO.
+Comprender  estos flujos de trabajo  es esencial  para implementar  la autenticación  correctamente  y resolver  problemas  relacionados  con 
+la autenticación.
+Los diagramas  de secuencia  descritos  en esta sección  representan  los tres escenarios  de autenticación  más importantes:
+▪ Autenticación inicial del usuario.
+▪ Actualización  automática  del token.
+▪ Cierre de sesión del usuario.
+9.2. Flujo de inicio de sesión completo
+El flujo de inicio de sesión  completo  describe  el proceso  de autenticación  completo  que tiene lugar cuando  un usuario  accede  a una 
+aplicación  sin una sesión  autenticada  existente.
+El proceso  comienza  cuando  el usuario  introduce  una dirección  de correo  electrónico  corporativa  y finaliza  con la creación  de una sesión  de 
+aplicación  autenticada.
+Objetivos de la autenticación
+El proceso  de inicio de sesión  se encarga  de:
+▪ Autenticar  a los usuarios  a través de Azure Active Directory.
+▪ Generar  tokens  de autenticación  de Cognito.
+▪ Crear cookies  de autenticación  TYPSA.
+▪ Generar  JWT específicos  de la aplicación.
+▪ Establecer  sesiones  de usuario  autenticadas.
+Descripción del proceso
+La secuencia  de autenticación  consta  de los siguientes  pasos:
+Paso 1: el usuario inicia el inicio de sesión
+El usuario  accede  a la página  de inicio de sesión  de la aplicación  e introduce  una dirección  de correo  electrónico  corporativa.
+
+--- PAGE 65 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página65 de 85
+Paso 2: la interfaz redirige al servicio SSO
+La interfaz  redirige  el navegador  al servicio  SSO de TYPSA.
+El servicio  SSO determina  el inquilino  de Azure Active Directory  adecuado.
+Paso 3: Autenticación de Azure AD
+El usuario  se autentica  utilizando  credenciales  corporativas.
+Se pueden  aplicar  controles  de seguridad  adicionales  en función  de las políticas  de la organización.  Algunos  
+ejemplos  son:
+▪ Autenticación  multifactor  (MFA)
+▪ Políticas  de acceso  condicional
+▪ Validación  del cumplimiento  de los dispositivos
+Paso 4: generación del token de Cognito
+Tras una autenticación  correcta,  AWS Cognito  genera:
+▪ Token de identificación
+▪ Token  de acceso
+▪ Token de actualización
+Paso 5: Procesamiento de la llamada de retorno del frontend
+El servicio  SSO redirige  al usuario  de vuelta a la aplicación  del frontend.  La ruta de 
+callback  recibe los tokens  de autenticación  de Cognito.
+Paso 6: Autenticación  en el backend
+El frontend  llama al punto final de inicio de sesión  del backend.
+El backend  valida la identidad  de Cognito  y genera  un JWT de la aplicación.
+Paso 7: Creación de la sesión
+Se crean cookies  de autenticación  y se devuelven  al navegador.
+El frontend  almacena  el token de la aplicación  y redirige  al usuario  a la aplicación.
+
+--- PAGE 66 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página66 de 85
+Diagrama  de secuencia:  
+flujo completo  de inicio de 
+sesión
+Resultado esperado
+Al final de este proceso:
+▪ El usuario queda autenticado.
+▪ Se crean las cookies  de autenticación.
+▪ Se emite el JWT de la aplicación.
+▪ Se puede  acceder  a los recursos  protegidos.
+9.3. Flujo de actualización silenciosa de tokens
+El flujo de actualización  silenciosa  de tokens  se produce  automáticamente  cuando  los tokens  de autenticación  caducan  durante  el uso 
+normal  de la aplicación.
+El objetivo  es renovar  los tokens  sin necesidad  de que el usuario  intervenga.
+Este proceso  mejora  la experiencia  del usuario  al mantener  las sesiones  activas  de forma transparente.
+Cuándo se produce la actualización del token
+La actualización  del token puede  activarse  cuando:
+▪ El token de identificación  de Cognito  caduca.
+▪ El JWT de la aplicación  caduca.
+▪ La validación  de la sesión  requiere  datos de autenticación  actualizados.
+
+--- PAGE 67 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página67 de 85
+Objetivos de la actualización
+El proceso  de actualización  se encarga  de:
+▪ Mantener  las sesiones  autenticadas.
+▪ Evitar la reautenticación  innecesaria.
+▪ Actualizar  los tokens  de Cognito.
+▪ Actualizar  los JWT de la aplicación.
+Descripción del proceso
+Paso 1: el usuario  realiza  una solicitud  autenticada
+El frontend  envía una solicitud  que contiene:
+▪ JWT de la aplicación
+▪ Cookies  de autenticación
+Paso 2: el backend valida el token de Cognito
+El backend  verifica  el token de identidad  de Cognito.
+Si el token sigue siendo  válido,  el procesamiento  continúa  con normalidad.
+Paso 3: el backend actualiza el token de Cognito
+Si el token ha caducado:
+1. Se recupera  el token de actualización.
+2. Se recupera  el nombre  de usuario.
+3. Se llama al punto final de actualización.
+4. Se recibe el nuevo token de Cognito.
+Paso 4: el backend valida el JWT de la aplicación El 
+backend  valida el token de la aplicación.  Si ha caducado,  
+se genera  un token de sustitución.  Paso 5: se devuelven  
+los tokens  actualizados
+El backend  devuelve:
+▪ Cookies  actualizadas
+▪ Nuevo encabezado de autorización
+Paso 6: el frontend actualiza el estado local
+El frontend  almacena  el JWT de la aplicación  actualizado  y continúa  procesando  normalmente.
+
+--- PAGE 68 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página68 de 85
+El usuario  no se da cuenta  de que se ha renovado  el token.
+Diagrama  de secuencia
+Flujo de actualización silenciosa del token
+Resultado esperado
+El usuario  sigue trabajando  sin interrupciones.
+La información  de autenticación  se actualiza  de forma automática  y segura.
+9.4. Flujo de cierre de sesión
+El flujo de cierre de sesión  describe  el proceso  utilizado  para finalizar  una sesión  autenticada.
+El cierre de sesión  elimina  la información  de autenticación  almacenada  localmente  e invalida  la sesión  dentro  de la aplicación.
+
+--- PAGE 69 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página69 de 85
+Objetivos del cierre de sesión
+El proceso  de cierre de sesión  se encarga  de:
+▪ Eliminar  los tokens  de la aplicación.
+▪ Borrar  las cookies  de autenticación.
+▪ Borrar  la información  de la sesión.
+▪ Evitar la reutilización  no autorizada  de los datos de autenticación.
+Descripción del proceso
+Paso 1: el usuario inicia el cierre de sesión
+El usuario  selecciona  la opción  de cierre de sesión  en la interfaz  de la aplicación.
+Paso 2: el frontend borra los datos locales
+El frontend  elimina:
+▪ JWT de la aplicación
+▪ Información  del perfil de usuario
+▪ El estado  de la sesión
+Paso 3: Solicitud de cierre de sesión del backend
+El frontend  invoca:
+POST /auth/logout/sso  Paso 4: 
+limpieza  de cookies  El 
+backend  elimina:
+▪ Las cookies  de Cognito
+▪ Las cookies  de correo  electrónico  activas
+▪ Las cookies  de sesión  de la aplicación
+Paso 5: redireccionamiento del usuario
+El frontend  redirige  al usuario  a la página  de inicio de sesión.
+
+--- PAGE 70 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página70 de 85
+Diagrama  de secuencia:  
+flujo de cierre de sesión
+Resultado esperado
+Al finalizar  el proceso  de cierre de sesión:
+▪ Se eliminan  todas las cookies  de autenticación.
+▪ Se elimina  el JWT de la aplicación.
+▪ Se borra la información  de la sesión.
+▪ Se revoca  el acceso  a los recursos  protegidos.
+
+--- PAGE 71 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página71 de 85
+9.5. Directrices  de uso de diagramas
+Al mantener o ampliar la plataforma de autenticación TYPSA, los diagramas de secuencia deben actualizarse siempre que:
+▪ Cambien  los flujos de autenticación.
+▪ Se introduzcan  nuevos  tipos de tokens.
+▪ Se añaden  controles  de seguridad  adicionales.
+▪ Se modifiquen  los procesos  de validación  del backend.
+Mantener  los diagramas  sincronizados  con los detalles  de implementación  mejora  la facilidad  de mantenimiento  y reduce  el esfuerzo  de 
+incorporación  para los equipos  de desarrollo.
+9.6. Resumen
+Los diagramas  de secuencia  presentados  en esta sección  describen  el ciclo de vida completo  de la autenticación  dentro  de la plataforma  
+TYPSA  SSO.
+En conjunto,  estos flujos de trabajo  ilustran:
+▪ La autenticación del usuario.
+▪ Establecimiento de la sesión.
+▪ Renovación del token.
+▪ Terminación de la sesión.
+Comprender  estas interacciones  permite  a los equipos  de desarrollo  integrar  aplicaciones  de forma coherente  y resolver  problemas  de 
+autenticación  con mayor  eficacia.
+
+--- PAGE 72 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página72 de 85
+10. Consideraciones de seguridad
+10.1. Descripción general
+La seguridad  es un aspecto  fundamental  de la plataforma  de inicio de sesión  único (SSO) de TYPSA.  La arquitectura  de autenticación  se 
+ha diseñado  para proteger  las identidades  de los usuarios,  los tokens  de autenticación,  las sesiones  de las aplicaciones  y los recursos  de 
+la organización,  al tiempo  que se mantiene  una experiencia  de usuario  fluida.
+La plataforma  aprovecha  Microsoft  Azure Active Directory,  AWS Cognito,  la gestión  segura  de cookies  y controles  de autorización  
+específicos  de la aplicación  para establecer  un modelo  de seguridad  por capas.
+En esta sección  se describen  los controles  de seguridad,  las responsabilidades  y las prácticas  recomendadas  que deben  seguir todas las 
+aplicaciones  que se integren  con la plataforma  TYPSA  SSO.
+10.2. Modelo de responsabilidad compartida
+La seguridad  de la autenticación  es una responsabilidad  compartida  entre la plataforma  TYPSA  SSO y la aplicación  que se integra.
+Cada componente  tiene responsabilidades  específicas  dentro  de la arquitectura  de seguridad  global.
+Matriz de responsabilidades
+Componente Responsabilidades de seguridad
+Azure Active Directory Autenticación  de usuarios,  MFA, acceso  condicional,  protección  de identidad
+AWS Cognito Generación  de tokens,  federación,  gestión  del ciclo de vida de los tokens
+Servicio SSO de TYPSA Validación  de inquilinos,  intercambio  de tokens,  servicios  de actualización
+Backend de la aplicación Autorización,  generación  de JWT, gestión  de cookies
+Frontend de la aplicación Gestión  segura  de tokens,  gestión  de sesiones,  procesamiento  de cierre de sesión
+Usuario  final Protección  de credenciales  y cumplimiento  de MFA
+10.3. Modelo de seguridad de autenticación
+La plataforma  TYPSA  utiliza una arquitectura  de autenticación  por capas.  La 
+autenticación  se divide en dos responsabilidades  distintas:  Verificación  de 
+identidad
+Realizada  a través de:
+▪ Microsoft  Azure Active Directory
+▪ AWS Cognito
+Esta capa verifica  quién es el usuario.
+
+--- PAGE 73 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página73 de 85
+Autorización de la aplicación
+Realizada  a través de:
+▪ JWT de la aplicación
+▪ Middleware  de autorización
+▪ Controles  de acceso  basados  en roles
+Esta capa determina  a qué puede  acceder  el usuario  autenticado.
+Ventajas de seguridad
+Esta separación  proporciona:
+▪ Menor  dependencia  de proveedores  externos.
+▪ Autorización  específica  para cada aplicación.
+▪ Mayor escalabilidad.
+▪ Mejor gestión  de sesiones.
+▪ Auditoría  de seguridad  simplificada.
+10.4. Resumen
+La plataforma  TYPSA  SSO emplea  un modelo  de seguridad  por capas que combina  Azure Active Directory,  AWS Cognito,  la gestión  
+segura  de cookies  y controles  de autorización  específicos  para cada aplicación.
+Siguiendo  las prácticas  descritas  en esta sección,  las aplicaciones  pueden  mantener  flujos de trabajo  de autenticación  seguros,  proteger  las 
+identidades  de los usuarios  y reducir  el riesgo de acceso  no autorizado  a los recursos  corporativos.
+
+--- PAGE 74 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página74 de 85
+11. Solución de problemas
+11.1. Descripción general
+Esta sección  ofrece  orientación  para identificar,  diagnosticar  y resolver  problemas  comunes  que surgen  durante  la integración  y el 
+funcionamiento  de la plataforma  de inicio de sesión  único (SSO) de TYPSA.
+Los procedimientos  de resolución  de problemas  descritos  en esta sección  deben  ser utilizados  por los equipos  de desarrollo,  los 
+administradores  de la plataforma,  los ingenieros  de DevOps  y el personal  de soporte  técnico  al investigar  incidentes  relacionados  con la 
+autenticación.
+Un enfoque  estructurado  de resolución  de problemas  puede  reducir  significativamente  el tiempo  de diagnóstico  y mejorar  la disponibilidad  
+del servicio.
+Metodología de resolución de problemas
+Al investigar  problemas  de autenticación,  se debe seguir la siguiente  secuencia:
+1. Verificar  la configuración  del frontend.
+2. Comprueba  la configuración  del backend.
+3. Valida  los tokens  de Cognito.
+4. Valida  las cookies  de autenticación.
+5. Revisa  el tráfico de red del navegador.
+6. Revisa  los registros  del backend.
+7. Revisa los registros del servicio SSO.
+8. Verificar la configuración de Azure AD.
+9. Verificar  la configuración  de Cognito.
+11.2. Errores de inicio de sesión
+Los errores  de inicio de sesión  se producen  cuando  los usuarios  no pueden  completar  el proceso  de autenticación  correctamente.
+Síntoma
+Los usuarios  son redirigidos  de nuevo a la página  de inicio de sesión  o reciben  un mensaje  de error de autenticación.
+Causa Descripción
+Dominio de correo electrónico no válido El dominio  no está registrado  en la plataforma  TYPSA.
+Error de autenticación  de Azure AD Las credenciales  del usuario  no son válidas  o están bloqueadas.
+Falta la configuración  del inquilino La asignación  de dominios  no está disponible.
+Problema  de configuración  de Cognito Error de integración  del proveedor  de identidad.
+URL de redireccionamiento  no válida Discrepancia  en la configuración  de la llamada  de retorno.
+
+--- PAGE 75 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página75 de 85
+Pasos de diagnóstico
+1. Verifica  el dominio  de correo  electrónico  del usuario.
+2. Confirme  que el dominio  existe en la configuración  del inquilino.
+3. Revise los registros del servicio SSO.
+4. Comprueba el registro del inquilino de Azure AD.
+5. Valida  la configuración  del proveedor  de identidad  de Cognito.
+6. Revisa  las solicitudes  de red del navegador.
+Solución
+Problema Solución
+Dominio desconocido Registre  el inquilino  y el dominio.
+Configuración de Azure AD no válida Corrija la configuración de Azure AD.
+Error del proveedor  Cognito Verifica  la configuración  del proveedor  de identidad  Cognito.
+Discrepancia  en la redirección Actualice  las URL de devolución  de llamada.
+11.3. Problemas con las cookies
+Los problemas  relacionados  con las cookies  se encuentran  entre los problemas  de autenticación  más comunes.
+Una configuración  incorrecta  de las cookies  puede  impedir  la persistencia  de la sesión  y las operaciones  de actualización  de tokens.
+Síntomas
+▪ El usuario  parece  haber cerrado  sesión  tras actualizar  la página.
+▪ La sesión  no se mantiene.
+▪ Se pierde  el estado  de autenticación.
+Causas  comunes
+Causa Descripción
+Dominio de la cookie incorrecto La cookie  no está disponible  en todas las aplicaciones.
+Falta la bandera  de seguridad El navegador  rechaza  la cookie.
+Configuración  incorrecta  de SameSite El navegador  bloquea  la transmisión  de la cookie.
+Caducidad de la cookie La cookie  ya no es válida.
+
+--- PAGE 76 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página76 de 85
+11.4. Problemas de CORS
+Los problemas  de Cross-Origin  Resource  Sharing  (CORS)  se producen  cuando  los navegadores  bloquean  las solicitudes  entre las 
+aplicaciones  frontend  y backend.
+Síntomas
+▪ Errores  en la consola  del navegador.
+▪ Solicitudes de API fallidas.
+▪ Faltan  encabezados  de autorización.
+▪ Falta de cookies.
+Mensajes de error comunes
+El acceso  para recuperar  datos en 
+«https://api.example.com»  desde el origen  
+«https://app.example.com»
+ha sido bloqueado  por la política  CORS.
+Procedimiento de diagnóstico
+Comprueba:
+▪ Orígenes  permitidos.
+▪ Encabezados  permitidos.
+▪ Encabezados  expuestos.
+▪ Configuración de credenciales.
+11.5. Problemas con Azure Active Directory
+Los problemas  de integración  con Azure AD pueden  impedir  que los usuarios  se autentiquen  correctamente.
+Síntomas
+▪ Página  de inicio de sesión  de Azure no disponible.
+▪ Autenticación  denegada.
+▪ Errores  en la resolución  del inquilino.
+Causas  comunes
+Causa Descripción
+Identificador  de inquilino  no válido Inquilino  de Azure incorrecto.
+Falta el consentimiento  del administrador No se dispone  de los permisos  necesarios.
+Restricciones  de acceso  condicional La política  de seguridad  bloquea  el acceso.
+Interrupción del servicio de Azure Problema  con el servicio  de Microsoft.
+
+--- PAGE 77 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página77 de 85
+Procedimiento de diagnóstico
+1. Verificar la configuración del inquilino de Azure.
+2. Confirmar  el consentimiento  del administrador.
+3. Revisar  los registros  de inicio de sesión  de Azure.
+4. Comprobar  el estado  del servicio  de Microsoft.
+Resolución
+Coordínese  con el administrador  de Azure AD para corregir  los problemas  de configuración  o permisos.
+
+--- PAGE 78 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página78 de 85
+Usuario
+↓
+Aplicación front-end
+↓
+Servicio TYPSA SSO
+↓
+Azure AD
+↓
+AWS Cognito
+↓
+API de backend
+↓
+Servicios  empresariales
+12. Implementaciones de referencia
+12.1. Descripción general
+Esta  sección  proporciona  patrones  de implementación  de referencia  y enfoques  de arquitectura  recomendados  para  aplicaciones  que  
+se integran  con  la plataforma  de inicio  de sesión  único  TYPSA.
+El objetivo  no es prescribir  una pila tecnológica  específica,  sino proporcionar  patrones  de implementación  probados  que se ajusten  a la 
+arquitectura  de autenticación  descrita  a lo largo de este documento.
+Los  ejemplos  presentados  en esta  sección  se basan  en implementaciones  que  se utilizan  actualmente  en el ecosistema  TYPSA  y 
+pueden  adaptarse  para  cumplir  con  los requisitos  específicos  de cada  proyecto.
+12.2. Arquitectura de autenticación recomendada
+Las aplicaciones  deben  implementar  una arquitectura  de autenticación  por capas que separe  la gestión  de identidades  de la autorización  de 
+aplicaciones.
+Componentes de la arquitectura
+Componente Responsabilidad
+Aplicación front-end Interacción  con el usuario  e inicio de la autenticación
+Servicio TYPSA SSO Coordinación  de la autenticación
+Azure Active Directory Verificación de identidad
+AWS Cognito Gestión de federación y tokens
+API de backend Autorización  y gestión  de sesiones
+Servicios  empresariales Funcionalidad de la aplicación protegida
+Arquitectura lógica
+
+--- PAGE 79 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página79 de 85
+src/
+│
+├──  a u th /
+│  ├──  lo g in /
+│  ├──  ca llb a ck/
+│  ├──  se rvicio s/
+│  ├──  g u a rd s/
+│  └──  interceptors/
+│
+├──  co re /
+├ ─ ─  com partido/
+└ ─ ─  features/
+Ventajas de la arquitectura de autenticación recomendada
+Esta arquitectura  ofrece:
+▪ Autenticación centralizada.
+▪ Autorización  específica  para cada aplicación.
+▪ Mayor escalabilidad.
+▪ Mantenimiento simplificado.
+▪ Controles  de seguridad  coherentes.
+12.3. Implementación de referencia del frontend
+Las aplicaciones  frontend  deben  seguir un diseño  de autenticación  modular  que aísle la lógica de autenticación  de la funcionalidad  
+empresarial.
+Estructura  de módulos  recomendada
+12.4. Implementación  de referencia  del backend
+Los servicios  de backend  deben  implementar  la autenticación  mediante  validación  basada  en middleware.
+Este enfoque  garantiza  que la autenticación  se aplique  de forma coherente  en todos los puntos  finales  protegidos.
+
+--- PAGE 80 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página80 de 85
+Cadena  de middleware  de autenticación
+Solicitud 🡪 Validación  de Cognito 🡪 Validación  de JWT🡪 Autorización 🡪 Lógica  de negocio
+12.5. Patrón de referencia de NestJS
+Las aplicaciones  que utilicen  NestJS  deben  implementar  la autenticación  mediante  Guards  e Interceptors.
+Componente Propósito
+Guardia  de Cognito Validación de Cognito
+Guardia JWT Validación  de JWT de la aplicación
+Servicio de autenticación Lógica  de autenticación
+Controlador de autenticación Puntos finales de inicio y cierre de sesión
+Arquitectura de ejemplo
+Controlador 🡪  Guard 🡪 Servicio 🡪 Repositorio
+12.6. Patrón de actualización de tokens
+Las aplicaciones  deben  implementar  la actualización  de tokens  como parte de la capa de middleware  de autenticación.  
+Esto garantiza  que las sesiones  caducadas  se renueven  automáticamente  siempre  que sea posible.
+src/
+│
+├──  a u th /
+│  ├──  co n tro lle rs/
+│  ├──  se rvicio s/
+│  ├──  m id d le w a re /
+│  ├──  g u a rd s/
+│  └──  u tils/
+│
+├──  usuarios/
+├──  co m ú n /
+└──  config/
+
+--- PAGE 81 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página81 de 85
+Solicitud
+↓
+Validar  el token de Cognito
+↓
+¿Caducado?
+│
+├──  No  →  Continuar
+│
+└ ─ ─  Sí
+↓
+Token de actualización
+↓
+Actualizar  cookies
+↓
+Continuar
+
+--- PAGE 82 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página82 de 85
+13. Glosario
+13.1. Descripción general
+Este glosario  define los términos  clave, las tecnologías,  las siglas y los conceptos  utilizados  a lo largo de este documento.
+El objetivo  de esta sección  es proporcionar  una comprensión  común  de la terminología  de autenticación  y los conceptos  específicos  de la 
+plataforma  utilizados  en el ecosistema  de inicio de sesión  único (SSO) de TYPSA.
+13.2. Términos de autenticación
+Término Definición
+Autenticación Proceso  de verificación  de la identidad  de un usuario.
+Autorización Proceso  de determinar  a qué tiene permiso  de acceso  un usuario  autenticado.
+Proveedor  de identidad  (IdP) Sistema  responsable  de autenticar  a los usuarios  y proporcionar  información  de identidad.
+Sesión Interacción  temporal  autenticada  entre un usuario  y una aplicación.
+Inicio de sesión  único (SSO)
+Mecanismo  de autenticación  que permite  a los usuarios  acceder  a múltiples  aplicaciones  utilizando  un 
+único conjunto  de credenciales.
+Federación Proceso  de confiar  en un proveedor  de identidad  externo  para la autenticación.
+Inquilino Espacio  de identidad  organizativo  aislado  dentro  de Azure Active Directory.
+Dominio
+El dominio  de correo  electrónico  utilizado  para identificar  una organización  y determinar  el proveedor  de 
+autenticación  adecuado.
+13.3. Terminología de los tokens
+Término Definición
+Token  de acceso Un token utilizado  para autorizar  el acceso  a recursos  protegidos.
+Token de identificación Un token que contiene  información  sobre el usuario  autenticado.
+Token de actualización
+Token utilizado para obtener nuevos tokens de autenticación sin que el usuario tenga que volver a iniciar 
+sesión.
+JWT (JSON  Web Token)
+Formato  de token compacto  que se utiliza para intercambiar  información  de forma segura  entre 
+sistemas.
+Caducidad del token La fecha y hora a partir de las cuales  un token deja de ser válido.
+Actualización del token Proceso  de obtención  de nuevos  tokens  de autenticación  utilizando  un token de actualización  válido.
+Validación del token Proceso  de verificación  de la integridad,  autenticidad  y caducidad  del token.
+Reclamaciones Información  almacenada  en la carga útil de un JWT.
+
+--- PAGE 83 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página83 de 85
+13.4. Términos de la plataforma TYPSA
+Término Definición
+Servicio SSO de TYPSA El servicio  de autenticación  centralizado  utilizado  en todas las aplicaciones  de TYPSA.
+JWT de la aplicación
+Un token de autorización  generado  por el backend  de una aplicación  tras una validación  correcta  de 
+Cognito.
+Correo  electrónico  activo La dirección  de correo  electrónico  asociada  al usuario  actualmente  autenticado.
+safeEmail
+Una representación  codificada  de forma segura  para URL de la dirección  de correo  electrónico  de un 
+usuario,  utilizada  en las convenciones  de nomenclatura  de cookies.
+Cookie de autenticación
+Una cookie  utilizada  para almacenar  información  relacionada  con la autenticación.
+Sesión  de la aplicación Un estado  de autenticación  establecido  entre el usuario  y una aplicación.
+13.5. Términos de Microsoft Azure Active Directory
+Término Definición
+Azure Active Directory 
+(Azure AD) Plataforma  de gestión  de identidades  y accesos  basada  en la nube de Microsoft.
+Microsoft  Entra ID La nueva marca  de Azure Active Directory.
+Acceso  condicional Directivas  que controlan  el acceso  en función  del usuario,  el dispositivo,  la ubicación  o el riesgo.
+Autenticación  multifactor  (MFA)
+Autenticación  que requiere  varios métodos  de verificación.
+Administrador de inquilinos Usuario  responsable  de gestionar  la configuración  y los permisos  del inquilino  de Azure AD.
+Aplicación  empresarial Aplicación  registrada  en Azure AD con fines de autenticación.
+Consentimiento  del administrador
+Autorización  concedida  por un administrador  de inquilino  que permite  a una aplicación  acceder  a 
+los recursos  de la organización.
+13.6. Términos de AWS Cognito
+Término Definición
+AWS Cognito Servicio  de gestión  de identidades  y accesos  de Amazon  Web Services.
+Grupo  de usuarios Un directorio  de usuarios  gestionado  por Cognito.
+Proveedor  de identidad  (IdP) Proveedor  de autenticación  externo  conectado  a Cognito.
+Interfaz  de usuario  alojada Interfaz  de autenticación  proporcionada  por Cognito.
+Flujo de código  de autorización Flujo OAuth  utilizado  para obtener  tokens  de autenticación  de forma segura.
+REFRESH_TOKEN_AUTH Flujo de autenticación  de Cognito  utilizado  para actualizar  tokens.
+
+--- PAGE 84 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página84 de 85
+Término Definición
+Cliente  del grupo de usuarios Configuración  de la aplicación  dentro  de Cognito  utilizada  para acceder  a un grupo de usuarios.
+13.7. Términos de seguridad
+Término Definición
+HTTPS Versión  segura  de HTTP que cifra el tráfico de red.
+Cookie  segura Cookie  transmitida  únicamente  a través de conexiones  HTTPS.
+Cookie solo HTTP Cookie  inaccesible  para el JavaScript  del navegador.
+Cookie  SameSite Atributo  de cookie  que controla  el comportamiento  de la transmisión  entre sitios.
+CSRF (Falsificación de solicitudes entre sitios) Ataque  que engaña  al usuario  para que realice  acciones  no deseadas.
+Secuestro de sesión Apropiación  no autorizada  de una sesión  autenticada.
+Principio  del mínimo  privilegio Principio  de seguridad  que consiste  en conceder  únicamente  los permisos  mínimos  
+necesarios.
+Defensa  en profundidad Estrategia  de seguridad  que utiliza múltiples  capas de protección.
+13.8. Resumen
+Este glosario  sirve como referencia  para la terminología  utilizada  a lo largo de este documento  y debe consultarse  siempre  que se 
+requiera  una aclaración  sobre conceptos  específicos  de autenticación,  autorización,  Azure Active Directory,  AWS Cognito  o TYPSA.
+Una comprensión  común  de estos términos  ayuda a garantizar  una implementación,  comunicación  y mantenimiento  coherentes  de las 
+aplicaciones  integradas  con la plataforma  de inicio de sesión  único de TYPSA.
+
+--- PAGE 85 ---
+Nombre del proyecto: TYPSA SSO
+TYPSA_SSO_Integración
+Página85 de 85
+FIN DEL DOCUMENTO
