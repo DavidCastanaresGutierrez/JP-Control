@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtPct } from '../lib/format'
@@ -40,15 +40,20 @@ const fmtFechaImportacion = (iso: string) => fmtFecha(iso.slice(0, 10))
 export function Overview({
   projects,
   onSelect,
+  onReorder,
   onFiles,
   onHoursFiles,
 }: {
   projects: Project[]
   onSelect: (code: string) => void
+  onReorder: (draggedCode: string, targetCode: string) => void
   onFiles: (files: File[]) => void
   onHoursFiles: (files: File[]) => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [draggingCode, setDraggingCode] = useState<string | null>(null)
+  const [dragOverCode, setDragOverCode] = useState<string | null>(null)
+  const dragMovedRef = useRef(false)
   const proyectosDesactualizados = projects
     .map((project) => ({ project, dias: diasDesdeConcost(project) }))
     .filter((item): item is { project: Project; dias: number } => item.dias !== null && item.dias > 30)
@@ -137,11 +142,58 @@ export function Overview({
           const alerta = enAlerta(k)
           const diasActualizacion = diasDesdeConcost(p)
           const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > 30
+          const isDragging = draggingCode === p.code
+          const isDropTarget = dragOverCode === p.code && draggingCode !== p.code
           return (
             <button
               key={p.code}
-              onClick={() => onSelect(p.code)}
-              className="text-left bg-surface rounded-lg shadow-soft border border-line p-5 hover:shadow-hover hover:border-accent-300 transition-all"
+              draggable
+              onClick={() => {
+                if (dragMovedRef.current) {
+                  dragMovedRef.current = false
+                  return
+                }
+                onSelect(p.code)
+              }}
+              onDragStart={(event) => {
+                dragMovedRef.current = false
+                setDraggingCode(p.code)
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', p.code)
+              }}
+              onDragOver={(event) => {
+                event.preventDefault()
+                if (draggingCode && draggingCode !== p.code) {
+                  dragMovedRef.current = true
+                  setDragOverCode(p.code)
+                }
+              }}
+              onDragLeave={() => {
+                if (dragOverCode === p.code) setDragOverCode(null)
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                const draggedCode = event.dataTransfer.getData('text/plain') || draggingCode
+                if (draggedCode && draggedCode !== p.code) {
+                  dragMovedRef.current = true
+                  onReorder(draggedCode, p.code)
+                }
+                setDraggingCode(null)
+                setDragOverCode(null)
+              }}
+              onDragEnd={() => {
+                setDraggingCode(null)
+                setDragOverCode(null)
+                window.setTimeout(() => {
+                  dragMovedRef.current = false
+                }, 0)
+              }}
+              className={`text-left bg-surface rounded-lg shadow-soft border p-5 transition-all cursor-grab active:cursor-grabbing hover:shadow-hover hover:border-accent-300 ${
+                isDropTarget
+                  ? 'border-accent-500 ring-2 ring-accent-300/70 translate-y-0.5'
+                  : 'border-line'
+              } ${isDragging ? 'opacity-60 scale-[0.99]' : ''}`}
+              title="Arrastra para ordenar o haz clic para abrir"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
