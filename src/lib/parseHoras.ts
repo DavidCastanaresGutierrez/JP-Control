@@ -362,6 +362,6 @@ export function parseHoras(data: ArrayBuffer): ParsedHoras {
   }
 
   throw new Error(
-    'No se han podido leer horas. Se admite el "Detalle de horas por empleado" del ERP o un Excel con columna de persona (Empleado/Nombre) y columnas Mes/Horas (o una columna por mes).',
+    'No se han podido leer horas. Se admite el "Detalle de horas por empleado", el "Detalle de horas por tareas" del ERP o un Excel con columna de persona (Empleado/Nombre) y columnas Mes/Horas (o una columna por mes).',
   )
 }

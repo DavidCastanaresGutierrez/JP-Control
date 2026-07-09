@@ -25,8 +25,39 @@ let toastId = 0
 
 type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
 
+const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
+
+function loadProjectOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(PROJECT_ORDER_KEY)
+    return raw ? (JSON.parse(raw) as string[]) : []
+  } catch {
+    return []
+  }
+}
+
+function orderProjects(projects: DB['projects'], order: string[]) {
+  const listed = new Set(order)
+  const ordered = order.map((code) => projects[code]).filter(Boolean)
+  const remaining = Object.values(projects)
+    .filter((project) => !listed.has(project.code))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  return [...ordered, ...remaining]
+}
+
+function moveCode(codes: string[], draggedCode: string, targetCode: string) {
+  const from = codes.indexOf(draggedCode)
+  const to = codes.indexOf(targetCode)
+  if (from < 0 || to < 0 || from === to) return codes
+  const next = [...codes]
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return next
+}
+
 export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
+  const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -57,6 +88,10 @@ export default function App() {
   useEffect(() => {
     conectar()
   }, [conectar])
+
+  useEffect(() => {
+    localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
+  }, [projectOrder])
 
   // Guardado local siempre + subida (con retardo) de los proyectos que cambien
   useEffect(() => {
@@ -209,8 +244,19 @@ export default function App() {
     setDb(next)
   }
 
-  const projects = Object.values(db.projects).sort((a, b) => a.name.localeCompare(b.name))
+  const projects = orderProjects(db.projects, projectOrder)
   const project = selected ? db.projects[selected] : undefined
+
+  const handleReorderProjects = (draggedCode: string, targetCode: string) => {
+    setProjectOrder((current) => {
+      const codes = projects.map((p) => p.code)
+      const base = current.length > 0 ? [...current.filter((code) => db.projects[code])] : codes
+      for (const code of codes) {
+        if (!base.includes(code)) base.push(code)
+      }
+      return moveCode(base, draggedCode, targetCode)
+    })
+  }
 
   return (
     <div className="flex h-full">
@@ -237,6 +283,7 @@ export default function App() {
           <Overview
             projects={projects}
             onSelect={setSelected}
+            onReorder={handleReorderProjects}
             onFiles={handleExplotacionFiles}
             onHoursFiles={handleOverviewHoursFiles}
           />
