@@ -163,6 +163,10 @@ export function HoursView({
   }, [matriz, seleccion, medida, ocupacion])
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
+  const tareasVisibles = useMemo(() => {
+    if (seleccion.size === 0) return tareas
+    return tareas.filter((t) => t.personas.some((persona) => seleccion.has(persona)))
+  }, [tareas, seleccion])
   const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
@@ -173,6 +177,8 @@ export function HoursView({
     }
     return dept
   }, [project.personDept, seleccion])
+  const deptSeleccionadosTexto = [...deptSeleccionados].join(', ')
+  const estaFiltrado = seleccion.size > 0 && seleccion.size < matriz.filas.length
 
   // Personas con horas imputadas pero coste 0 EUR en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
@@ -486,7 +492,11 @@ export function HoursView({
                   Ver todos
                 </button>
                 <button
-                  onClick={() => setSeleccion(new Set())}
+                  onClick={() => {
+                    setTareaSeleccionada(null)
+                    setSeleccion(new Set())
+                    onSelectPersons?.([])
+                  }}
                   className="border border-line rounded-full px-2.5 py-1 text-ink-soft hover:bg-surface-muted transition-colors"
                 >
                   Limpiar
@@ -531,7 +541,7 @@ export function HoursView({
               </ResponsiveContainer>
             ) : (
               <div className="h-[300px] flex items-center justify-center rounded-[14px] border border-dashed border-line-strong text-sm text-ink-muted">
-                Selecciona a alguien en la tabla para dibujar su carga mensual.
+                Selecciona una persona, un departamento o una tarea para dibujar su carga mensual.
               </div>
             )}
 
@@ -885,15 +895,29 @@ export function HoursView({
                 tarea para seleccionar las personas vinculadas y verlas juntas en la tabla de
                 participantes.
               </p>
+              {estaFiltrado && (
+                <p className="mt-1 text-[11px] font-medium text-ink-soft">
+                  Filtrado por <span className="font-bold text-ink">{personasSel.length} personas</span>
+                  {deptSeleccionados.size > 0 && (
+                    <>
+                      {' '}
+                      y <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
+                    </>
+                  )}
+                  .
+                </p>
+              )}
             </div>
 
             {hayTareas ? (
               <>
                 <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
-                  <span>{tareas.length} tareas detectadas</span>
                   <span>
-                    {fmtNum(tareas.reduce((s, t) => s + t.horas, 0))} h -{' '}
-                    {fmtEur(tareas.reduce((s, t) => s + t.coste, 0))}
+                    {tareasVisibles.length} tareas visibles de {tareas.length}
+                  </span>
+                  <span>
+                    {fmtNum(tareasVisibles.reduce((s, t) => s + t.horas, 0))} h -{' '}
+                    {fmtEur(tareasVisibles.reduce((s, t) => s + t.coste, 0))}
                   </span>
                 </div>
 
@@ -908,7 +932,7 @@ export function HoursView({
                       </tr>
                     </thead>
                     <tbody>
-                      {tareas.map((t) => {
+                      {tareasVisibles.map((t) => {
                         const activo = tareaSeleccionada === t.tarea
                         return (
                           <tr
@@ -935,7 +959,8 @@ export function HoursView({
 
                 <p className="text-xs text-ink-muted">
                   Selecciona una tarea para centrar esas personas en la tabla de participantes y en la
-                  grafica.
+                  grafica. Si escoges un departamento o una persona, esta lista se reduce a sus
+                  tareas.
                 </p>
               </>
             ) : (
