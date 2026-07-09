@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -101,10 +101,10 @@ export function HoursView({
     if (conAnomalias.length) return new Set(conAnomalias)
     return new Set(matriz.filas.slice(0, 1).map((f) => f.persona))
   })
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(null)
   const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null)
 
   const toggle = (persona: string) => {
-    setTareaSeleccionada(null)
     setSeleccion((prev) => {
       const next = new Set(prev)
       if (next.has(persona)) next.delete(persona)
@@ -113,16 +113,12 @@ export function HoursView({
     })
   }
 
-  const seleccionarDepartamento = (personas: string[]) => {
-    setTareaSeleccionada(null)
-    setSeleccion(new Set(personas))
-    onSelectPersons?.(personas)
+  const seleccionarDepartamento = (dept: string) => {
+    setDepartamentoSeleccionado((prev) => (prev === dept ? null : dept))
   }
 
-  const seleccionarTarea = (tarea: string, personas: string[]) => {
-    setTareaSeleccionada(tarea)
-    setSeleccion(new Set(personas))
-    onSelectPersons?.(personas)
+  const seleccionarTarea = (tarea: string) => {
+    setTareaSeleccionada((prev) => (prev === tarea ? null : tarea))
   }
 
   // Modo de medida de la grafica/tabla de participantes
@@ -140,6 +136,37 @@ export function HoursView({
       horas && jornadaMes[i] > 0 ? (horas / jornadaMes[i]) * 100 : 0,
     [jornadaMes],
   )
+
+  const personasFiltradas = useMemo(() => {
+    const filtroDept = departamentoSeleccionado
+      ? new Set(
+          matriz.filas
+            .filter((fila) => (project.personDept?.[fila.persona] ?? '').trim() === departamentoSeleccionado)
+            .map((fila) => fila.persona),
+        )
+      : null
+    const filtroTarea = tareaSeleccionada
+      ? new Set(tareas.find((t) => t.tarea === tareaSeleccionada)?.personas ?? [])
+      : null
+
+    return matriz.filas
+      .map((fila) => fila.persona)
+      .filter((persona) => {
+        if (filtroDept && !filtroDept.has(persona)) return false
+        if (filtroTarea && !filtroTarea.has(persona)) return false
+        return true
+      })
+  }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas])
+
+  useEffect(() => {
+    const next = personasFiltradas.length > 0 ? personasFiltradas : matriz.filas.map((f) => f.persona)
+    setSeleccion((prev) => {
+      if (prev.size === 0) return new Set(next)
+      const inter = next.filter((persona) => prev.has(persona))
+      return new Set(inter.length > 0 ? inter : next)
+    })
+    onSelectPersons?.(personasFiltradas)
+  }, [matriz.filas, onSelectPersons, personasFiltradas])
 
   const chartData = useMemo(() => {
     const activos = matriz.filas.filter((f) => seleccion.has(f.persona))
@@ -161,31 +188,30 @@ export function HoursView({
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
   const tareasVisibles = useMemo(() => {
-    if (seleccion.size === 0) return tareas
-    return tareas.filter((t) => t.personas.some((persona) => seleccion.has(persona)))
-  }, [tareas, seleccion])
+    if (personasFiltradas.length === 0) return tareas
+    const filtradas = new Set(personasFiltradas)
+    return tareas.filter((t) => t.personas.some((persona) => filtradas.has(persona)))
+  }, [personasFiltradas, tareas])
   const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
-  const deptPorPersona = project.personDept ?? {}
   const deptSeleccionados = useMemo(() => {
     const dept = new Set<string>()
-    for (const persona of seleccion) {
-      const d = deptPorPersona[persona]?.trim()
-      if (d) dept.add(d)
-    }
+    if (departamentoSeleccionado) dept.add(departamentoSeleccionado)
     return dept
-  }, [deptPorPersona, seleccion])
-  const deptSeleccionadosTexto = [...deptSeleccionados].join(', ')
-  const estaFiltrado = seleccion.size > 0 && seleccion.size < matriz.filas.length
+  }, [departamentoSeleccionado])
+  const deptSeleccionadosTexto = departamentoSeleccionado ?? ''
+  const estaFiltrado =
+    Boolean(departamentoSeleccionado) || Boolean(tareaSeleccionada) || personasFiltradas.length < matriz.filas.length
   const filasControlVisibles = useMemo(() => {
-    if (deptSeleccionados.size === 0) return control.filas
-    const visibles = new Set<string>()
+    if (!departamentoSeleccionado && !tareaSeleccionada) return control.filas
+    const deptasVisibles = new Set<string>()
+    const personasVisibles = new Set(personasFiltradas)
     for (const fila of control.filas) {
-      if (deptSeleccionados.has(fila.dept)) visibles.add(fila.dept)
+      if (fila.personas.some((persona) => personasVisibles.has(persona))) deptasVisibles.add(fila.dept)
     }
-    if (visibles.size === 0) return control.filas
-    return control.filas.filter((fila) => visibles.has(fila.dept))
-  }, [control.filas, deptSeleccionados])
+    if (deptasVisibles.size === 0) return control.filas
+    return control.filas.filter((fila) => deptasVisibles.has(fila.dept))
+  }, [control.filas, departamentoSeleccionado, personasFiltradas, tareaSeleccionada])
 
   // Personas con horas imputadas pero coste 0 EUR en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
@@ -221,9 +247,10 @@ export function HoursView({
   }, [matriz.filas, matriz.meses, ordenMes, medida, ocupacion, seleccion])
 
   const personasVisibles = useMemo(() => {
-    if (seleccion.size === 0) return filasOrdenadas
-    return filasOrdenadas.filter((f) => seleccion.has(f.persona))
-  }, [filasOrdenadas, seleccion])
+    const visibles = new Set(personasFiltradas)
+    if (visibles.size === 0) return filasOrdenadas
+    return filasOrdenadas.filter((f) => visibles.has(f.persona))
+  }, [filasOrdenadas, personasFiltradas])
 
   const escenarioPrincipal = forecast?.escenarios.find((e) => e.id === 'r3')
   const marca80 = useMemo(() => {
@@ -491,16 +518,12 @@ export function HoursView({
                   ))}
                 </div>
                 <button
-                  onClick={() => setSeleccion(new Set(matriz.filas.map((f) => f.persona)))}
-                  className="border border-line rounded-full px-2.5 py-1 text-ink-soft hover:bg-surface-muted transition-colors"
-                >
-                  Ver todos
-                </button>
-                <button
                   onClick={() => {
+                    setDepartamentoSeleccionado(null)
                     setTareaSeleccionada(null)
-                    setSeleccion(new Set())
-                    onSelectPersons?.([])
+                    const all = matriz.filas.map((f) => f.persona)
+                    setSeleccion(new Set(all))
+                    onSelectPersons?.(all)
                   }}
                   className="border border-line rounded-full px-2.5 py-1 text-ink-soft hover:bg-surface-muted transition-colors"
                 >
@@ -608,15 +631,9 @@ export function HoursView({
                       <tr
                         key={f.persona}
                         onClick={() => toggle(f.persona)}
-                        className={`border-t border-line cursor-pointer transition-colors ${
-                          sel ? 'bg-accent-300/25' : 'hover:bg-surface-muted'
-                        }`}
+                        className="border-t border-line cursor-pointer transition-colors hover:bg-surface-muted"
                       >
-                        <td
-                          className={`px-3 py-1.5 font-semibold sticky left-0 whitespace-nowrap ${
-                            sel ? 'bg-accent-300/25' : 'bg-surface'
-                          }`}
-                        >
+                        <td className="px-3 py-1.5 font-semibold sticky left-0 whitespace-nowrap bg-surface">
                           <span
                             className="inline-block w-2.5 h-2.5 rounded-full align-middle mr-2 ring-1 ring-inset ring-black/10"
                             style={{ backgroundColor: sel ? colorFor(f.persona) : '#DDE7E4' }}
@@ -715,7 +732,13 @@ export function HoursView({
                 {deptSeleccionados.size > 0 && (
                   <>
                     {' '}
-                    y <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
+                    de <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
+                  </>
+                )}
+                {tareaSeleccionada && (
+                  <>
+                    {' '}
+                    con tarea <span className="font-bold text-ink">{tareaSeleccionada}</span>
                   </>
                 )}
                 .
@@ -753,21 +776,16 @@ export function HoursView({
                       : f.estado === 'atencion'
                         ? 'text-[#8A5A00]'
                         : 'text-success'
-                  const deptActivo = deptSeleccionados.has(f.dept)
                   return (
                     <tr
                       key={f.dept}
-                      className={`border-t border-line transition-colors ${
-                        deptActivo ? 'bg-accent-300/20' : ''
-                      }`}
+                      className="border-t border-line transition-colors"
                     >
                       <td className="px-3 py-2">
                         <button
                           type="button"
-                          onClick={() => seleccionarDepartamento(f.personas)}
-                          className={`text-left w-full group ${
-                            deptActivo ? 'font-bold' : ''
-                          }`}
+                          onClick={() => seleccionarDepartamento(f.dept)}
+                          className="text-left w-full group"
                         >
                           <div className="font-semibold text-ink group-hover:underline">
                             {f.dept}
@@ -942,10 +960,8 @@ export function HoursView({
                         return (
                           <tr
                             key={t.tarea}
-                            onClick={() => seleccionarTarea(t.tarea, t.personas)}
-                            className={`border-t border-line cursor-pointer transition-colors ${
-                              activo ? 'bg-accent-300/20' : 'hover:bg-surface-muted'
-                            }`}
+                            onClick={() => seleccionarTarea(t.tarea)}
+                            className="border-t border-line cursor-pointer transition-colors hover:bg-surface-muted"
                           >
                             <td className={`px-3 py-2 ${activo ? 'font-bold' : ''}`}>{t.tarea}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{fmtNum(t.horas)} h</td>

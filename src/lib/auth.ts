@@ -10,6 +10,7 @@ const COGNITO_ID_TOKEN_KEY = 'typsa_cognito_token'
 const COGNITO_REFRESH_TOKEN_KEY = 'typsa_refresh_token'
 
 export const ssoUrl = import.meta.env.VITE_TYPSA_SSO_URL as string | undefined
+export const ssoCallbackUrl = import.meta.env.VITE_TYPSA_SSO_CALLBACK_URL as string | undefined
 export const isSsoEnabled = Boolean(ssoUrl)
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
@@ -60,7 +61,8 @@ export function beginSsoLogin(email: string, redirectUri?: string) {
   if (!ssoUrl) throw new Error('Falta VITE_TYPSA_SSO_URL')
   const url = new URL(ssoUrl)
   url.searchParams.set('email', email.trim())
-  url.searchParams.set('redirect_uri', redirectUri ?? `${window.location.origin}/login-success`)
+  const callback = redirectUri ?? ssoCallbackUrl ?? `${window.location.origin}/login-success`
+  url.searchParams.set('redirect_uri', callback)
   window.location.href = url.toString()
 }
 

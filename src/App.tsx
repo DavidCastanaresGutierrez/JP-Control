@@ -18,6 +18,7 @@ import { Overview } from './components/Overview'
 import { ProjectDashboard } from './components/ProjectDashboard'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
+import { ssoCallbackUrl } from './lib/auth'
 
 interface Toast {
   id: number
@@ -250,7 +251,16 @@ export default function App() {
     setSyncEstado('auth')
   }, [])
 
-  if (isSsoEnabled && window.location.pathname === '/login-success') {
+  const callbackPath = (() => {
+    if (!ssoCallbackUrl) return '/login-success'
+    try {
+      return new URL(ssoCallbackUrl, window.location.origin).pathname
+    } catch {
+      return '/login-success'
+    }
+  })()
+
+  if (isSsoEnabled && window.location.pathname === callbackPath) {
     return <LoginCallback onSuccess={handleLoginSuccess} />
   }
 
