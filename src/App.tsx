@@ -259,8 +259,14 @@ export default function App() {
       return '/login-success'
     }
   })()
+  const hasSsoCallbackData = (() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('id_token') || params.has('refresh_token') || params.has('error')) return true
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    return hashParams.has('id_token') || hashParams.has('refresh_token') || hashParams.has('error')
+  })()
 
-  if (isSsoEnabled && window.location.pathname === callbackPath) {
+  if (isSsoEnabled && (window.location.pathname === callbackPath || hasSsoCallbackData)) {
     return <LoginCallback onSuccess={handleLoginSuccess} />
   }
 
