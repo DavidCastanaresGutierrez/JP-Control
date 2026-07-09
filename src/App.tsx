@@ -9,11 +9,15 @@ import {
   upsertExplotacion,
 } from './lib/store'
 import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
+import type { AuthSession } from './lib/auth'
+import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { parseExplotacion } from './lib/parseExplotacion'
 import { parseHoras } from './lib/parseHoras'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { ProjectDashboard } from './components/ProjectDashboard'
+import { LoginCallback } from './components/LoginCallback'
+import { LoginView } from './components/LoginView'
 
 interface Toast {
   id: number
@@ -60,16 +64,21 @@ export default function App() {
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
-
-  // ---- Sincronización con la nube (API /api/projects en Vercel) ----
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
-  // Última versión de cada proyecto confirmada en la nube (para subir solo cambios)
   const lastSynced = useRef<Map<string, string>>(new Map())
 
   const conectar = useCallback(async () => {
+    if (isSsoEnabled && !getAuthSession()) {
+      setSyncEstado('auth')
+      return
+    }
+
     setSyncEstado('cargando')
     const remoto = await fetchRemoteProjects()
     if (remoto.estado === 'auth') {
+      clearAuthSession()
+      setAuthSession(null)
       setSyncEstado('auth')
       return
     }
@@ -77,7 +86,6 @@ export default function App() {
       setSyncEstado('local')
       return
     }
-    // La nube manda por proyecto; los proyectos solo-locales se conservan y se subirán
     lastSynced.current = new Map(
       Object.entries(remoto.projects).map(([code, p]) => [code, JSON.stringify(p)]),
     )
@@ -87,13 +95,12 @@ export default function App() {
 
   useEffect(() => {
     conectar()
-  }, [conectar])
+  }, [conectar, authSession])
 
   useEffect(() => {
     localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
   }, [projectOrder])
 
-  // Guardado local siempre + subida (con retardo) de los proyectos que cambien
   useEffect(() => {
     saveDB(db)
     if (syncEstado !== 'nube') return
@@ -133,7 +140,7 @@ export default function App() {
         const parsed = parseExplotacion(await f.arrayBuffer(), f.name)
         const res = upsertExplotacion(next, parsed)
         if (res.skipped) {
-          toast('warn', `${f.name}: ya hay datos más recientes de ${parsed.code}; no se ha importado.`)
+          toast('warn', `${f.name}: ya hay datos mas recientes de ${parsed.code}; no se ha importado.`)
           continue
         }
         next = res.db
@@ -154,10 +161,7 @@ export default function App() {
       try {
         const parsed = parseHoras(await f.arrayBuffer())
         if (parsed.code && parsed.code !== code) {
-          toast(
-            'error',
-            `${f.name}: es del proyecto ${parsed.code}, no de ${code}; no se ha importado.`,
-          )
+          toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${code}; no se ha importado.`)
           continue
         }
         next = mergeHours(next, code, parsed.records, parsed.areaPorPersona)
@@ -182,29 +186,23 @@ export default function App() {
         if (name.includes('explotacion')) {
           const parsed = parseExplotacion(await f.arrayBuffer(), f.name)
           if (parsed.code !== selected) {
-            toast(
-              'error',
-              `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`,
-            )
+            toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
             continue
           }
           const res = upsertExplotacion(next, parsed)
           if (res.skipped) {
-            toast('warn', `${f.name}: ya hay datos más recientes de ${parsed.code}; no se ha importado.`)
+            toast('warn', `${f.name}: ya hay datos mas recientes de ${parsed.code}; no se ha importado.`)
             continue
           }
           next = res.db
-          toast('ok', `${parsed.code}: explotación actualizada con ${parsed.entries.length} apuntes.`)
+          toast('ok', `${parsed.code}: explotacion actualizada con ${parsed.entries.length} apuntes.`)
           parsed.warnings.forEach((w) => toast('warn', `${parsed.code}: ${w}`))
           continue
         }
 
         const parsed = parseHoras(await f.arrayBuffer())
         if (parsed.code && parsed.code !== selected) {
-          toast(
-            'error',
-            `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`,
-          )
+          toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
           continue
         }
         next = mergeHours(next, selected, parsed.records, parsed.areaPorPersona)
@@ -225,11 +223,11 @@ export default function App() {
       try {
         const parsed = parseHoras(await f.arrayBuffer())
         if (!parsed.code) {
-          toast('error', `${f.name}: no se ha podido identificar el proyecto. Sube primero el fichero de Explotación.`)
+          toast('error', `${f.name}: no se ha podido identificar el proyecto. Sube primero el fichero de Explotacion.`)
           continue
         }
         if (!next.projects[parsed.code]) {
-          toast('error', `${f.name}: primero importa Explotación para crear el proyecto ${parsed.code}.`)
+          toast('error', `${f.name}: primero importa Explotacion para crear el proyecto ${parsed.code}.`)
           continue
         }
         next = mergeHours(next, parsed.code, parsed.records, parsed.areaPorPersona)
@@ -258,6 +256,29 @@ export default function App() {
     })
   }
 
+  const handleLoginSuccess = useCallback(
+    (session: AuthSession) => {
+      setAuthSession(session)
+      conectar()
+    },
+    [conectar],
+  )
+
+  const handleLogout = useCallback(async () => {
+    await logoutSso()
+    setAuthSession(null)
+    setSelected(null)
+    setSyncEstado('auth')
+  }, [])
+
+  if (isSsoEnabled && window.location.pathname === '/login-success') {
+    return <LoginCallback onSuccess={handleLoginSuccess} />
+  }
+
+  if (isSsoEnabled && !authSession) {
+    return <LoginView error={syncEstado === 'auth' ? undefined : 'La sesion ha caducado. Vuelve a entrar.'} />
+  }
+
   return (
     <div className="flex h-full">
       <Sidebar
@@ -265,6 +286,8 @@ export default function App() {
         selected={selected}
         onSelect={setSelected}
         onImportConcost={handleConcostFiles}
+        userEmail={authSession?.email}
+        onLogout={isSsoEnabled ? handleLogout : undefined}
       />
 
       <main className="flex-1 overflow-y-auto">
@@ -290,8 +313,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Toasts */}
-      <div className="fixed bottom-4 right-4 space-y-2 z-50 max-w-md">
+      <div className="fixed bottom-4 right-4 z-50 max-w-md space-y-2">
         {toasts.map((t) => (
           <div
             key={t.id}

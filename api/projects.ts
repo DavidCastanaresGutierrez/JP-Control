@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'Base de datos no configurada: falta DATABASE_URL en Vercel.' })
   }
 
-  const auth = requireProjectAuth(req, res)
+  const auth = await requireProjectAuth(req, res)
   if (!auth) return
 
   const sql = neon(DB_URL)

@@ -8,11 +8,15 @@ export function Sidebar({
   selected,
   onSelect,
   onImportConcost,
+  userEmail,
+  onLogout,
 }: {
   projects: Project[]
   selected: string | null
   onSelect: (code: string | null) => void
   onImportConcost?: (files: File[]) => void
+  userEmail?: string
+  onLogout?: () => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -83,6 +87,21 @@ export function Sidebar({
           </div>
         )}
       </nav>
+
+      {userEmail && (
+        <div className="border-t border-white/10 px-4 py-4">
+          <div className="truncate text-[11px] font-bold uppercase tracking-wider text-white/35">Sesion TYPSA</div>
+          <div className="mt-1 truncate text-xs font-semibold text-white/75">{userEmail}</div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-white/15 px-3 text-xs font-bold text-white/80 transition-colors hover:bg-white/8 hover:text-white"
+            >
+              Salir
+            </button>
+          )}
+        </div>
+      )}
 
       {selected && modalOpen && (
         <ConcostImportModal

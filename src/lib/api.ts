@@ -1,33 +1,27 @@
 import type { Project } from '../types'
-
-/**
- * Cliente del API de sincronización (/api/projects en Vercel).
- * Si el API no existe (desarrollo local con `vite`) o la base de datos no está
- * configurada, la app sigue funcionando en modo solo-local.
- */
-
-const TOKEN_KEY = 'jp-control-token'
-
-export const getToken = () => localStorage.getItem(TOKEN_KEY) ?? ''
-export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t)
+import { getAuthToken, updateAuthToken } from './auth'
 
 export type RemoteProjects =
   | { estado: 'ok'; projects: Record<string, Project> }
-  | { estado: 'auth' } // requiere código de acceso
-  | { estado: 'sin-nube' } // API inexistente o BD sin configurar
+  | { estado: 'auth' }
+  | { estado: 'sin-nube' }
 
 async function call(path: string, init?: RequestInit): Promise<Response | 'sin-nube'> {
   try {
+    const token = getAuthToken()
     const res = await fetch(path, {
       ...init,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
     })
-    // 404 = API no desplegada (dev local); 503 = BD sin configurar en Vercel
     if (res.status === 404 || res.status === 503) return 'sin-nube'
+    // El backend renueva la sesion SSO en silencio y devuelve el nuevo app JWT
+    const renewed = res.headers.get('authorization')
+    if (renewed?.startsWith('Bearer ')) updateAuthToken(renewed.slice(7))
     return res
   } catch {
     return 'sin-nube'
@@ -39,7 +33,6 @@ export async function fetchRemoteProjects(): Promise<RemoteProjects> {
   if (res === 'sin-nube') return { estado: 'sin-nube' }
   if (res.status === 401) return { estado: 'auth' }
   if (!res.ok) return { estado: 'sin-nube' }
-  // Protección extra: si algo devuelve HTML (fallback SPA), tratar como sin nube
   if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
     return { estado: 'sin-nube' }
   }
@@ -59,3 +52,4 @@ export async function deleteRemoteProject(code: string): Promise<boolean> {
   const res = await call(`/api/projects?code=${encodeURIComponent(code)}`, { method: 'DELETE' })
   return res !== 'sin-nube' && res.ok
 }
+

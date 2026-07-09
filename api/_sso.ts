@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import * as crypto from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 type JwtPayload = Record<string, unknown> & {
@@ -11,7 +11,9 @@ type JwtPayload = Record<string, unknown> & {
 }
 
 const APP_PREFIX = 'jp_control'
-const jwksCache = new Map<string, { expires: number; keys: JsonWebKey[] }>()
+type CognitoJwk = crypto.JsonWebKey & { kid?: string }
+
+const jwksCache = new Map<string, { expires: number; keys: CognitoJwk[] }>()
 
 function base64UrlDecode(input: string): Buffer {
   const normalized = input.replace(/-/g, '+').replace(/_/g, '/')
@@ -122,12 +124,12 @@ export function verifyAppJwt(token: string): JwtPayload {
   return payload
 }
 
-async function getJwks(jwksUrl: string): Promise<JsonWebKey[]> {
+async function getJwks(jwksUrl: string): Promise<CognitoJwk[]> {
   const cached = jwksCache.get(jwksUrl)
   if (cached && cached.expires > Date.now()) return cached.keys
   const response = await fetch(jwksUrl)
   if (!response.ok) throw new Error('No se pudo descargar JWKS')
-  const body = (await response.json()) as { keys?: JsonWebKey[] }
+  const body = (await response.json()) as { keys?: CognitoJwk[] }
   const keys = body.keys ?? []
   jwksCache.set(jwksUrl, { expires: Date.now() + 60 * 60 * 1000, keys })
   return keys
@@ -184,11 +186,63 @@ export function getBearerToken(req: VercelRequest): string {
   return auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
 }
 
-export function requireProjectAuth(req: VercelRequest, res: VercelResponse): JwtPayload | null {
+function getActiveEmail(cookies: Record<string, string>): string {
+  return (cookies[`${APP_PREFIX}_active_email`] ?? cookies['typsa_active_email'] ?? '').trim().toLowerCase()
+}
+
+/**
+ * Renueva el id_token de Cognito llamando a la Lambda de TYPSA SSO
+ * (POST {ssoUrl}/refresh-token) con el refresh token y el sub guardados
+ * en cookies httpOnly. Devuelve un nuevo app JWT o null si no es posible.
+ */
+async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promise<JwtPayload | null> {
+  const lambdaUrl = process.env.SSO_AWS_LAMBDA_URL
+  if (!lambdaUrl) return null
+
+  const cookies = parseCookies(req)
+  const email = getActiveEmail(cookies)
+  if (!email) return null
+  const safeEmail = encodeEmailToCookieName(email)
+  const refreshToken = cookies[`typsa_refresh_token_${safeEmail}`]
+  const cognitoSub = cookies[`typsa_sub_${safeEmail}`]
+  if (!refreshToken || !cognitoSub) return null
+
+  try {
+    const response = await fetch(lambdaUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken, username: cognitoSub }),
+    })
+    if (!response.ok) return null
+    const body = (await response.json()) as { idToken?: string }
+    if (!body.idToken) return null
+
+    const cognito = await verifyCognitoToken(body.idToken)
+    const payload: JwtPayload = {
+      sub: String(cognito.sub ?? cognitoSub),
+      email: String(cognito.email ?? email),
+      name: String(cognito.name ?? email),
+      role: 'USER',
+    }
+    const appToken = signAppJwt(payload)
+    setSsoCookies(req, res, email, body.idToken, refreshToken, cognitoSub)
+    res.setHeader('authorization', `Bearer ${appToken}`)
+    res.setHeader('x-cognito-new-id-token', body.idToken)
+    return payload
+  } catch {
+    return null
+  }
+}
+
+export async function requireProjectAuth(req: VercelRequest, res: VercelResponse): Promise<JwtPayload | null> {
   if (process.env.JWT_SECRET) {
     try {
       return verifyAppJwt(getBearerToken(req))
     } catch {
+      // App JWT caducado o ausente: intentar renovacion silenciosa via Lambda SSO
+      const refreshed = await refreshSsoSession(req, res)
+      if (refreshed) return refreshed
+      clearSsoCookies(req, res)
       res.status(401).json({ error: 'Sesion SSO no valida.' })
       return null
     }
@@ -204,4 +258,3 @@ export function requireProjectAuth(req: VercelRequest, res: VercelResponse): Jwt
   }
   return {}
 }
-
