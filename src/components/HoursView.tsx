@@ -122,18 +122,6 @@ export function HoursView({
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
   const [ordenMes, setOrdenMes] = useState<{ mes: string; dir: 'desc' | 'asc' } | null>(null)
 
-  // Horas de jornada completa por mes (para el % de ocupacion)
-  const jornadaMes = useMemo(
-    () => matriz.meses.map((m) => horasJornadaMes(m)),
-    [matriz.meses],
-  )
-  // % de ocupacion de una celda = horas / jornada completa del mes
-  const ocupacion = useMemo(
-    () => (horas: number | null, i: number) =>
-      horas && jornadaMes[i] > 0 ? (horas / jornadaMes[i]) * 100 : 0,
-    [jornadaMes],
-  )
-
   const todasPersonas = useMemo(() => matriz.filas.map((fila) => fila.persona), [matriz.filas])
   const personasFiltradas = useMemo(() => {
     const filtroDept = departamentoSeleccionado
@@ -154,6 +142,32 @@ export function HoursView({
     })
   }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas, todasPersonas])
 
+  const horasParticipantesFiltradas = useMemo(() => {
+    if (!hayFiltrosActivos) return project.hours
+    const personasPermitidas = new Set(personasFiltradas)
+    return project.hours.filter((h) => {
+      if (!personasPermitidas.has(h.persona)) return false
+      if (tareaSeleccionada && h.tarea?.trim() !== tareaSeleccionada) return false
+      return true
+    })
+  }, [hayFiltrosActivos, personasFiltradas, project.hours, tareaSeleccionada])
+  const matrizParticipantes = useMemo(
+    () => (hayFiltrosActivos ? matrizHoras(horasParticipantesFiltradas) : matriz),
+    [hayFiltrosActivos, horasParticipantesFiltradas, matriz],
+  )
+
+  // Horas de jornada completa por mes (para el % de ocupacion)
+  const jornadaMes = useMemo(
+    () => matrizParticipantes.meses.map((m) => horasJornadaMes(m)),
+    [matrizParticipantes.meses],
+  )
+  // % de ocupacion de una celda = horas / jornada completa del mes
+  const ocupacion = useMemo(
+    () => (horas: number | null, i: number) =>
+      horas && jornadaMes[i] > 0 ? (horas / jornadaMes[i]) * 100 : 0,
+    [jornadaMes],
+  )
+
   const control = useMemo(
     () =>
       controlDepartamentos(
@@ -172,6 +186,7 @@ export function HoursView({
   useEffect(() => {
     const next = hayFiltrosActivos ? personasFiltradas : todasPersonas
     setSeleccion((prev) => {
+      if (hayFiltrosActivos) return new Set(next)
       if (prev.size === 0) return new Set(next)
       const inter = next.filter((persona) => prev.has(persona))
       return new Set(inter.length > 0 || hayFiltrosActivos ? inter : next)
@@ -180,8 +195,8 @@ export function HoursView({
   }, [hayFiltrosActivos, onSelectPersons, personasFiltradas, todasPersonas])
 
   const chartData = useMemo(() => {
-    const activos = matriz.filas.filter((f) => seleccion.has(f.persona))
-    return matriz.meses.map((mes, i) => {
+    const activos = matrizParticipantes.filas.filter((f) => seleccion.has(f.persona))
+    return matrizParticipantes.meses.map((mes, i) => {
       const point: Record<string, number | string> = { mes: fmtMes(mes) }
       activos.forEach((f) => {
         const h = f.celdas[i].horas ?? 0
@@ -195,9 +210,9 @@ export function HoursView({
       })
       return point
     })
-  }, [matriz, seleccion, medida, ocupacion])
+  }, [matrizParticipantes, seleccion, medida, ocupacion])
 
-  const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
+  const personasSel = matrizParticipantes.filas.filter((f) => seleccion.has(f.persona))
   const tareasVisibles = useMemo(() => {
     if (!departamentoSeleccionado && !tareaSeleccionada) return tareas
 
@@ -211,7 +226,7 @@ export function HoursView({
     )
   }, [departamentoSeleccionado, personasFiltradas, project.hours, tareaSeleccionada, tareas])
   const hayTareas = tareas.length > 0
-  const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
+  const nAnomalias = matrizParticipantes.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
     const dept = new Set<string>()
     if (departamentoSeleccionado) dept.add(departamentoSeleccionado)
@@ -244,16 +259,16 @@ export function HoursView({
 
   // Personas con horas imputadas pero coste 0 EUR en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
-  const hayCostePersonas = matriz.filas.some((f) => f.totalCoste > 0)
+  const hayCostePersonas = matrizParticipantes.filas.some((f) => f.totalCoste > 0)
   const sinTarifa = hayCostePersonas
-    ? matriz.filas.filter((f) => f.total > 0 && f.totalCoste === 0)
+    ? matrizParticipantes.filas.filter((f) => f.total > 0 && f.totalCoste === 0)
     : []
   const filasOrdenadas = useMemo(() => {
-    const base = [...matriz.filas]
+    const base = [...matrizParticipantes.filas]
     if (ordenMes) {
-      const mesIndex = matriz.meses.indexOf(ordenMes.mes)
+      const mesIndex = matrizParticipantes.meses.indexOf(ordenMes.mes)
       if (mesIndex >= 0) {
-        const valorMes = (fila: (typeof matriz.filas)[number]) => {
+        const valorMes = (fila: (typeof matrizParticipantes.filas)[number]) => {
           const celda = fila.celdas[mesIndex]
           const horas = celda?.horas ?? 0
           if (medida === 'coste') return celda?.coste ?? 0
@@ -273,7 +288,7 @@ export function HoursView({
     const seleccionados = base.filter((f) => seleccion.has(f.persona))
     const resto = base.filter((f) => !seleccion.has(f.persona))
     return [...seleccionados, ...resto]
-  }, [matriz.filas, matriz.meses, ordenMes, medida, ocupacion, seleccion])
+  }, [matrizParticipantes.filas, matrizParticipantes.meses, ordenMes, medida, ocupacion, seleccion])
 
   const personasVisibles = useMemo(() => {
     const visibles = new Set(personasFiltradas)
@@ -609,7 +624,7 @@ export function HoursView({
                     <th className="text-left px-3 py-2 font-bold sticky left-0 bg-surface border-b border-line">
                       Participante
                     </th>
-                    {matriz.meses.map((m) => (
+                    {matrizParticipantes.meses.map((m) => (
                       <th
                         key={m}
                         className="text-right px-3 py-2 font-bold whitespace-nowrap border-b border-line"
