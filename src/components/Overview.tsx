@@ -37,6 +37,20 @@ function diasDesdeConcost(p: Project): number | null {
 const fmtDias = (dias: number) => `${dias} ${dias === 1 ? 'dia' : 'dias'}`
 const fmtFechaImportacion = (iso: string) => fmtFecha(iso.slice(0, 10))
 
+function normalizarBusqueda(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
+function proyectoCoincide(project: Project, query: string) {
+  if (!query) return true
+  const campos = [project.name, project.code, project.director ?? '']
+  return campos.some((campo) => normalizarBusqueda(campo).includes(query))
+}
+
 export function Overview({
   projects,
   onSelect,
@@ -51,15 +65,19 @@ export function Overview({
   onHoursFiles: (files: File[]) => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
   const [draggingCode, setDraggingCode] = useState<string | null>(null)
   const [dragOverCode, setDragOverCode] = useState<string | null>(null)
   const draggedCodeRef = useRef<string | null>(null)
   const dragMovedRef = useRef(false)
+  const query = normalizarBusqueda(busqueda)
+  const visibleProjects = projects.filter((project) => proyectoCoincide(project, query))
+  const buscando = query.length > 0
 
-  const proyectosDesactualizados = projects
+  const proyectosDesactualizados = visibleProjects
     .map((project) => ({ project, dias: diasDesdeConcost(project) }))
     .filter((item): item is { project: Project; dias: number } => item.dias !== null && item.dias > 30)
-  const diasConcost = projects
+  const diasConcost = visibleProjects
     .map((p) => diasDesdeConcost(p))
     .filter((dias): dias is number => dias !== null)
   const diasConcostMax = diasConcost.length > 0 ? Math.max(...diasConcost) : null
@@ -71,7 +89,7 @@ export function Overview({
     proyectosDesactualizados.length > 2
       ? `${proyectosDesactualizadosTexto} y ${proyectosDesactualizados.length - 2} mas`
       : proyectosDesactualizadosTexto
-  const totales = projects.reduce(
+  const totales = visibleProjects.reduce(
     (acc, p) => {
       const k = kpis(p)
       const necesitaActualizacion = (diasDesdeConcost(p) ?? 0) > 30
@@ -82,7 +100,7 @@ export function Overview({
     },
     { gasto: 0, facturacion: 0, alertas: 0 },
   )
-  const hayAlertaFacturacion = projects.some((p) => enAlerta(kpis(p)))
+  const hayAlertaFacturacion = visibleProjects.some((p) => enAlerta(kpis(p)))
 
   const endDrag = () => {
     draggedCodeRef.current = null
@@ -96,7 +114,7 @@ export function Overview({
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-[18rem] flex-1">
           <h1 className="font-display text-[30px] font-extrabold leading-tight tracking-tight text-ink">
             Resumen general
           </h1>
@@ -104,10 +122,29 @@ export function Overview({
             Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
+          <label className="relative min-w-[16rem] max-w-md flex-1">
+            <span className="sr-only">Buscar proyecto</span>
+            <input
+              value={busqueda}
+              onChange={(event) => setBusqueda(event.target.value)}
+              className="h-11 w-full rounded-lg border border-line bg-surface px-4 pr-10 text-sm font-semibold text-ink outline-none shadow-soft transition-colors placeholder:font-medium placeholder:text-ink-muted focus:border-accent-500"
+              placeholder="Buscar por nombre o numero de contrato"
+            />
+            {busqueda ? (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-sm font-black text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+                aria-label="Limpiar busqueda"
+              >
+                x
+              </button>
+            ) : null}
+          </label>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 text-sm font-extrabold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 text-sm font-extrabold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
           >
             <span className="text-base leading-none">+</span>
             Anadir proyecto
@@ -116,7 +153,13 @@ export function Overview({
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Proyectos" value={String(projects.length)} icon="P" accent="slate" />
+        <KpiCard
+          label="Proyectos"
+          value={String(visibleProjects.length)}
+          icon="P"
+          accent="slate"
+          sub={buscando ? `Filtrados de ${projects.length}` : undefined}
+        />
         <KpiCard label="Facturado" value={fmtEur(totales.facturacion)} icon="F" accent="emerald" />
         <KpiCard
           label="Gasto acumulado"
@@ -148,7 +191,7 @@ export function Overview({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {projects.map((p) => {
+        {visibleProjects.map((p) => {
           const k = kpis(p)
           const alerta = enAlerta(k)
           const diasActualizacion = diasDesdeConcost(p)
@@ -291,6 +334,22 @@ export function Overview({
             <p className="mt-1 text-sm text-ink-soft">
               Anade primero el fichero de Explotacion de Concost para crear el proyecto.
             </p>
+          </div>
+        )}
+
+        {projects.length > 0 && visibleProjects.length === 0 && (
+          <div className="rounded-lg border border-line bg-surface p-8 text-center md:col-span-2 xl:col-span-3">
+            <div className="text-lg font-extrabold text-ink">No hay proyectos que coincidan</div>
+            <p className="mt-1 text-sm text-ink-soft">
+              Prueba con otro nombre de proyecto o numero de contrato.
+            </p>
+            <button
+              type="button"
+              onClick={() => setBusqueda('')}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-line px-4 text-sm font-bold text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink"
+            >
+              Limpiar busqueda
+            </button>
           </div>
         )}
       </div>
