@@ -2,10 +2,41 @@ import type { DB, HoursRecord, ParsedExplotacion, Project } from '../types'
 
 const KEY = 'jp-control-db-v1'
 
+const DEPT_OLD = 'Servicios'
+const DEPT_NEW = 'Gestión'
+
+function migrateProjectDepartments(project: Project): Project {
+  const remap = <T,>(obj?: Record<string, T>) => {
+    if (!obj || !(DEPT_OLD in obj)) return obj
+    const next = { ...obj }
+    const oldValue = next[DEPT_OLD]
+    delete next[DEPT_OLD]
+    if (!(DEPT_NEW in next)) next[DEPT_NEW] = oldValue
+    return next
+  }
+
+  return {
+    ...project,
+    personDept: remap(project.personDept),
+    extDept: remap(project.extDept),
+    deptShare: remap(project.deptShare),
+  }
+}
+
 export function loadDB(): DB {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as DB
+    if (raw) {
+      const parsed = JSON.parse(raw) as DB
+      return {
+        projects: Object.fromEntries(
+          Object.entries(parsed.projects ?? {}).map(([code, project]) => [
+            code,
+            migrateProjectDepartments(project),
+          ]),
+        ),
+      }
+    }
   } catch {
     // localStorage corrupto: empezamos de cero
   }
@@ -98,5 +129,9 @@ export function importJSON(raw: string): DB {
   if (!parsed || typeof parsed.projects !== 'object') {
     throw new Error('El fichero no es una copia de seguridad válida.')
   }
-  return parsed
+  return {
+    projects: Object.fromEntries(
+      Object.entries(parsed.projects ?? {}).map(([code, project]) => [code, migrateProjectDepartments(project)]),
+    ),
+  }
 }

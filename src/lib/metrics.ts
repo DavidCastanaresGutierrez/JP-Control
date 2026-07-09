@@ -413,7 +413,7 @@ export function partidasExternas(entries: Entry[]): PartidaExterna[] {
 export const DEPARTAMENTOS = [
   'Desarrollo Informático',
   'Ingeniería digital',
-  'Servicios',
+  'Gestión',
   'Oficina del dato',
 ] as const
 

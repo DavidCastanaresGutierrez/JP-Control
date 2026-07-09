@@ -14,20 +14,19 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
   const [sortState, setSortState] = useState<SortState>({ key: 'fecha', dir: 'desc' })
   const [selectedCuenta, setSelectedCuenta] = useState<string | null>(null)
 
-  const cuentas = useMemo(
-    () => [...new Set(entries.map((e) => e.cuenta))].sort(),
-    [entries],
-  )
+  const cuentas = useMemo(() => [...new Set(entries.map((e) => e.cuenta))].sort(), [entries])
 
   const base = useMemo(() => {
     const ql = q.toLowerCase()
-    return entries.filter((e) => cuenta === 'todas' || e.cuenta === cuenta).filter(
-      (e) =>
-        !ql ||
-        e.concepto.toLowerCase().includes(ql) ||
-        (e.asiento ?? '').toLowerCase().includes(ql) ||
-        (e.area ?? '').toLowerCase().includes(ql),
-    )
+    return entries
+      .filter((e) => cuenta === 'todas' || e.cuenta === cuenta)
+      .filter(
+        (e) =>
+          !ql ||
+          e.concepto.toLowerCase().includes(ql) ||
+          (e.asiento ?? '').toLowerCase().includes(ql) ||
+          (e.area ?? '').toLowerCase().includes(ql),
+      )
   }, [entries, cuenta, q])
 
   const chartData = useMemo(() => {
@@ -42,8 +41,13 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
       .sort((a, b) => b.value - a.value || a.cuenta.localeCompare(b.cuenta))
   }, [base])
 
+  const visible = useMemo(() => {
+    if (!selectedCuenta) return base
+    return base.filter((e) => e.cuenta === selectedCuenta)
+  }, [base, selectedCuenta])
+
   const rows = useMemo(() => {
-    const out = [...base]
+    const out = [...visible]
     if (sortState.key === 'fecha') {
       out.sort((a, b) =>
         sortState.dir === 'desc' ? b.fecha.localeCompare(a.fecha) : a.fecha.localeCompare(b.fecha),
@@ -60,16 +64,16 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
       return b.fecha.localeCompare(a.fecha)
     })
     return out
-  }, [base, sortState])
+  }, [visible, sortState])
 
   useEffect(() => {
     if (!selectedCuenta) return
     if (!chartData.some((c) => c.cuenta === selectedCuenta)) setSelectedCuenta(null)
   }, [chartData, selectedCuenta])
 
-  const totalDebe = base.reduce((s, e) => s + e.debe, 0)
-  const totalHaber = base.reduce((s, e) => s + e.haber, 0)
   const totalDistribuido = chartData.reduce((s, c) => s + c.value, 0)
+  const totalVisibleDebe = rows.reduce((s, e) => s + e.debe, 0)
+  const totalVisibleHaber = rows.reduce((s, e) => s + e.haber, 0)
 
   const toggleSort = (key: SortState['key']) => {
     setSortState((prev) =>
@@ -86,6 +90,97 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
   return (
     <div className="bg-surface rounded-[24px] shadow-soft border border-line">
       <div className="p-4 space-y-4 border-b border-line">
+        {chartData.length > 0 && (
+          <div className="rounded-[20px] border border-line bg-surface-muted/30 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <div className="text-sm font-bold text-ink">Distribución por cuenta</div>
+                <div className="text-[11px] text-ink-muted">
+                  Clica un sector para resaltar sus facturas en la tabla.
+                </div>
+              </div>
+              {selectedCuenta && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCuenta(null)}
+                  className="text-xs font-semibold text-ink-soft hover:text-ink underline"
+                >
+                  Limpiar selección
+                </button>
+              )}
+            </div>
+
+            <div className="grid lg:grid-cols-[minmax(0,1.45fr)_320px] gap-4 items-start">
+              <div className="rounded-[18px] bg-surface p-2">
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="cuenta"
+                      innerRadius={72}
+                      outerRadius={120}
+                      paddingAngle={2}
+                      onClick={(_, index) => {
+                        const item = chartData[index]
+                        if (item) toggleCuentaSeleccionada(item.cuenta)
+                      }}
+                    >
+                      {chartData.map((d, i) => (
+                        <Cell
+                          key={d.cuenta}
+                          fill={PIE_COLORS[i % PIE_COLORS.length]}
+                          stroke={selectedCuenta === d.cuenta ? '#143A45' : 'transparent'}
+                          strokeWidth={selectedCuenta === d.cuenta ? 2 : 0}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value, name) => [fmtEur2(Number(value)), String(name)]}
+                      contentStyle={TOOLTIP_STYLE}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="rounded-[18px] border border-line bg-surface p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="text-sm font-bold text-ink">Porcentaje por cuenta</div>
+                  <div className="text-[11px] text-ink-muted">{fmtEur2(totalDistribuido)}</div>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {chartData.map((d, i) => {
+                    const pct = totalDistribuido > 0 ? (d.value / totalDistribuido) * 100 : 0
+                    const active = selectedCuenta === d.cuenta
+                    return (
+                      <button
+                        key={d.cuenta}
+                        type="button"
+                        onClick={() => toggleCuentaSeleccionada(d.cuenta)}
+                        className={`w-full flex items-center gap-2 rounded-[12px] px-2 py-2 text-left transition-colors ${
+                          active ? 'bg-accent-300/25' : 'hover:bg-surface-muted'
+                        }`}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-sm shrink-0"
+                          style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                        />
+                        <span className="flex-1 min-w-0">
+                          <span className="block truncate text-sm font-medium text-ink">
+                            {d.cuenta}
+                          </span>
+                          <span className="block text-[11px] text-ink-muted">{fmtEur2(d.value)}</span>
+                        </span>
+                        <span className="text-xs font-bold tabular-nums text-ink">{fmtPct(pct)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-3 items-center">
           <select
             value={cuenta}
@@ -107,93 +202,6 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
           />
           <div className="text-xs text-ink-muted">{base.length} apuntes</div>
         </div>
-
-        {chartData.length > 0 && (
-          <div className="grid lg:grid-cols-[minmax(0,1.2fr)_340px] gap-4">
-            <div className="rounded-[18px] border border-line bg-surface-muted/30 p-3">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div>
-                  <div className="text-sm font-bold text-ink">Distribución por cuenta</div>
-                  <div className="text-[11px] text-ink-muted">
-                    Haz clic en un sector para resaltar sus facturas.
-                  </div>
-                </div>
-                {selectedCuenta && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCuenta(null)}
-                    className="text-xs font-semibold text-ink-soft hover:text-ink underline"
-                  >
-                    Limpiar selección
-                  </button>
-                )}
-              </div>
-
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="cuenta"
-                    innerRadius={58}
-                    outerRadius={92}
-                    paddingAngle={2}
-                    onClick={(_, index) => {
-                      const item = chartData[index]
-                      if (item) toggleCuentaSeleccionada(item.cuenta)
-                    }}
-                  >
-                    {chartData.map((d, i) => (
-                      <Cell
-                        key={d.cuenta}
-                        fill={PIE_COLORS[i % PIE_COLORS.length]}
-                        stroke={selectedCuenta === d.cuenta ? '#143A45' : 'transparent'}
-                        strokeWidth={selectedCuenta === d.cuenta ? 2 : 0}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [fmtEur2(Number(value)), String(name)]}
-                    contentStyle={TOOLTIP_STYLE}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="rounded-[18px] border border-line bg-surface p-3">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="text-sm font-bold text-ink">Porcentaje por cuenta</div>
-                <div className="text-[11px] text-ink-muted">{fmtEur2(totalDistribuido)}</div>
-              </div>
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {chartData.map((d, i) => {
-                  const pct = totalDistribuido > 0 ? (d.value / totalDistribuido) * 100 : 0
-                  const active = selectedCuenta === d.cuenta
-                  return (
-                    <button
-                      key={d.cuenta}
-                      type="button"
-                      onClick={() => toggleCuentaSeleccionada(d.cuenta)}
-                      className={`w-full flex items-center gap-2 rounded-[12px] px-2 py-2 text-left transition-colors ${
-                        active ? 'bg-accent-300/25' : 'hover:bg-surface-muted'
-                      }`}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-sm shrink-0"
-                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                      />
-                      <span className="flex-1 min-w-0">
-                        <span className="block truncate text-sm font-medium text-ink">{d.cuenta}</span>
-                        <span className="block text-[11px] text-ink-muted">{fmtEur2(d.value)}</span>
-                      </span>
-                      <span className="text-xs font-bold tabular-nums text-ink">{fmtPct(pct)}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
@@ -236,16 +244,11 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
           <tbody>
             {rows.map((e) => {
               const active = selectedCuenta === e.cuenta
-              const faded = selectedCuenta !== null && !active
               return (
                 <tr
                   key={e.id}
                   className={`border-t border-line transition-colors ${
-                    active
-                      ? 'bg-accent-300/25'
-                      : faded
-                        ? 'opacity-45'
-                        : 'hover:bg-surface-muted'
+                    active ? 'bg-accent-300/25' : 'hover:bg-surface-muted'
                   }`}
                 >
                   <td className="px-4 py-2.5 whitespace-nowrap text-ink">{fmtFecha(e.fecha)}</td>
@@ -281,10 +284,10 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                 Total filtrado
               </td>
               <td className="px-4 py-3 text-right whitespace-nowrap text-ink tabular-nums">
-                {fmtEur2(totalDebe)}
+                {fmtEur2(totalVisibleDebe)}
               </td>
               <td className="px-4 py-3 text-right whitespace-nowrap text-success tabular-nums">
-                {fmtEur2(totalHaber)}
+                {fmtEur2(totalVisibleHaber)}
               </td>
             </tr>
           </tfoot>
