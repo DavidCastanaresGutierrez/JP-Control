@@ -40,6 +40,18 @@ function isExpired(payload: JwtPayload): boolean {
   return typeof payload.exp === 'number' && payload.exp <= Math.floor(Date.now() / 1000)
 }
 
+function assertUsableTypsaPayload(payload: JwtPayload): JwtPayload {
+  if (isExpired(payload)) throw new Error('Token Cognito caducado')
+  const email = String(payload.email ?? '').trim().toLowerCase()
+  const sub = String(payload.sub ?? '')
+  if (!email) throw new Error('Token Cognito sin email')
+  if (!sub) throw new Error('Token Cognito sin sub')
+  if (!email.endsWith('@typsa.es') && !email.endsWith('@typsa.com')) {
+    throw new Error('Dominio de email no permitido')
+  }
+  return payload
+}
+
 function parseCookies(req: VercelRequest): Record<string, string> {
   const header = req.headers.cookie ?? ''
   const cookies: Record<string, string> = {}
@@ -156,6 +168,64 @@ export async function verifyCognitoToken(token: string): Promise<JwtPayload> {
   return decoded.payload
 }
 
+function buildSsoEndpointUrl(value: string | undefined, endpoint: string): string | undefined {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    const cleanPath = url.pathname.replace(/\/$/u, '').replace(/\/sso(?:\/.*)?$/u, '')
+    url.pathname = `${cleanPath}${endpoint}`
+    return url.toString()
+  } catch {
+    return undefined
+  }
+}
+
+function profileEmail(profile: Record<string, unknown>): string {
+  return String(
+    profile.email ??
+      profile.mail ??
+      profile.userPrincipalName ??
+      profile.preferred_username ??
+      '',
+  )
+    .trim()
+    .toLowerCase()
+}
+
+function profileName(profile: Record<string, unknown>): string {
+  return String(profile.displayName ?? profile.name ?? profile.givenName ?? '').trim()
+}
+
+async function validateCognitoTokenWithTypsaProfile(token: string): Promise<JwtPayload> {
+  const profileUrl = buildSsoEndpointUrl(process.env.SSO_AWS_LAMBDA_URL, '/sso/me/profile')
+  if (!profileUrl) throw new Error('Falta SSO_AWS_LAMBDA_URL')
+
+  const response = await fetch(profileUrl, { headers: { Authorization: token } })
+  if (!response.ok) throw new Error('TYPSA SSO no ha validado el token.')
+
+  const profile = (await response.json().catch(() => ({}))) as Record<string, unknown>
+  const payload = assertUsableTypsaPayload(decodeJwt(token).payload)
+  const tokenEmail = String(payload.email ?? '').trim().toLowerCase()
+  const checkedEmail = profileEmail(profile)
+  if (checkedEmail && checkedEmail !== tokenEmail) {
+    throw new Error('El perfil TYPSA no coincide con el token SSO.')
+  }
+
+  return {
+    ...payload,
+    email: tokenEmail,
+    name: profileName(profile) || payload.name,
+  }
+}
+
+export async function getSsoIdentity(token: string): Promise<JwtPayload> {
+  try {
+    return await verifyCognitoToken(token)
+  } catch {
+    return validateCognitoTokenWithTypsaProfile(token)
+  }
+}
+
 export function setSsoCookies(
   req: VercelRequest,
   res: VercelResponse,
@@ -196,7 +266,7 @@ function getActiveEmail(cookies: Record<string, string>): string {
  * en cookies httpOnly. Devuelve un nuevo app JWT o null si no es posible.
  */
 async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promise<JwtPayload | null> {
-  const lambdaUrl = process.env.SSO_AWS_LAMBDA_URL
+  const lambdaUrl = buildSsoEndpointUrl(process.env.SSO_AWS_LAMBDA_URL, '/sso/refresh-token')
   if (!lambdaUrl) return null
 
   const cookies = parseCookies(req)
@@ -214,10 +284,11 @@ async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promi
       body: JSON.stringify({ refreshToken, username: cognitoSub }),
     })
     if (!response.ok) return null
-    const body = (await response.json()) as { idToken?: string }
-    if (!body.idToken) return null
+    const body = (await response.json()) as { idToken?: string; id_token?: string }
+    const idToken = body.idToken ?? body.id_token
+    if (!idToken) return null
 
-    const cognito = await verifyCognitoToken(body.idToken)
+    const cognito = await getSsoIdentity(idToken)
     const payload: JwtPayload = {
       sub: String(cognito.sub ?? cognitoSub),
       email: String(cognito.email ?? email),
@@ -225,9 +296,9 @@ async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promi
       role: 'USER',
     }
     const appToken = signAppJwt(payload)
-    setSsoCookies(req, res, email, body.idToken, refreshToken, cognitoSub)
+    setSsoCookies(req, res, email, idToken, refreshToken, cognitoSub)
     res.setHeader('authorization', `Bearer ${appToken}`)
-    res.setHeader('x-cognito-new-id-token', body.idToken)
+    res.setHeader('x-cognito-new-id-token', idToken)
     return payload
   } catch {
     return null
@@ -242,7 +313,7 @@ export async function requireProjectAuth(req: VercelRequest, res: VercelResponse
     } catch {
       if (bearer) {
         try {
-          const cognito = await verifyCognitoToken(bearer)
+          const cognito = await getSsoIdentity(bearer)
           return {
             sub: String(cognito.sub ?? ''),
             email: String(cognito.email ?? ''),
