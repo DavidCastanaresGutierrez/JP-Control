@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireProjectAuth } from './_sso'
+import { requireProjectAuth } from './_sso.js'
 
 const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
 

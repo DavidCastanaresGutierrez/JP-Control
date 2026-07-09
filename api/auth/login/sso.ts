@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setSsoCookies, signAppJwt, verifyCognitoToken } from '../../_sso'
+import { setSsoCookies, signAppJwt, verifyCognitoToken } from '../../_sso.js'
 
 function headerValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
