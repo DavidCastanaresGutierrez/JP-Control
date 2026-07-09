@@ -4,8 +4,19 @@ import { enAlerta, kpis } from '../lib/metrics'
 import { EmojiIcon, emoji } from '../lib/emoji'
 import { ConcostImportModal } from './ConcostImportModal'
 
+function repairMojibake(value?: string): string {
+  const text = (value ?? '').trim()
+  if (!/[ÃÂâ]/.test(text)) return text
+  try {
+    const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 0xff))
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch {
+    return text
+  }
+}
+
 function initialsFromUser(name?: string, email?: string): string {
-  const source = (name || email || 'Usuario TYPSA').trim()
+  const source = repairMojibake(name || email || 'Usuario TYPSA')
   const clean = source.includes('@') ? source.split('@')[0].replace(/[._-]+/g, ' ') : source
   const parts = clean.split(/\s+/).filter(Boolean)
   return (parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : clean.slice(0, 2)).toUpperCase()
@@ -32,6 +43,7 @@ export function Sidebar({
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [photoError, setPhotoError] = useState(false)
+  const displayName = repairMojibake(userName)
 
   useEffect(() => setPhotoError(false), [userPhotoUrl])
 
@@ -117,7 +129,7 @@ export function Sidebar({
             {userPhotoUrl && !photoError ? (
               <img
                 src={userPhotoUrl}
-                alt={userName || userEmail}
+                alt={displayName || userEmail}
                 className="h-10 w-10 shrink-0 rounded-full border border-white/15 object-cover shadow-soft"
                 referrerPolicy="no-referrer"
                 onError={() => setPhotoError(true)}
@@ -131,8 +143,8 @@ export function Sidebar({
               <div className="truncate text-[11px] font-bold uppercase tracking-wider text-white/35">
                 Sesion TYPSA
               </div>
-              {userName && (
-                <div className="mt-0.5 truncate text-xs font-bold text-white/90">{userName}</div>
+              {displayName && (
+                <div className="mt-0.5 truncate text-xs font-bold text-white/90">{displayName}</div>
               )}
               <div className="mt-0.5 truncate text-xs font-semibold text-white/75">{userEmail}</div>
             </div>
