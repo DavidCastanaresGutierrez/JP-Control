@@ -23,6 +23,16 @@ function buildSsoLoginUrl(baseUrl: string) {
   return url
 }
 
+function readSsoParams(search: string, hash: string): URLSearchParams {
+  const fromSearch = new URLSearchParams(search)
+  if (fromSearch.has('id_token') || fromSearch.has('refresh_token') || fromSearch.has('error')) {
+    return fromSearch
+  }
+  const rawHash = hash.startsWith('#') ? hash.slice(1) : hash
+  const fromHash = new URLSearchParams(rawHash)
+  return fromHash
+}
+
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const [, payload] = token.split('.')
   if (!payload) return {}
@@ -77,7 +87,7 @@ export function beginSsoLogin(email: string, redirectUri?: string) {
 }
 
 export async function completeSsoLogin(search: string): Promise<AuthSession> {
-  const params = new URLSearchParams(search)
+  const params = readSsoParams(search, window.location.hash)
   const error = params.get('error')
   if (error) throw new Error(`SSO ha devuelto error: ${error}`)
 
