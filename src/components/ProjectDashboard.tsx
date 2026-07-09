@@ -21,7 +21,7 @@ import { EntriesTable } from './EntriesTable'
 import { HoursView } from './HoursView'
 import { Ajustes } from './Ajustes'
 
-// Paleta de gráficos derivada del sistema de diseño (mint + petróleo + estados)
+// Paleta de graficos derivada del sistema de diseno (mint + petroleo + estados)
 const PIE_COLORS = ['#7CE7C8', '#143A45', '#3A8DFF', '#F2B84B', '#E05A47', '#1B4A55', '#5C6F75']
 const CHART_GRID = '#E2ECE9'
 const CHART_AXIS = { fontSize: 12, fill: '#8A9A9E' }
@@ -58,8 +58,8 @@ export function ProjectDashboard({
     k.desvioFacturacion !== null && k.desvioFacturacion < 0 && k.desvioFacturacion >= -10
   const alertaGasto = k.desvioGasto !== null && k.desvioGasto > 10
 
-  // Barra principal: facturado / importe de contrato, con marca de dónde debería ir según el
-  // avance técnico.
+  // Barra principal: facturado / importe de contrato, con marca de donde deberia ir segun el
+  // avance tecnico.
   const consumido = k.facturacion
   const facturasExt = control.filas.reduce((s, f) => s + f.costeExterno, 0)
   const consumidoPct = contrato && contrato > 0 ? (consumido / contrato) * 100 : null
@@ -72,7 +72,7 @@ export function ProjectDashboard({
     { id: 'panel', label: 'Panel' },
     { id: 'horas', label: 'Horas' },
     { id: 'movimientos', label: 'Facturas' },
-    { id: 'ajustes', label: 'Configuración' },
+    { id: 'ajustes', label: 'Configuracion' },
   ]
 
   return (
@@ -84,8 +84,8 @@ export function ProjectDashboard({
           </h1>
           <div className="text-sm text-ink-soft mt-0.5">
             {project.code}
-            {project.director && <> · Dir.: {project.director}</>}
-            {project.hasta && <> · Datos hasta {fmtFecha(project.hasta)}</>}
+            {project.director && <> - Dir.: {project.director}</>}
+            {project.hasta && <> - Datos hasta {fmtFecha(project.hasta)}</>}
           </div>
         </div>
         <div className="flex rounded-full border border-line bg-surface p-1">
@@ -109,7 +109,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Facturado"
               value={fmtEur(k.facturacion)}
-              icon="🧾"
+              icon=""
               accent="emerald"
               sub={
                 contrato
@@ -118,24 +118,24 @@ export function ProjectDashboard({
               }
             />
             <KpiCard
-              label="Avance / Facturación"
-              value={k.ratioAvanceFacturacion !== null ? fmtRatio(k.ratioAvanceFacturacion) : '—'}
-              icon={alerta ? '⚠️' : atencion ? '👀' : '✅'}
+              label="Avance / Facturacion"
+              value={k.ratioAvanceFacturacion !== null ? fmtRatio(k.ratioAvanceFacturacion) : '-'}
+              icon={alerta ? '!' : atencion ? '' : 'OK'}
               accent={alerta ? 'rose' : atencion ? 'amber' : 'emerald'}
               sub={
                 k.ratioAvanceFacturacion !== null
-                  ? `avance ${fmtPct(k.avancePct!)} / facturado ${fmtPct(k.facturadoPct!)} — ${
+                  ? `avance ${fmtPct(k.avancePct!)} / facturado ${fmtPct(k.facturadoPct!)} - ${
                       k.ratioAvanceFacturacion > 1
                         ? 'trabajo pendiente de facturar'
-                        : 'facturación al día'
+                        : 'facturacion al dia'
                     }`
-                  : 'define contrato y avance en Configuración'
+                  : 'define contrato y avance en Configuracion'
               }
             />
             <KpiCard
               label="Gasto acumulado"
               value={fmtEur(k.gasto)}
-              icon="💸"
+              icon=""
               accent={alertaGasto ? 'rose' : 'indigo'}
               sub={
                 <>
@@ -154,7 +154,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Resultado"
               value={fmtEur(k.resultado)}
-              icon={k.resultado >= 0 ? '📈' : '📉'}
+              icon={k.resultado >= 0 ? '' : ''}
               accent={k.resultado >= 0 ? 'emerald' : 'rose'}
               sub={k.margenPct !== null ? `margen ${fmtPct(k.margenPct)}` : undefined}
             />
@@ -166,7 +166,7 @@ export function ProjectDashboard({
               <div>
                 <h3 className="font-bold text-ink text-lg">Facturado sobre contrato</h3>
                 <p className="text-xs text-ink-soft mt-0.5">
-                  Facturado / importe de contrato. La marca indica dónde debería ir según el
+                  Facturado / importe de contrato. La marca indica donde deberia ir segun el
                   avance.
                 </p>
               </div>
@@ -236,9 +236,9 @@ export function ProjectDashboard({
                     <div className="text-sm font-bold text-ink tabular-nums">{fmtEur(k.gasto)}</div>
                   </div>
                   <div className="rounded-[14px] bg-surface-muted py-3">
-                    <div className="text-[11px] text-ink-muted">Avance técnico</div>
+                    <div className="text-[11px] text-ink-muted">Avance tecnico</div>
                     <div className="text-sm font-bold text-ink tabular-nums">
-                      {avance !== null ? fmtPct(avance) : '—'}
+                      {avance !== null ? fmtPct(avance) : '-'}
                     </div>
                   </div>
                 </div>
@@ -253,22 +253,22 @@ export function ProjectDashboard({
                   }`}
                 >
                   {avance === null
-                    ? `Has facturado el ${fmtPct(consumidoPct)} del contrato. Define el % de avance en Configuración para compararlo.`
+                    ? `Has facturado el ${fmtPct(consumidoPct)} del contrato. Define el % de avance en Configuracion para compararlo.`
                     : consumoEstado === 'exceso'
-                      ? `⚠ La facturación (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el contrato se queda corto.`
+                      ? `! La facturacion (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el contrato se queda corto.`
                       : consumoEstado === 'atencion'
-                        ? `La facturación (${fmtPct(consumidoPct)}) va ligeramente por delante del avance (${fmtPct(avance)}). Vigilar.`
-                        : `La facturación (${fmtPct(consumidoPct)}) va en línea o por debajo del avance (${fmtPct(avance)}). Vas bien.`}
+                        ? `La facturacion (${fmtPct(consumidoPct)}) va ligeramente por delante del avance (${fmtPct(avance)}). Vigilar.`
+                        : `La facturacion (${fmtPct(consumidoPct)}) va en linea o por debajo del avance (${fmtPct(avance)}). Vas bien.`}
                 </p>
               </>
             ) : (
               <p className="text-sm text-ink-soft">
-                Define el importe de contrato (y el % de avance) en la pestaña{' '}
+                Define el importe de contrato (y el % de avance) en la pestana{' '}
                 <button
                   className="text-primary-800 font-semibold underline hover:text-primary-900"
                   onClick={() => setTab('ajustes')}
                 >
-                  Configuración
+                  Configuracion
                 </button>{' '}
                 para ver esta barra.
               </p>
@@ -280,8 +280,8 @@ export function ProjectDashboard({
             <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
               <h3 className="font-bold text-ink text-lg mb-1">Gasto por departamento</h3>
               <p className="text-xs text-ink-soft mb-3">
-                Coste de personal más facturas de externos asignadas a cada departamento. La
-                asignación se configura en Configuración.
+                Coste de personal mas facturas de externos asignadas a cada departamento. La
+                asignacion se configura en Configuracion.
               </p>
               {gastoPorDept.length > 0 ? (
                 <div className="space-y-4">
@@ -331,16 +331,16 @@ export function ProjectDashboard({
                     className="text-primary-800 font-semibold underline hover:text-primary-900"
                     onClick={() => setTab('ajustes')}
                   >
-                    Configuración
+                    Configuracion
                   </button>{' '}
                   para ver este reparto.
                 </p>
               )}
             </div>
 
-            {/* Evolución mensual */}
+            {/* Evolucion mensual */}
             <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
-              <h3 className="font-bold text-ink text-lg mb-4">Evolución mensual</h3>
+              <h3 className="font-bold text-ink text-lg mb-4">Evolucion mensual</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={serie.map((s) => ({ ...s, mesLabel: fmtMes(s.mes) }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
@@ -352,7 +352,7 @@ export function ProjectDashboard({
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="gasto" name="Gasto mes" fill="#1B4A55" fillOpacity={0.55} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="facturacion" name="Facturación mes" fill="#B9F8E5" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="facturacion" name="Facturacion mes" fill="#B9F8E5" radius={[4, 4, 0, 0]} />
                   <Line
                     type="monotone"
                     dataKey="gastoAcum"
@@ -364,7 +364,7 @@ export function ProjectDashboard({
                   <Line
                     type="monotone"
                     dataKey="facturacionAcum"
-                    name="Facturación acumulada"
+                    name="Facturacion acumulada"
                     stroke="#1FAE7A"
                     strokeWidth={2.5}
                     dot={false}

@@ -102,14 +102,14 @@ export function ConcostImportModal({
         <div className="grid gap-4 p-6 md:grid-cols-3">
           <ImportCard
             step="1."
-            title="Explotación"
+            title="Explotacion"
             badge="Obligatorio"
             badgeKind="required"
             action="Subir explotacion-detalle-*.xlsx"
             onClick={() => explotacionInputRef.current?.click()}
           >
-            En Concost: pestaña <b>Explotación</b>, marcar <b>Detalle por contrato</b> y exportar el
-            Excel. Crea o actualiza facturación, gasto y movimientos.
+            En Concost: pestana <b>Explotacion</b>, marcar <b>Detalle por contrato</b> y exportar el
+            Excel. Crea o actualiza facturacion, gasto y movimientos.
           </ImportCard>
 
           <ImportCard
@@ -120,8 +120,8 @@ export function ConcostImportModal({
             action="Subir horas-empleado-detalle-*.xlsx"
             onClick={() => horasEmpleadoInputRef.current?.click()}
           >
-            En Concost: pestaña <b>Horas</b>, seleccionar <b>Por Empleados</b> y marcar{' '}
-            <b>Detalle</b>. Actualiza participantes, horas y ocupación.
+            En Concost: pestana <b>Horas</b>, seleccionar <b>Por Empleados</b> y marcar{' '}
+            <b>Detalle</b>. Actualiza participantes, horas y ocupacion.
           </ImportCard>
 
           <ImportCard
@@ -129,10 +129,10 @@ export function ConcostImportModal({
             title="Horas por tareas"
             badge="Opcional"
             badgeKind="optional"
-            action="Subir exportación de horas por tareas"
+            action="Subir exportacion de horas por tareas"
             onClick={() => horasTareasInputRef.current?.click()}
           >
-            En Concost: pestaña <b>Horas</b>, seleccionar <b>Por Tareas</b> y marcar{' '}
+            En Concost: pestana <b>Horas</b>, seleccionar <b>Por Tareas</b> y marcar{' '}
             <b>Detalle</b>. Lee la columna <b>Tarea del contrato</b> para agrupar coste, horas y
             personas por tarea.
           </ImportCard>

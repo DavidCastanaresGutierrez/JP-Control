@@ -94,7 +94,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
           <div className="rounded-[20px] border border-line bg-surface-muted/30 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
-                <div className="text-sm font-bold text-ink">Distribución por cuenta</div>
+                <div className="text-sm font-bold text-ink">Distribucion por cuenta</div>
                 <div className="text-[11px] text-ink-muted">
                   Clica un sector para resaltar sus facturas en la tabla.
                 </div>
@@ -105,7 +105,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                   onClick={() => setSelectedCuenta(null)}
                   className="text-xs font-semibold text-ink-soft hover:text-ink underline"
                 >
-                  Limpiar selección
+                  Limpiar seleccion
                 </button>
               )}
             </div>
@@ -197,7 +197,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar concepto, asiento, área…"
+            placeholder="Buscar concepto, asiento, area..."
             className="text-sm border border-line rounded-[10px] px-3 py-1.5 flex-1 min-w-48 text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
           />
           <div className="text-xs text-ink-muted">{base.length} apuntes</div>
@@ -217,13 +217,13 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                 >
                   Fecha
                   {sortState.key === 'fecha' && (
-                    <span aria-hidden="true">{sortState.dir === 'desc' ? '↓' : '↑'}</span>
+                    <span aria-hidden="true">{sortState.dir === 'desc' ? 'v' : '^'}</span>
                   )}
                 </button>
               </th>
               <th className="text-left px-4 py-3 font-bold">Asiento</th>
               <th className="text-left px-4 py-3 font-bold">Concepto</th>
-              <th className="text-left px-4 py-3 font-bold">Área</th>
+              <th className="text-left px-4 py-3 font-bold">Area</th>
               <th className="text-left px-4 py-3 font-bold">
                 <button
                   type="button"
@@ -233,7 +233,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                 >
                   Cuenta
                   {sortState.key === 'cuenta' && (
-                    <span aria-hidden="true">{sortState.dir === 'asc' ? '↑' : '↓'}</span>
+                    <span aria-hidden="true">{sortState.dir === 'asc' ? '^' : 'v'}</span>
                   )}
                 </button>
               </th>
@@ -253,10 +253,10 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                 >
                   <td className="px-4 py-2.5 whitespace-nowrap text-ink">{fmtFecha(e.fecha)}</td>
                   <td className="px-4 py-2.5 whitespace-nowrap text-ink-muted text-xs">
-                    {e.asiento ?? '—'}
+                    {e.asiento ?? '-'}
                   </td>
                   <td className="px-4 py-2.5 text-ink">{e.concepto}</td>
-                  <td className="px-4 py-2.5 text-ink-soft">{e.area ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-ink-soft">{e.area ?? '-'}</td>
                   <td className="px-4 py-2.5 text-xs whitespace-nowrap">
                     <button
                       type="button"
@@ -269,10 +269,10 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                     </button>
                   </td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap text-ink tabular-nums">
-                    {e.debe ? fmtEur2(e.debe) : '—'}
+                    {e.debe ? fmtEur2(e.debe) : '-'}
                   </td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap text-success tabular-nums">
-                    {e.haber ? fmtEur2(e.haber) : '—'}
+                    {e.haber ? fmtEur2(e.haber) : '-'}
                   </td>
                 </tr>
               )

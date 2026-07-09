@@ -49,24 +49,24 @@ export function Ajustes({
     <div className="space-y-6 max-w-7xl">
       <div className="grid xl:grid-cols-[22rem_1fr] gap-6 items-start">
         <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
-          <h3 className="font-bold text-ink text-lg">Parámetros del proyecto</h3>
+          <h3 className="font-bold text-ink text-lg">Parametros del proyecto</h3>
           <NumInput
             label="Importe de contrato (honorarios)"
             hint="Contra esto se mide el % facturado, el indicador principal del panel."
             value={project.contractValue}
             onChange={(v) => onUpdate({ contractValue: v })}
-            suffix="€"
+            suffix="EUR"
           />
           <NumInput
             label="Presupuesto de coste"
-            hint="Coste máximo previsto para ejecutar el trabajo; contra esto se mide el % de gasto (referencia secundaria)."
+            hint="Coste maximo previsto para ejecutar el trabajo; contra esto se mide el % de gasto (referencia secundaria)."
             value={project.budget}
             onChange={(v) => onUpdate({ budget: v })}
-            suffix="€"
+            suffix="EUR"
           />
           <NumInput
-            label="Avance técnico estimado"
-            hint="Actualízalo cada mes: es la referencia contra la que se comparan facturación y gasto."
+            label="Avance tecnico estimado"
+            hint="Actualizalo cada mes: es la referencia contra la que se comparan facturacion y gasto."
             value={project.progress}
             onChange={(v) =>
               onUpdate({ progress: v === undefined ? undefined : Math.min(100, Math.max(0, v)) })
@@ -82,17 +82,17 @@ export function Ajustes({
         {confirm ? (
           <div className="bg-danger/8 border border-danger/25 rounded-[20px] p-4">
             <p className="text-sm text-danger font-semibold">
-              ¿Seguro que quieres eliminar «{project.name}»?
+              Seguro que quieres eliminar "{project.name}"?
             </p>
             <p className="text-xs text-danger/75 mt-0.5 mb-3">
-              Se borrarán el proyecto y todos sus datos de este navegador. No se puede deshacer.
+              Se borraran el proyecto y todos sus datos de este navegador. No se puede deshacer.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={onDelete}
                 className="text-sm font-bold bg-danger text-white rounded-full px-4 h-10 hover:opacity-90 transition-opacity"
               >
-                Sí, eliminar
+                Si, eliminar
               </button>
               <button
                 onClick={() => setConfirm(false)}

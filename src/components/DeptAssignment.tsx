@@ -4,8 +4,8 @@ import { DEPARTAMENTOS, horasDePersonas, OTROS_GASTOS, partidasExternas } from '
 import { fmtEur, fmtNum } from '../lib/format'
 
 /**
- * Asignación de personas y facturas de externos a departamentos.
- * Es configuración (se hace una vez), por eso vive en Ajustes.
+ * Asignacion de personas y facturas de externos a departamentos.
+ * Es configuracion (se hace una vez), por eso vive en Ajustes.
  */
 export function DeptAssignment({
   project,
@@ -27,7 +27,7 @@ export function DeptAssignment({
   const hayCoste = [...porPersona.values()].some((v) => v.coste > 0)
   const medidaPersona = (persona: string) => {
     const v = porPersona.get(persona)
-    if (!v) return '—'
+    if (!v) return '-'
     return hayCoste ? fmtEur(v.coste) : `${fmtNum(v.horas)} h`
   }
   const personas = useMemo(
@@ -68,7 +68,7 @@ export function DeptAssignment({
       <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
         <h3 className="font-bold text-ink text-lg">Departamentos</h3>
         <p className="text-sm text-ink-soft mt-1">
-          Importa las horas por empleado y el detalle de explotación para asignar personas y
+          Importa las horas por empleado y el detalle de explotacion para asignar personas y
           facturas a departamentos.
         </p>
       </div>
@@ -81,7 +81,7 @@ export function DeptAssignment({
         <h3 className="font-bold text-ink text-lg">Departamentos</h3>
         <p className="text-xs text-ink-soft mt-0.5">
           Asocia cada persona y cada factura de externo a su departamento. Se usa para el control de
-          gasto por departamento del Panel y la pestaña Horas.
+          gasto por departamento del Panel y la pestana Horas.
         </p>
       </div>
 
@@ -106,7 +106,7 @@ export function DeptAssignment({
                     onChange={(e) => setDept(persona, e.target.value)}
                     className="w-48 text-sm border border-line rounded-[10px] px-2 py-1 bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
                   >
-                    <option value="">— Sin asignar —</option>
+                    <option value="">- Sin asignar -</option>
                     {DEPARTAMENTOS.map((d) => (
                       <option key={d} value={d}>
                         {d}
@@ -129,7 +129,7 @@ export function DeptAssignment({
           </h4>
           <p className="text-xs text-ink-soft mb-2">
             Cada factura de externo cuenta como coste del departamento al que la asignes. Sin asignar
-            van a «Otros Gastos». Agrupadas por tipo de factura.
+            van a "Otros Gastos". Agrupadas por tipo de factura.
           </p>
           <div className="space-y-4">
             {partidasPorTipo.map(([tipo, items]) => (
