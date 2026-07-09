@@ -164,25 +164,31 @@ export function HoursView({
     ? matriz.filas.filter((f) => f.total > 0 && f.totalCoste === 0)
     : []
   const filasOrdenadas = useMemo(() => {
-    if (!ordenMes) return matriz.filas
-    const mesIndex = matriz.meses.indexOf(ordenMes.mes)
-    if (mesIndex < 0) return matriz.filas
+    const base = [...matriz.filas]
+    if (ordenMes) {
+      const mesIndex = matriz.meses.indexOf(ordenMes.mes)
+      if (mesIndex >= 0) {
+        const valorMes = (fila: (typeof matriz.filas)[number]) => {
+          const celda = fila.celdas[mesIndex]
+          const horas = celda?.horas ?? 0
+          if (medida === 'coste') return celda?.coste ?? 0
+          return medida === 'ocupacion' ? ocupacion(horas, mesIndex) : horas
+        }
 
-    const valorMes = (fila: (typeof matriz.filas)[number]) => {
-      const celda = fila.celdas[mesIndex]
-      const horas = celda?.horas ?? 0
-      if (medida === 'coste') return celda?.coste ?? 0
-      return medida === 'ocupacion' ? ocupacion(horas, mesIndex) : horas
+        base.sort((a, b) => {
+          const diff = ordenMes.dir === 'desc' ? valorMes(b) - valorMes(a) : valorMes(a) - valorMes(b)
+          if (diff !== 0) return diff
+          const totalDiff =
+            medida === 'coste' ? b.totalCoste - a.totalCoste : b.total - a.total
+          return totalDiff || a.persona.localeCompare(b.persona)
+        })
+      }
     }
 
-    return [...matriz.filas].sort((a, b) => {
-      const diff = ordenMes.dir === 'desc' ? valorMes(b) - valorMes(a) : valorMes(a) - valorMes(b)
-      if (diff !== 0) return diff
-      const totalDiff =
-        medida === 'coste' ? b.totalCoste - a.totalCoste : b.total - a.total
-      return totalDiff || a.persona.localeCompare(b.persona)
-    })
-  }, [matriz.filas, matriz.meses, ordenMes, medida, ocupacion])
+    const seleccionados = base.filter((f) => seleccion.has(f.persona))
+    const resto = base.filter((f) => !seleccion.has(f.persona))
+    return [...seleccionados, ...resto]
+  }, [matriz.filas, matriz.meses, ordenMes, medida, ocupacion, seleccion])
 
   const escenarioPrincipal = forecast?.escenarios.find((e) => e.id === 'r3')
   const marca80 = useMemo(() => {
