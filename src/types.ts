@@ -18,6 +18,8 @@ export interface HoursRecord {
   horas: number
   /** Coste de personal (€) de esas horas, si el fichero lo trae (col Coste del ERP) */
   coste?: number
+  /** Tarea del contrato / línea de trabajo del ERP, si el fichero la trae */
+  tarea?: string
 }
 
 export interface Project {

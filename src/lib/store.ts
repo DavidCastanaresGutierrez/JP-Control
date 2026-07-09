@@ -93,11 +93,17 @@ export function mergeHours(
 ): DB {
   const p = db.projects[code]
   if (!p) return db
-  const nuevos = new Set(records.map((r) => `${r.persona}|${r.mes}`))
+  const keyOf = (r: HoursRecord) => [r.persona, r.mes, r.tarea ?? ''].join('|')
+  const nuevos = new Set(records.map((r) => keyOf(r)))
   const hours = [
-    ...p.hours.filter((h) => !nuevos.has(`${h.persona}|${h.mes}`)),
+    ...p.hours.filter((h) => !nuevos.has(keyOf(h))),
     ...records,
-  ].sort((a, b) => a.mes.localeCompare(b.mes) || a.persona.localeCompare(b.persona))
+  ].sort(
+    (a, b) =>
+      a.mes.localeCompare(b.mes) ||
+      a.persona.localeCompare(b.persona) ||
+      (a.tarea ?? '').localeCompare(b.tarea ?? ''),
+  )
 
   const personDept = { ...(p.personDept ?? {}) }
   if (areaPorPersona) {

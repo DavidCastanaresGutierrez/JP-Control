@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -21,11 +21,12 @@ import {
   horasJornadaMes,
   matrizHoras,
   SIN_DEPT,
+  tareasContrato,
 } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtMes, fmtNum, fmtPct } from '../lib/format'
 import { UploadZone } from './UploadZone'
 
-// Paleta cualitativa para hasta 10 participantes, derivada del sistema de diseño
+// Paleta cualitativa para hasta 10 participantes, derivada del sistema de diseÃ±o
 const LINE_COLORS = [
   '#1FAE7A', '#143A45', '#3A8DFF', '#F2B84B', '#E05A47',
   '#7CE7C8', '#5C6F75', '#1B4A55', '#9AF2D6', '#8A5A00',
@@ -66,6 +67,7 @@ export function HoursView({
 }) {
   const coste = useMemo(() => costeHorasMensual(project.entries), [project.entries])
   const matriz = useMemo(() => matrizHoras(project.hours), [project.hours])
+  const tareas = useMemo(() => tareasContrato(project.hours), [project.hours])
   const forecast = useMemo(
     () => forecastPresupuesto(project.entries, project.budget ?? project.contractValue),
     [project.entries, project.budget, project.contractValue],
@@ -78,50 +80,64 @@ export function HoursView({
   const setShare = (dept: string, pct: number | undefined) => {
     const next = { ...(project.deptShare ?? {}) }
     if (pct === undefined || Number.isNaN(pct)) delete next[dept]
-    else next[dept] = Math.min(100, Math.max(0, pct))
+    else {
+      const resto = Object.entries(next).reduce((s, [d, v]) => (d === dept ? s : s + (v ?? 0)), 0)
+      const maxPermitido = Math.max(0, 100 - resto)
+      next[dept] = Math.min(maxPermitido, Math.max(0, pct))
+    }
     onUpdate({ deptShare: next })
   }
 
   const diasHasta = (iso: string) =>
     Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 86400000))
 
-  // Color estable por persona (según su orden en la tabla, ordenada por total)
+  // Color estable por persona (segÃºn su orden en la tabla, ordenada por total)
   const colorFor = (persona: string) => {
     const idx = matriz.filas.findIndex((f) => f.persona === persona)
     return LINE_COLORS[(idx < 0 ? 0 : idx) % LINE_COLORS.length]
   }
 
-  // Selección para la gráfica: por defecto, quien tenga anomalías (o el que más
+  // SelecciÃ³n para la grÃ¡fica: por defecto, quien tenga anomalÃ­as (o el que mÃ¡s
   // horas acumula si no hay ninguna)
   const [seleccion, setSeleccion] = useState<Set<string>>(() => {
     const conAnomalias = matriz.filas.filter((f) => f.nAnomalias > 0).map((f) => f.persona)
     if (conAnomalias.length) return new Set(conAnomalias)
     return new Set(matriz.filas.slice(0, 1).map((f) => f.persona))
   })
+  const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null)
 
-  const toggle = (persona: string) =>
+  const toggle = (persona: string) => {
+    setTareaSeleccionada(null)
     setSeleccion((prev) => {
       const next = new Set(prev)
       if (next.has(persona)) next.delete(persona)
       else next.add(persona)
       return next
     })
+  }
 
   const seleccionarDepartamento = (personas: string[]) => {
+    setTareaSeleccionada(null)
     setSeleccion(new Set(personas))
     onSelectPersons?.(personas)
   }
 
-  // Modo de medida de la gráfica/tabla de participantes
+  const seleccionarTarea = (tarea: string, personas: string[]) => {
+    setTareaSeleccionada(tarea)
+    setSeleccion(new Set(personas))
+    onSelectPersons?.(personas)
+  }
+
+  // Modo de medida de la grÃ¡fica/tabla de participantes
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
   const [ordenMes, setOrdenMes] = useState<{ mes: string; dir: 'desc' | 'asc' } | null>(null)
 
-  // Horas de jornada completa por mes (para el % de ocupación)
+  // Horas de jornada completa por mes (para el % de ocupaciÃ³n)
   const jornadaMes = useMemo(
     () => matriz.meses.map((m) => horasJornadaMes(m)),
     [matriz.meses],
   )
-  // % de ocupación de una celda = horas / jornada completa del mes
+  // % de ocupaciÃ³n de una celda = horas / jornada completa del mes
   const ocupacion = useMemo(
     () => (horas: number | null, i: number) =>
       horas && jornadaMes[i] > 0 ? (horas / jornadaMes[i]) * 100 : 0,
@@ -147,6 +163,7 @@ export function HoursView({
   }, [matriz, seleccion, medida, ocupacion])
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
+  const hayTareas = tareas.length > 0
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
     const dept = new Set<string>()
@@ -157,7 +174,7 @@ export function HoursView({
     return dept
   }, [project.personDept, seleccion])
 
-  // Personas con horas imputadas pero coste 0 € en el fichero de Concost:
+  // Personas con horas imputadas pero coste 0 â‚¬ en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
   const hayCostePersonas = matriz.filas.some((f) => f.totalCoste > 0)
   const sinTarifa = hayCostePersonas
@@ -214,24 +231,24 @@ export function HoursView({
 
   return (
     <div className="space-y-6">
-      {/* Predicción de agotamiento de presupuesto */}
+      {/* PredicciÃ³n de agotamiento de presupuesto */}
       <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
         <h3 className="font-bold text-ink text-lg">
-          Predicción: ¿cuándo se agota el presupuesto?
+          PredicciÃ³n: Â¿cuÃ¡ndo se agota el presupuesto?
         </h3>
         <p className="text-xs text-ink-soft mb-4">
-          Proyección del importe consumido (el mayor entre facturado y gasto acumulado, igual que en
-          el Panel) manteniendo el ritmo medio de los últimos 3 meses.
+          ProyecciÃ³n del importe consumido (el mayor entre facturado y gasto acumulado, igual que en
+          el Panel) manteniendo el ritmo medio de los Ãºltimos 3 meses.
         </p>
 
         {!forecast ? (
           <p className="text-sm text-ink-soft">
-            Define el presupuesto de coste (o el importe de contrato) en la pestaña Configuración para
-            calcular la predicción.
+            Define el presupuesto de coste (o el importe de contrato) en la pestaÃ±a ConfiguraciÃ³n para
+            calcular la predicciÃ³n.
           </p>
         ) : forecast.agotado ? (
           <p className="text-sm rounded-[14px] px-4 py-2.5 bg-danger/10 text-danger font-semibold">
-            ⚠ El presupuesto ya está agotado: consumidos {fmtEur(forecast.consumido)} de{' '}
+            âš  El presupuesto ya estÃ¡ agotado: consumidos {fmtEur(forecast.consumido)} de{' '}
             {fmtEur(forecast.presupuesto)} ({fmtEur(-forecast.restante)} de exceso).
           </p>
         ) : (
@@ -248,11 +265,11 @@ export function HoursView({
                   Fecha estimada de agotamiento
                 </div>
                 <div className="text-2xl font-extrabold text-ink mt-1">
-                  {escenarioPrincipal?.fecha ? fmtFecha(escenarioPrincipal.fecha) : '> 5 años'}
+                  {escenarioPrincipal?.fecha ? fmtFecha(escenarioPrincipal.fecha) : '> 5 aÃ±os'}
                 </div>
                 {escenarioPrincipal?.fecha && (
                   <div className="text-xs text-ink-soft mt-0.5">
-                    quedan ≈ {diasHasta(escenarioPrincipal.fecha)} días
+                    quedan â‰ˆ {diasHasta(escenarioPrincipal.fecha)} dÃ­as
                   </div>
                 )}
                 {marca80 && (
@@ -265,7 +282,7 @@ export function HoursView({
                           ? fmtFecha(marca80.fecha)
                           : marca80.estado === 'sinRitmo'
                             ? 'sin ritmo de gasto'
-                            : '> 5 años'}
+                            : '> 5 aÃ±os'}
                     </span>
                   </div>
                 )}
@@ -289,7 +306,7 @@ export function HoursView({
                   {fmtEur(escenarioPrincipal?.ritmoMensual ?? 0)}
                   <span className="text-sm font-semibold text-ink-soft">/mes</span>
                 </div>
-                <div className="text-xs text-ink-soft mt-0.5">media de los últimos 3 meses</div>
+                <div className="text-xs text-ink-soft mt-0.5">media de los Ãºltimos 3 meses</div>
               </div>
             </div>
 
@@ -349,7 +366,7 @@ export function HoursView({
                 <Line
                   type="monotone"
                   dataKey="proyeccion"
-                  name="Proyección"
+                  name="ProyecciÃ³n"
                   stroke="#143A45"
                   strokeWidth={2}
                   strokeDasharray="6 5"
@@ -365,7 +382,7 @@ export function HoursView({
                   <span key={e.id}>
                     {e.label} ({fmtEur(e.ritmoMensual)}/mes):{' '}
                     <span className="font-bold text-ink">
-                      {e.fecha ? fmtFecha(e.fecha) : e.ritmoMensual <= 0 ? 'sin consumo' : '> 5 años'}
+                      {e.fecha ? fmtFecha(e.fecha) : e.ritmoMensual <= 0 ? 'sin consumo' : '> 5 aÃ±os'}
                     </span>
                   </span>
                 ))}
@@ -374,12 +391,12 @@ export function HoursView({
         )}
       </div>
 
-      {/* Coste mensual de horas (cuenta 9101 de la explotación) */}
+      {/* Coste mensual de horas (cuenta 9101 de la explotaciÃ³n) */}
       <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
         <h3 className="font-bold text-ink text-lg">Coste mensual de horas de oficina (9101)</h3>
         <p className="text-xs text-ink-soft mb-4">
-          Del detalle de explotación. Un salto brusco de un mes a otro suele indicar cambios de
-          dedicación del equipo.
+          Del detalle de explotaciÃ³n. Un salto brusco de un mes a otro suele indicar cambios de
+          dedicaciÃ³n del equipo.
         </p>
         {coste.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
@@ -402,9 +419,9 @@ export function HoursView({
           <div>
             <h3 className="font-bold text-ink text-lg">Horas por participante</h3>
             <p className="text-xs text-ink-soft">
-              El detalle de explotación no desglosa por persona: importa aquí el listado de horas
-              por empleado y mes. Haz clic en un participante de la tabla para ver su evolución en
-              la gráfica.
+              El detalle de explotaciÃ³n no desglosa por persona: importa aquÃ­ el listado de horas
+              por empleado y mes. Haz clic en un participante, un departamento o una tarea para
+              ver su evoluciÃ³n en la grÃ¡fica.
             </p>
           </div>
           {project.hours.length > 0 && (
@@ -414,10 +431,10 @@ export function HoursView({
               }`}
             >
               {nAnomalias === 0
-                ? 'Sin anomalías'
+                ? 'Sin anomalÃ­as'
                 : nAnomalias === 1
-                  ? '1 anomalía detectada'
-                  : `${nAnomalias} anomalías detectadas`}
+                  ? '1 anomalÃ­a detectada'
+                  : `${nAnomalias} anomalÃ­as detectadas`}
             </span>
           )}
         </div>
@@ -425,7 +442,7 @@ export function HoursView({
         <UploadZone
           compact
           label="Importar horas por participante (.xlsx)"
-          hint="Arrastra el «Detalle de horas por empleado» del ERP (horas-empleado-detalle-*.xlsx). También vale un Excel con columnas Empleado/Mes/Horas o una columna por mes. Los meses reimportados se sobrescriben."
+          hint="Arrastra el Â«Detalle de horas por empleadoÂ» del ERP (horas-empleado-detalle-*.xlsx). TambiÃ©n vale un Excel con columnas Empleado/Mes/Horas o una columna por mes. Los meses reimportados se sobrescriben."
           onFiles={onImportHours}
         />
 
@@ -434,7 +451,7 @@ export function HoursView({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-ink-soft">
                 {personasSel.length === 0 ? (
-                  'Haz clic en un participante de la tabla para ver su evolución de horas.'
+                  'Haz clic en un participante de la tabla para ver su evoluciÃ³n de horas.'
                 ) : (
                   <>
                     Mostrando{' '}
@@ -443,7 +460,7 @@ export function HoursView({
                         ? personasSel[0].persona
                         : `${personasSel.length} participantes`}
                     </span>
-                    . Haz clic en la tabla para añadir o quitar.
+                    . Haz clic en la tabla para aÃ±adir o quitar.
                   </>
                 )}
               </p>
@@ -457,7 +474,7 @@ export function HoursView({
                         medida === m ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
                       }`}
                     >
-                      {m === 'horas' ? 'Horas' : m === 'ocupacion' ? '% ocupación' : 'Coste'}
+                      {m === 'horas' ? 'Horas' : m === 'ocupacion' ? '% ocupaciÃ³n' : 'Coste'}
                     </button>
                   ))}
                 </div>
@@ -548,7 +565,7 @@ export function HoursView({
                         >
                           <span>{fmtMes(m)}</span>
                           {ordenMes?.mes === m && (
-                            <span aria-hidden="true">{ordenMes.dir === 'desc' ? '↓' : '↑'}</span>
+                            <span aria-hidden="true">{ordenMes.dir === 'desc' ? 'â†“' : 'â†‘'}</span>
                           )}
                         </button>
                       </th>
@@ -561,7 +578,7 @@ export function HoursView({
                 <tbody>
                   {filasOrdenadas.map((f) => {
                     const sel = seleccion.has(f.persona)
-                    // Ocupación media sobre los meses en los que ha imputado
+                    // OcupaciÃ³n media sobre los meses en los que ha imputado
                     let hAct = 0
                     let jAct = 0
                     f.celdas.forEach((c, i) => {
@@ -591,7 +608,7 @@ export function HoursView({
                           {f.persona}
                           {f.nAnomalias > 0 && (
                             <span className="ml-1.5 text-[10px] text-danger font-bold">
-                              ●{f.nAnomalias}
+                              â—{f.nAnomalias}
                             </span>
                           )}
                         </td>
@@ -640,7 +657,7 @@ export function HoursView({
               </span>
               <span>
                 <span className="inline-block w-3 h-3 rounded bg-warning/16 ring-1 ring-warning/40 align-middle mr-1" />
-                Caída (−40%)
+                CaÃ­da (âˆ’40%)
               </span>
               <span>
                 <span className="inline-block w-3 h-3 rounded bg-info/10 ring-1 ring-info/30 align-middle mr-1" />
@@ -654,10 +671,10 @@ export function HoursView({
 
             {sinTarifa.length > 0 && (
               <p className="text-xs rounded-[14px] px-4 py-2.5 bg-warning/12 text-[#8A5A00]">
-                ⚠ <b>{sinTarifa.map((f) => f.persona).join(', ')}</b>{' '}
-                {sinTarifa.length === 1 ? 'tiene' : 'tienen'} horas imputadas pero coste 0 € en el
+                âš  <b>{sinTarifa.map((f) => f.persona).join(', ')}</b>{' '}
+                {sinTarifa.length === 1 ? 'tiene' : 'tienen'} horas imputadas pero coste 0 â‚¬ en el
                 fichero de Concost (probablemente sin tarifa/grupo asignado en el ERP). Su trabajo
-                no está contando en el gasto ni en el control por departamento: corrígelo en
+                no estÃ¡ contando en el gasto ni en el control por departamento: corrÃ­gelo en
                 Concost y reimporta.
               </p>
             )}
@@ -665,15 +682,16 @@ export function HoursView({
         )}
       </div>
 
-      {/* Control por departamento */}
+      {/* Control por departamento + tareas del contrato */}
       {project.hours.length > 0 && (
-        <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
+        <div className={hayTareas ? 'grid xl:grid-cols-2 gap-5' : 'space-y-5'}>
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
           <div>
             <h3 className="font-bold text-ink text-lg">Control por departamento</h3>
             <p className="text-xs text-ink-soft">
-              Asigna a cada persona su departamento y qué % del presupuesto le corresponde. La
-              última columna es <b>presupuesto consumido ÷ asignado</b>: por debajo de 100 % va
-              dentro de su parte; por encima (rojo) se está pasando.
+              Asigna a cada persona su departamento y quÃ© % del presupuesto le corresponde. La
+              Ãºltima columna es <b>presupuesto consumido Ã· asignado</b>: por debajo de 100 % va
+              dentro de su parte; por encima (rojo) se estÃ¡ pasando.
             </p>
           </div>
 
@@ -725,7 +743,7 @@ export function HoursView({
                         >
                           <div className="font-semibold text-ink group-hover:underline">
                             {f.dept}
-                            {f.estado === 'exceso' && <span className="ml-1.5">⚠️</span>}
+                            {f.estado === 'exceso' && <span className="ml-1.5">âš ï¸</span>}
                           </div>
                           <div className="text-[11px] text-ink-muted">
                             {f.personas.length} {f.personas.length === 1 ? 'persona' : 'personas'}
@@ -734,7 +752,7 @@ export function HoursView({
                       </td>
                       <td className="px-3 py-2 text-right">
                         {f.dept === SIN_DEPT ? (
-                          <span className="text-ink-muted">—</span>
+                          <span className="text-ink-muted">â€”</span>
                         ) : (
                           <div className="inline-flex items-center gap-1">
                             <input
@@ -756,16 +774,16 @@ export function HoursView({
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
-                        {f.asignado !== null ? fmtEur(f.asignado) : '—'}
+                        {f.asignado !== null ? fmtEur(f.asignado) : 'â€”'}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-bold text-ink">
-                        {control.hayCoste ? fmtEur(f.coste) : <span className="text-ink-muted">—</span>}
+                        {control.hayCoste ? fmtEur(f.coste) : <span className="text-ink-muted">â€”</span>}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-bold text-ink">
                         {fmtNum(f.horas)} h
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
-                        {f.pctCosteReal !== null ? fmtPct(f.pctCosteReal) : '—'}
+                        {f.pctCosteReal !== null ? fmtPct(f.pctCosteReal) : 'â€”'}
                       </td>
                       <td className="px-3 py-2">
                         {f.consumidoPct !== null ? (
@@ -784,9 +802,11 @@ export function HoursView({
                           <span className="text-xs text-ink-muted">
                             {f.dept === SIN_DEPT
                               ? 'gasto sin departamento'
-                              : f.share === null || f.share === 0
+                              : f.share === null
                                 ? 'define su %'
-                                : 'define presupuesto y horas'}
+                                : f.share === 0
+                                  ? '0 % asignado'
+                                  : 'define presupuesto y horas'}
                           </span>
                         )}
                       </td>
@@ -812,10 +832,10 @@ export function HoursView({
                   <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
                     {control.presupuesto !== null
                       ? fmtEur((control.sumaShares / 100) * control.presupuesto)
-                      : '—'}
+                      : 'â€”'}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {control.hayCoste ? fmtEur(control.costeTotal) : <span className="text-ink-muted">—</span>}
+                    {control.hayCoste ? fmtEur(control.costeTotal) : <span className="text-ink-muted">â€”</span>}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmtNum(control.horasTotal)} h</td>
                   <td />
@@ -827,34 +847,96 @@ export function HoursView({
 
           {control.costeEstimado && (
             <p className="text-xs rounded-[14px] px-4 py-2.5 bg-surface-muted text-ink-soft">
-              <b>*</b> Las horas cargadas no traen coste por persona, así que el consumido se{' '}
+              <b>*</b> Las horas cargadas no traen coste por persona, asÃ­ que el consumido se{' '}
               <b>estima</b> repartiendo el coste de personal del proyecto (cuenta 9101 de la
-              explotación) según las horas de cada departamento. Para el consumo exacto por persona,
-              reimporta el «Detalle de horas por empleado» del ERP (trae la columna Coste).
+              explotaciÃ³n) segÃºn las horas de cada departamento. Para el consumo exacto por persona,
+              reimporta el Â«Detalle de horas por empleadoÂ» del ERP (trae la columna Coste).
             </p>
           )}
           {!control.hayCoste && (
             <p className="text-xs rounded-[14px] px-4 py-2.5 bg-surface-muted text-ink-soft">
               Para calcular el consumido por departamento hace falta el coste de personal: importa el
-              detalle de explotación (cuenta 9101) y las horas por empleado.
+              detalle de explotaciÃ³n (cuenta 9101) y las horas por empleado.
             </p>
           )}
           {control.presupuesto === null && (
             <p className="text-xs rounded-[14px] px-4 py-2.5 bg-surface-muted text-ink-soft">
-              Define el presupuesto de coste (o el importe de contrato) en la pestaña Configuración para
+              Define el presupuesto de coste (o el importe de contrato) en la pestaÃ±a ConfiguraciÃ³n para
               ver el presupuesto asignado y el % de consumo por departamento.
             </p>
           )}
           {control.hayShares && Math.abs(control.sumaShares - 100) > 0.5 && (
             <p className="text-xs rounded-[14px] px-4 py-2.5 bg-warning/12 text-[#8A5A00]">
-              Los porcentajes asignados suman {fmtPct(control.sumaShares)}. Ajústalos hasta 100 %
+              Los porcentajes asignados suman {fmtPct(control.sumaShares)}. AjÃºstalos hasta 100 %
               para repartir todo el presupuesto.
             </p>
           )}
 
           <p className="text-xs text-ink-muted">
-            La asignación de personas y facturas a departamentos se hace en la pestaña Configuración.
+            La asignaciÃ³n de personas y facturas a departamentos se hace en la pestaÃ±a ConfiguraciÃ³n.
           </p>
+        </div>
+        {hayTareas && (
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-ink text-lg">Tareas del contrato</h3>
+              <p className="text-xs text-ink-soft">
+                Agrupadas desde la columna <b>Tarea del contrato</b> del Excel. Haz clic en una
+                tarea para seleccionar las personas vinculadas y verlas juntas en la tabla de
+                participantes.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
+              <span>{tareas.length} tareas detectadas</span>
+              <span>
+                {fmtNum(tareas.reduce((s, t) => s + t.horas, 0))} h ·{' '}
+                {fmtEur(tareas.reduce((s, t) => s + t.coste, 0))}
+              </span>
+            </div>
+
+            <div className="max-h-[560px] overflow-auto rounded-[18px] border border-line">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-surface">
+                  <tr className="text-[11px] text-ink-muted uppercase tracking-wide">
+                    <th className="text-left px-3 py-2 font-bold border-b border-line">Tarea</th>
+                    <th className="text-right px-3 py-2 font-bold border-b border-line">Horas</th>
+                    <th className="text-right px-3 py-2 font-bold border-b border-line">Coste</th>
+                    <th className="text-right px-3 py-2 font-bold border-b border-line">Personas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tareas.map((t) => {
+                    const activo = tareaSeleccionada === t.tarea
+                    return (
+                      <tr
+                        key={t.tarea}
+                        onClick={() => seleccionarTarea(t.tarea, t.personas)}
+                        className={`border-t border-line cursor-pointer transition-colors ${
+                          activo ? 'bg-accent-300/20' : 'hover:bg-surface-muted'
+                        }`}
+                      >
+                        <td className={`px-3 py-2 ${activo ? 'font-bold' : ''}`}>{t.tarea}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtNum(t.horas)} h</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-bold">
+                          {fmtEur(t.coste)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ink-soft">
+                          {t.personas.length}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-xs text-ink-muted">
+              Selecciona una tarea para centrar esas personas en la tabla de participantes y en la
+              grafica.
+            </p>
+          </div>
+        )}
         </div>
       )}
     </div>

@@ -371,6 +371,38 @@ export function matrizHoras(hours: HoursRecord[]): MatrizHoras {
   return { meses, filas }
 }
 
+export interface TareaContratoResumen {
+  tarea: string
+  horas: number
+  coste: number
+  personas: string[]
+}
+
+/**
+ * Resumen de horas/coste por tarea del contrato a partir del detalle horario
+ * importado del ERP.
+ */
+export function tareasContrato(hours: HoursRecord[]): TareaContratoResumen[] {
+  const map = new Map<string, { horas: number; coste: number; personas: Set<string> }>()
+  for (const h of horasDePersonas(hours)) {
+    const tarea = h.tarea?.trim()
+    if (!tarea) continue
+    const cur = map.get(tarea) ?? { horas: 0, coste: 0, personas: new Set<string>() }
+    cur.horas += h.horas
+    cur.coste += h.coste ?? 0
+    cur.personas.add(h.persona)
+    map.set(tarea, cur)
+  }
+  return [...map.entries()]
+    .map(([tarea, v]) => ({
+      tarea,
+      horas: Math.round(v.horas * 100) / 100,
+      coste: Math.round(v.coste * 100) / 100,
+      personas: [...v.personas].sort(),
+    }))
+    .sort((a, b) => b.coste - a.coste || b.horas - a.horas || a.tarea.localeCompare(b.tarea))
+}
+
 // ---------- Control por departamento ----------
 
 export const SIN_DEPT = 'Sin asignar'

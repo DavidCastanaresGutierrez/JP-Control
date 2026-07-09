@@ -5,26 +5,49 @@ import { serialToISO } from './format.ts'
 type Cell = string | number | null
 type Row = Cell[]
 
+const SEP = '\u001f'
+
 export interface ParsedHoras {
   records: HoursRecord[]
-  /** Código de proyecto si el fichero lo declara (exporte del ERP) */
+  /** Codigo de proyecto si el fichero lo declara (exporte del ERP) */
   code?: string
-  /** Departamento sugerido por persona (Área técnica del ERP) */
+  /** Departamento sugerido por persona (Area tecnica del ERP) */
   areaPorPersona?: Record<string, string>
   warnings: string[]
 }
 
 const MESES: Record<string, number> = {
-  ene: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, abr: 4, abril: 4,
-  may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, ago: 8, agosto: 8,
-  sep: 9, sept: 9, septiembre: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11,
-  dic: 12, diciembre: 12,
+  ene: 1,
+  enero: 1,
+  feb: 2,
+  febrero: 2,
+  mar: 3,
+  marzo: 3,
+  abr: 4,
+  abril: 4,
+  may: 5,
+  mayo: 5,
+  jun: 6,
+  junio: 6,
+  jul: 7,
+  julio: 7,
+  ago: 8,
+  agosto: 8,
+  sep: 9,
+  sept: 9,
+  septiembre: 9,
+  oct: 10,
+  octubre: 10,
+  nov: 11,
+  noviembre: 11,
+  dic: 12,
+  diciembre: 12,
 }
 
 /** Intenta convertir un valor de celda (serial, "03/2026", "mar-26", "2026-03", fecha) a yyyy-mm */
 function toMes(v: Cell): string | null {
   if (typeof v === 'number') {
-    if (v > 20000 && v < 80000) return serialToISO(v).slice(0, 7) // serial de fecha
+    if (v > 20000 && v < 80000) return serialToISO(v).slice(0, 7)
     return null
   }
   if (typeof v !== 'string') return null
@@ -49,24 +72,36 @@ const RE_HORAS = /^horas?$|n[ºo°.]?\s*horas|horas\s/i
 
 type Acc = Map<string, number>
 
-const addAcc = (acc: Acc, persona: string, mes: string, horas: number) => {
-  const key = `${persona}|${mes}`
+const keyOf = (persona: string, mes: string, tarea?: string) => [persona, mes, tarea ?? ''].join(SEP)
+
+const addAcc = (acc: Acc, persona: string, mes: string, horas: number, tarea?: string) => {
+  const key = keyOf(persona, mes, tarea)
   acc.set(key, (acc.get(key) ?? 0) + horas)
 }
 
 const accToRecords = (acc: Acc): HoursRecord[] =>
   [...acc.entries()]
     .map(([key, horas]) => {
-      const [persona, mes] = key.split('|')
-      return { persona, mes, horas: Math.round(horas * 100) / 100 }
+      const [persona, mes, tarea = ''] = key.split(SEP)
+      return {
+        persona,
+        mes,
+        horas: Math.round(horas * 100) / 100,
+        tarea: tarea || undefined,
+      }
     })
-    .sort((a, b) => a.mes.localeCompare(b.mes) || a.persona.localeCompare(b.persona))
+    .sort(
+      (a, b) =>
+        a.mes.localeCompare(b.mes) ||
+        a.persona.localeCompare(b.persona) ||
+        (a.tarea ?? '').localeCompare(b.tarea ?? ''),
+    )
 
 /**
  * Formato "Detalle de horas por empleado" del ERP: cabecera con
  * "Nro. | Nombre | Fecha | H. Normales | H. Extra | Coste | ... | Nombre | ID de empleado".
  * Las filas de detalle diario llevan la fecha (serial) en col C y el nombre
- * del empleado repetido en col K; el resto son subtotales por área/grupo.
+ * del empleado repetido en col K; la tarea del contrato viene en col H.
  */
 function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
   const headerIdx = rows.findIndex(
@@ -99,16 +134,15 @@ function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
       if (typeof r[5] === 'number') totalCosteFichero = r[5]
       continue
     }
-    // Fila de detalle: fecha serial en col C y nombre de empleado en col K
     if (typeof r[2] !== 'number' || r[2] < 20000 || r[2] > 80000) continue
     const persona = typeof r[10] === 'string' && r[10].trim() ? r[10].trim() : null
     if (!persona) continue
     const horas = (typeof r[3] === 'number' ? r[3] : 0) + (typeof r[4] === 'number' ? r[4] : 0)
     if (horas === 0) continue
     const mes = serialToISO(r[2]).slice(0, 7)
-    addAcc(acc, persona, mes, horas)
-    addAcc(costeAcc, persona, mes, typeof r[5] === 'number' ? r[5] : 0)
-    // Área técnica (col I): primer valor no vacío por persona
+    const tarea = typeof r[7] === 'string' && r[7].trim() ? r[7].trim() : 'Sin tarea'
+    addAcc(acc, persona, mes, horas, tarea)
+    addAcc(costeAcc, persona, mes, typeof r[5] === 'number' ? r[5] : 0, tarea)
     const area = typeof r[8] === 'string' ? r[8].trim() : ''
     if (area && !areaPorPersona[persona]) areaPorPersona[persona] = area
   }
@@ -117,24 +151,24 @@ function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
 
   const records = accToRecords(acc).map((rec) => ({
     ...rec,
-    coste: Math.round((costeAcc.get(`${rec.persona}|${rec.mes}`) ?? 0) * 100) / 100,
+    coste: Math.round((costeAcc.get(keyOf(rec.persona, rec.mes, rec.tarea)) ?? 0) * 100) / 100,
   }))
   const suma = records.reduce((s, r) => s + r.horas, 0)
   if (totalFichero !== undefined && Math.abs(suma - totalFichero) > 0.01) {
     warnings.push(
-      `Las horas leídas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
+      `Las horas leidas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
     )
   }
   const sumaCoste = records.reduce((s, r) => s + (r.coste ?? 0), 0)
   if (totalCosteFichero !== undefined && Math.abs(sumaCoste - totalCosteFichero) > 0.5) {
     warnings.push(
-      `El coste leído (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
+      `El coste leido (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
     )
   }
   return { records, code, areaPorPersona, warnings }
 }
 
-/** Formato genérico largo: columnas [persona, mes/fecha, horas] */
+/** Formato generico largo: columnas [persona, mes/fecha, horas] */
 function parseLargo(rows: Row[], headerIdx: number, personaCol: number): Acc | null {
   const header = rows[headerIdx]
   const horasCol = header.findIndex((c) => typeof c === 'string' && RE_HORAS.test(c.trim()))
@@ -155,7 +189,7 @@ function parseLargo(rows: Row[], headerIdx: number, personaCol: number): Acc | n
   return acc.size > 0 ? acc : null
 }
 
-/** Formato genérico ancho: columna persona + una columna por mes */
+/** Formato generico ancho: columna persona + una columna por mes */
 function parseAncho(rows: Row[], headerIdx: number, personaCol: number): Acc | null {
   const header = rows[headerIdx]
   const mesCols: Array<{ col: number; mes: string }> = []
@@ -182,11 +216,11 @@ function parseAncho(rows: Row[], headerIdx: number, personaCol: number): Acc | n
 }
 
 /**
- * Importación de horas por participante. Reconoce, por este orden:
+ * Importacion de horas por participante. Reconoce, por este orden:
  *  1. El "Detalle de horas por empleado" del ERP (horas-empleado-detalle-*.xlsx)
  *  2. Formato largo: columnas [persona, mes/fecha, horas]
  *  3. Formato ancho: columna persona + una columna por mes
- * Devuelve registros agregados por persona y mes.
+ * Devuelve registros agregados por persona, mes y, si existe, tarea.
  */
 export function parseHoras(data: ArrayBuffer): ParsedHoras {
   const wb = XLSX.read(data, { type: 'array' })
@@ -201,7 +235,6 @@ export function parseHoras(data: ArrayBuffer): ParsedHoras {
     const erp = parseDetalleEmpleado(rows)
     if (erp) return erp
 
-    // Genéricos: buscar fila de cabecera con una columna de persona
     for (let i = 0; i < Math.min(rows.length, 20); i++) {
       const r = rows[i] ?? []
       const personaCol = r.findIndex((c) => typeof c === 'string' && RE_PERSONA.test(c))
