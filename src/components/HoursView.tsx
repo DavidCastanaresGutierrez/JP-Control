@@ -424,7 +424,7 @@ export function HoursView({
               ver su evoluciÃ³n en la grÃ¡fica.
             </p>
           </div>
-          {project.hours.length > 0 && (
+          {(
             <span
               className={`text-xs font-bold rounded-full px-3 py-1 ${
                 nAnomalias > 0 ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
@@ -683,7 +683,7 @@ export function HoursView({
       </div>
 
       {/* Control por departamento + tareas del contrato */}
-      {project.hours.length > 0 && (
+      {(
         <div className="grid xl:grid-cols-2 gap-5">
           <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
           <div>
