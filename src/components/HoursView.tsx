@@ -311,7 +311,7 @@ export function HoursView({
             </div>
 
             <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={forecast.chart}>
+              <ComposedChart data={forecast.chart} margin={{ top: 28, right: 88, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                 <XAxis
                   dataKey="mes"
@@ -339,8 +339,8 @@ export function HoursView({
                     position: 'insideTopRight',
                     fill: '#E05A47',
                     fontSize: 12,
-                    dx: -4,
-                    dy: -18,
+                    dx: -8,
+                    dy: -20,
                   }}
                 />
                 <ReferenceLine
@@ -352,6 +352,7 @@ export function HoursView({
                     position: 'insideTopRight',
                     fill: '#8A5A00',
                     fontSize: 12,
+                    dx: -8,
                     dy: 14,
                   }}
                 />
