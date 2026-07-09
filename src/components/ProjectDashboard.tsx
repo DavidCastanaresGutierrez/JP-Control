@@ -58,13 +58,11 @@ export function ProjectDashboard({
     k.desvioFacturacion !== null && k.desvioFacturacion < 0 && k.desvioFacturacion >= -10
   const alertaGasto = k.desvioGasto !== null && k.desvioGasto > 10
 
-  // Barra principal: consumo sobre presupuesto = mayor de (facturado, gasto) / presupuesto,
-  // con marca de dónde debería ir según el avance técnico.
-  const consumido = Math.max(k.facturacion, k.gasto)
-  const consumidoEsFacturado = k.facturacion >= k.gasto
-  // Parte del gasto acumulado que son facturas de externos (el resto es personal)
+  // Barra principal: facturado / importe de contrato, con marca de dónde debería ir según el
+  // avance técnico.
+  const consumido = k.facturacion
   const facturasExt = control.filas.reduce((s, f) => s + f.costeExterno, 0)
-  const consumidoPct = budget && budget > 0 ? (consumido / budget) * 100 : null
+  const consumidoPct = contrato && contrato > 0 ? (consumido / contrato) * 100 : null
   const avance = k.avancePct
   const sobreAvance = consumidoPct !== null && avance !== null ? consumidoPct - avance : null
   const consumoEstado =
@@ -166,10 +164,10 @@ export function ProjectDashboard({
           <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
             <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
               <div>
-                <h3 className="font-bold text-ink text-lg">Consumo sobre presupuesto</h3>
+                <h3 className="font-bold text-ink text-lg">Facturado sobre contrato</h3>
                 <p className="text-xs text-ink-soft mt-0.5">
-                  Mayor de facturado o gasto acumulado, sobre el presupuesto. La marca indica dónde
-                  debería ir según el avance.
+                  Facturado / importe de contrato. La marca indica dónde debería ir según el
+                  avance.
                 </p>
               </div>
               {consumidoPct !== null && (
@@ -186,7 +184,7 @@ export function ProjectDashboard({
                     {fmtPct(consumidoPct)}
                   </div>
                   <div className="text-xs text-ink-soft mt-1">
-                    {fmtEur(consumido)} de {fmtEur(budget!)}
+                    {fmtEur(consumido)} de {fmtEur(contrato!)}
                   </div>
                 </div>
               )}
@@ -255,17 +253,17 @@ export function ProjectDashboard({
                   }`}
                 >
                   {avance === null
-                    ? `Has consumido el ${fmtPct(consumidoPct)} del presupuesto (${consumidoEsFacturado ? 'por facturación' : 'por gasto'}). Define el % de avance en Configuración para compararlo.`
+                    ? `Has facturado el ${fmtPct(consumidoPct)} del contrato. Define el % de avance en Configuración para compararlo.`
                     : consumoEstado === 'exceso'
-                      ? `⚠ El consumo (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el presupuesto se queda corto.`
+                      ? `⚠ La facturación (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el contrato se queda corto.`
                       : consumoEstado === 'atencion'
-                        ? `El consumo (${fmtPct(consumidoPct)}) va ligeramente por delante del avance (${fmtPct(avance)}). Vigilar.`
-                        : `El consumo (${fmtPct(consumidoPct)}) va en línea o por debajo del avance (${fmtPct(avance)}). Vas bien.`}
+                        ? `La facturación (${fmtPct(consumidoPct)}) va ligeramente por delante del avance (${fmtPct(avance)}). Vigilar.`
+                        : `La facturación (${fmtPct(consumidoPct)}) va en línea o por debajo del avance (${fmtPct(avance)}). Vas bien.`}
                 </p>
               </>
             ) : (
               <p className="text-sm text-ink-soft">
-                Define el presupuesto (y el % de avance) en la pestaña{' '}
+                Define el importe de contrato (y el % de avance) en la pestaña{' '}
                 <button
                   className="text-primary-800 font-semibold underline hover:text-primary-900"
                   onClick={() => setTab('ajustes')}
