@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setSsoCookies, signAppJwt, verifyCognitoToken } from '../../_sso.js'
+import { getSsoIdentity, setSsoCookies, signAppJwt } from '../../_sso.js'
 
 function headerValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const cognito = await verifyCognitoToken(idToken)
+    const cognito = await getSsoIdentity(idToken)
     const tokenEmail = String(cognito.email ?? mail).trim().toLowerCase()
     if (tokenEmail !== mail) return res.status(401).json({ error: 'El email no coincide con el token SSO.' })
 
@@ -52,4 +52,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: err instanceof Error ? err.message : 'SSO no valido.' })
   }
 }
-
