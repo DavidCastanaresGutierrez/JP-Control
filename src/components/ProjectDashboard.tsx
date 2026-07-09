@@ -32,12 +32,10 @@ export function ProjectDashboard({
   project,
   onUpdate,
   onDelete,
-  onImportHours,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
   onDelete: () => void
-  onImportHours: (files: File[]) => void
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const k = useMemo(() => kpis(project), [project])
@@ -379,7 +377,7 @@ export function ProjectDashboard({
       )}
 
       {tab === 'horas' && (
-        <HoursView project={project} onImportHours={onImportHours} onUpdate={onUpdate} />
+        <HoursView project={project} onUpdate={onUpdate} />
       )}
       {tab === 'movimientos' && <EntriesTable entries={project.entries} />}
       {tab === 'ajustes' && (

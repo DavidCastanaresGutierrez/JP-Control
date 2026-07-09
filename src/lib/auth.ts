@@ -56,12 +56,11 @@ export function clearAuthSession() {
   localStorage.removeItem('jp-control-token')
 }
 
-export function beginSsoLogin(email: string) {
+export function beginSsoLogin(email: string, redirectUri?: string) {
   if (!ssoUrl) throw new Error('Falta VITE_TYPSA_SSO_URL')
-  const redirectUri = `${window.location.origin}/login-success`
   const url = new URL(ssoUrl)
   url.searchParams.set('email', email.trim())
-  url.searchParams.set('redirect_uri', redirectUri)
+  url.searchParams.set('redirect_uri', redirectUri ?? `${window.location.origin}/login-success`)
   window.location.href = url.toString()
 }
 
@@ -122,4 +121,3 @@ export async function logoutSso() {
   }).catch(() => undefined)
   clearAuthSession()
 }
-

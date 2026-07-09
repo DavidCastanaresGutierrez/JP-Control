@@ -24,7 +24,6 @@ import {
   tareasContrato,
 } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtMes, fmtNum, fmtPct } from '../lib/format'
-import { UploadZone } from './UploadZone'
 
 // Paleta cualitativa para hasta 10 participantes, derivada del sistema de diseno
 const LINE_COLORS = [
@@ -56,12 +55,10 @@ const ANOMALIA_STYLE: Record<string, string> = {
 
 export function HoursView({
   project,
-  onImportHours,
   onUpdate,
   onSelectPersons,
 }: {
   project: Project
-  onImportHours: (files: File[]) => void
   onUpdate: (patch: Partial<Project>) => void
   onSelectPersons?: (personas: string[]) => void
 }) {
@@ -460,13 +457,6 @@ export function HoursView({
             </span>
           )}
         </div>
-
-        <UploadZone
-          compact
-          label="Importar horas por participante (.xlsx)"
-          hint='Arrastra el "Detalle de horas por empleado" del ERP (horas-empleado-detalle-*.xlsx). Tambien vale un Excel con columnas Empleado/Mes/Horas o una columna por mes. Los meses reimportados se sobrescriben.'
-          onFiles={onImportHours}
-        />
 
         {project.hours.length > 0 && (
           <>

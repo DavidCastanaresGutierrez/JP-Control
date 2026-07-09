@@ -155,27 +155,6 @@ export default function App() {
     if (lastCode) setSelected(lastCode)
   }
 
-  const handleHoursFiles = async (code: string, files: File[]) => {
-    let next = db
-    for (const f of files) {
-      try {
-        const parsed = parseHoras(await f.arrayBuffer())
-        if (parsed.code && parsed.code !== code) {
-          toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${code}; no se ha importado.`)
-          continue
-        }
-        next = mergeHours(next, code, parsed.records, parsed.areaPorPersona)
-        const personas = new Set(parsed.records.map((r) => r.persona)).size
-        const total = parsed.records.reduce((s, r) => s + r.horas, 0)
-        toast('ok', `${f.name}: ${total.toLocaleString('es-ES')} h de ${personas} participantes importadas.`)
-        parsed.warnings.forEach((w) => toast('warn', `${f.name}: ${w}`))
-      } catch (err) {
-        toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
-      }
-    }
-    setDb(next)
-  }
-
   const handleConcostFiles = async (files: File[]) => {
     if (!selected) return
 
@@ -300,7 +279,6 @@ export default function App() {
               setDb((d) => deleteProject(d, project.code))
               setSelected(null)
             }}
-            onImportHours={(files) => handleHoursFiles(project.code, files)}
           />
         ) : (
           <Overview
