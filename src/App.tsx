@@ -274,6 +274,8 @@ export default function App() {
         onSelect={setSelected}
         onImportConcost={handleConcostFiles}
         userEmail={authSession?.email}
+        userName={authSession?.username}
+        userPhotoUrl={authSession?.photoUrl}
         onLogout={isSsoEnabled ? handleLogout : undefined}
       />
 

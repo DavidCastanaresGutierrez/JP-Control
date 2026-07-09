@@ -8,6 +8,7 @@ type JwtPayload = Record<string, unknown> & {
   sub?: string
   email?: string
   name?: string
+  photoUrl?: string
 }
 
 const APP_PREFIX = 'jp_control'
@@ -196,6 +197,17 @@ function profileName(profile: Record<string, unknown>): string {
   return String(profile.displayName ?? profile.name ?? profile.givenName ?? '').trim()
 }
 
+function profilePhotoUrl(profile: Record<string, unknown>): string {
+  return String(
+    profile.photoUrl ??
+      profile.photo ??
+      profile.picture ??
+      profile.avatar ??
+      profile.thumbnailPhoto ??
+      '',
+  ).trim()
+}
+
 async function validateCognitoTokenWithTypsaProfile(token: string): Promise<JwtPayload> {
   const profileUrl = buildSsoEndpointUrl(process.env.SSO_AWS_LAMBDA_URL, '/sso/me/profile')
   if (!profileUrl) throw new Error('Falta SSO_AWS_LAMBDA_URL')
@@ -215,6 +227,7 @@ async function validateCognitoTokenWithTypsaProfile(token: string): Promise<JwtP
     ...payload,
     email: tokenEmail,
     name: profileName(profile) || payload.name,
+    photoUrl: profilePhotoUrl(profile) || payload.photoUrl,
   }
 }
 

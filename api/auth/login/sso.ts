@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       role: 'USER',
       username,
       email: tokenEmail,
+      photoUrl: typeof cognito.photoUrl === 'string' ? cognito.photoUrl : undefined,
     })
   } catch (err) {
     return res.status(401).json({ error: err instanceof Error ? err.message : 'SSO no valido.' })

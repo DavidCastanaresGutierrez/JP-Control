@@ -117,7 +117,7 @@ export function Overview({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-[18rem] flex-1">
           <h1 className="font-display text-[30px] font-extrabold leading-tight tracking-tight text-ink">
-            Resumen general
+            Tu cartera de proyectos
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.

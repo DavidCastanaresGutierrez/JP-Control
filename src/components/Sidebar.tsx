@@ -1,8 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
 import { EmojiIcon, emoji } from '../lib/emoji'
 import { ConcostImportModal } from './ConcostImportModal'
+
+function initialsFromUser(name?: string, email?: string): string {
+  const source = (name || email || 'Usuario TYPSA').trim()
+  const clean = source.includes('@') ? source.split('@')[0].replace(/[._-]+/g, ' ') : source
+  const parts = clean.split(/\s+/).filter(Boolean)
+  return (parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : clean.slice(0, 2)).toUpperCase()
+}
 
 export function Sidebar({
   projects,
@@ -10,6 +17,8 @@ export function Sidebar({
   onSelect,
   onImportConcost,
   userEmail,
+  userName,
+  userPhotoUrl,
   onLogout,
 }: {
   projects: Project[]
@@ -17,9 +26,14 @@ export function Sidebar({
   onSelect: (code: string | null) => void
   onImportConcost?: (files: File[]) => void
   userEmail?: string
+  userName?: string
+  userPhotoUrl?: string
   onLogout?: () => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
+  const [photoError, setPhotoError] = useState(false)
+
+  useEffect(() => setPhotoError(false), [userPhotoUrl])
 
   return (
     <aside className="flex w-[17rem] shrink-0 flex-col bg-primary-950 text-white/72">
@@ -59,7 +73,7 @@ export function Sidebar({
           <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
             <EmojiIcon>{emoji.home}</EmojiIcon>
           </span>
-          Resumen general
+          Tu cartera
         </button>
 
         <div className="px-3.5 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wider text-white/40">
@@ -99,8 +113,30 @@ export function Sidebar({
 
       {userEmail && (
         <div className="border-t border-white/10 px-4 py-4">
-          <div className="truncate text-[11px] font-bold uppercase tracking-wider text-white/35">Sesion TYPSA</div>
-          <div className="mt-1 truncate text-xs font-semibold text-white/75">{userEmail}</div>
+          <div className="flex items-center gap-3">
+            {userPhotoUrl && !photoError ? (
+              <img
+                src={userPhotoUrl}
+                alt={userName || userEmail}
+                className="h-10 w-10 shrink-0 rounded-full border border-white/15 object-cover shadow-soft"
+                referrerPolicy="no-referrer"
+                onError={() => setPhotoError(true)}
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white font-black text-primary-950 shadow-soft">
+                {initialsFromUser(userName, userEmail)}
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="truncate text-[11px] font-bold uppercase tracking-wider text-white/35">
+                Sesion TYPSA
+              </div>
+              {userName && (
+                <div className="mt-0.5 truncate text-xs font-bold text-white/90">{userName}</div>
+              )}
+              <div className="mt-0.5 truncate text-xs font-semibold text-white/75">{userEmail}</div>
+            </div>
+          </div>
           {onLogout && (
             <button
               onClick={onLogout}
