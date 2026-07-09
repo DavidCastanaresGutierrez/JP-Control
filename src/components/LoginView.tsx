@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import microsoftLogo from '../assets/microsoft-logo.svg'
-import typsaDigitalLogo from '../assets/typsa-digital.png'
+import tdsLogoWhite from '../assets/tds-logo-white.svg'
 import { beginSsoLogin } from '../lib/auth'
 
 export function LoginView() {
@@ -23,20 +23,23 @@ export function LoginView() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md rounded-xl border border-line bg-surface p-7 shadow-hover">
-        <div className="mb-6">
-          <img
-            src={typsaDigitalLogo}
-            alt="TYPSA Digital Solutions"
-            className="mb-5 h-16 w-auto object-contain"
-          />
-          <h1 className="font-display text-2xl font-extrabold text-ink">JP Control</h1>
-          <p className="mt-1 text-sm text-ink-soft">Acceso con SSO TYPSA.</p>
+    <div className="flex min-h-full items-center justify-center bg-[#255B63] px-6 py-10 text-white">
+      <div className="w-full max-w-[360px]">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <img src={tdsLogoWhite} alt="TYPSA Digital Solutions" className="mb-7 h-16 w-auto" />
+          <div className="flex items-center justify-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-black text-[#255B63]">
+              JP
+            </div>
+            <h1 className="font-display text-3xl font-extrabold tracking-normal text-white">
+              JP Control
+            </h1>
+          </div>
+          <p className="mt-2 text-sm font-medium text-white/78">Acceso con SSO TYPSA</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <label className="block text-sm font-bold text-ink">
+          <label className="block text-sm font-bold text-white">
             <span className="inline-flex items-center gap-2">
               <img src={microsoftLogo} alt="" className="h-4 w-4" aria-hidden="true" />
               Email corporativo
@@ -45,27 +48,27 @@ export function LoginView() {
               <img
                 src={microsoftLogo}
                 alt=""
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"
                 aria-hidden="true"
               />
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-line bg-surface pl-10 pr-3 text-sm outline-none focus:border-accent-500"
+                className="h-11 w-full rounded-full border border-white/40 bg-white pl-11 pr-4 text-sm font-semibold text-ink shadow-soft outline-none transition focus:border-accent-300 focus:ring-4 focus:ring-accent-300/30"
                 placeholder="usuario@typsa.com"
                 autoComplete="email"
               />
             </span>
           </label>
           {localError && (
-            <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">
+            <div className="rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-danger">
               {localError}
             </div>
           )}
           <button
             type="submit"
-            className="flex h-11 w-full items-center justify-center rounded-lg bg-accent-500 px-4 text-sm font-extrabold text-primary-950 transition-colors hover:bg-accent-400"
+            className="mt-6 flex h-11 w-full items-center justify-center rounded-full bg-[#9AD8BD] px-4 text-sm font-extrabold text-[#143A45] transition-colors hover:bg-[#B4E6D0] focus:outline-none focus:ring-4 focus:ring-white/30"
           >
             Entrar con SSO
           </button>
