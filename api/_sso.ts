@@ -236,9 +236,23 @@ async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promi
 
 export async function requireProjectAuth(req: VercelRequest, res: VercelResponse): Promise<JwtPayload | null> {
   if (process.env.JWT_SECRET) {
+    const bearer = getBearerToken(req)
     try {
-      return verifyAppJwt(getBearerToken(req))
+      return verifyAppJwt(bearer)
     } catch {
+      if (bearer) {
+        try {
+          const cognito = await verifyCognitoToken(bearer)
+          return {
+            sub: String(cognito.sub ?? ''),
+            email: String(cognito.email ?? ''),
+            name: String(cognito.name ?? cognito.email ?? ''),
+            role: 'USER',
+          }
+        } catch {
+          // token no valido, seguir con la renovacion silenciosa
+        }
+      }
       // App JWT caducado o ausente: intentar renovacion silenciosa via Lambda SSO
       const refreshed = await refreshSsoSession(req, res)
       if (refreshed) return refreshed

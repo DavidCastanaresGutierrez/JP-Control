@@ -102,32 +102,39 @@ export async function completeSsoLogin(search: string): Promise<AuthSession> {
   localStorage.setItem(COGNITO_ID_TOKEN_KEY, idToken)
   localStorage.setItem(COGNITO_REFRESH_TOKEN_KEY, refreshToken)
 
-  const response = await fetch('/api/auth/login/sso', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-cognito-id-token': idToken,
-      'x-cognito-refresh-token': refreshToken,
-    },
-    body: JSON.stringify({ mail: email, username }),
-  })
-
-  const body = (await response.json().catch(() => ({}))) as {
-    token?: string
-    email?: string
-    username?: string
-    error?: string
-  }
-  if (!response.ok || !body.token) {
-    throw new Error(body.error ?? 'No se ha podido crear la sesion de la aplicacion.')
-  }
-
   const session = {
-    token: body.token,
-    email: body.email ?? email,
-    username: body.username ?? username,
+    token: idToken,
+    email,
+    username,
   }
+
+  try {
+    const response = await fetch('/api/auth/login/sso', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-cognito-id-token': idToken,
+        'x-cognito-refresh-token': refreshToken,
+      },
+      body: JSON.stringify({ mail: email, username }),
+    })
+
+    const body = (await response.json().catch(() => ({}))) as {
+      token?: string
+      email?: string
+      username?: string
+      error?: string
+    }
+    if (response.ok && body.token) {
+      session.token = body.token
+      session.email = body.email ?? email
+      session.username = body.username ?? username
+    }
+  } catch {
+    // Si el intercambio con la API no funciona, seguimos con el id_token de Cognito.
+  }
+
   saveAuthSession(session)
   window.history.replaceState({}, document.title, '/')
   return session
