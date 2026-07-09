@@ -2,8 +2,14 @@
   "hash": "abe399c1",
   "configHash": "6a64a23f",
   "lockfileHash": "374ef331",
-  "browserHash": "819ff834",
+  "browserHash": "c7470597",
   "optimized": {
+    "@neondatabase/serverless": {
+      "src": "../../node_modules/@neondatabase/serverless/index.mjs",
+      "file": "@neondatabase_serverless.js",
+      "fileHash": "473b7501",
+      "needsInterop": false
+    },
     "react-dom": {
       "src": "../../node_modules/react-dom/index.js",
       "file": "react-dom.js",

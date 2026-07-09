@@ -223,6 +223,11 @@ export function HoursView({
     return [...seleccionados, ...resto]
   }, [matriz.filas, matriz.meses, ordenMes, medida, ocupacion, seleccion])
 
+  const personasVisibles = useMemo(() => {
+    if (seleccion.size === 0) return filasOrdenadas
+    return filasOrdenadas.filter((f) => seleccion.has(f.persona))
+  }, [filasOrdenadas, seleccion])
+
   const escenarioPrincipal = forecast?.escenarios.find((e) => e.id === 'r3')
   const marca80 = useMemo(() => {
     if (!forecast || !escenarioPrincipal) return null
@@ -597,7 +602,7 @@ export function HoursView({
                   </tr>
                 </thead>
                 <tbody>
-                  {filasOrdenadas.map((f) => {
+                  {personasVisibles.map((f) => {
                     const sel = seleccion.has(f.persona)
                     // Ocupacion media sobre los meses en los que ha imputado
                     let hAct = 0

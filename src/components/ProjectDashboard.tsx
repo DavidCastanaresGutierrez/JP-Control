@@ -341,36 +341,38 @@ export function ProjectDashboard({
             {/* Evolucion mensual */}
             <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
               <h3 className="font-bold text-ink text-lg mb-4">Evolucion mensual</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={serie.map((s) => ({ ...s, mesLabel: fmtMes(s.mes) }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="mesLabel" tick={CHART_AXIS} />
-                  <YAxis tick={CHART_AXIS} tickFormatter={(v) => fmtEur(v)} width={90} />
-                  <Tooltip
-                    formatter={(v) => fmtEur(Number(v))}
-                    contentStyle={{ borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="gasto" name="Gasto mes" fill="#1B4A55" fillOpacity={0.55} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="facturacion" name="Facturacion mes" fill="#B9F8E5" radius={[4, 4, 0, 0]} />
-                  <Line
-                    type="monotone"
-                    dataKey="gastoAcum"
-                    name="Gasto acumulado"
-                    stroke="#143A45"
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="facturacionAcum"
-                    name="Facturacion acumulada"
-                    stroke="#1FAE7A"
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <div className="select-none" style={{ userSelect: 'none' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={serie.map((s) => ({ ...s, mesLabel: fmtMes(s.mes) }))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                    <XAxis dataKey="mesLabel" tick={CHART_AXIS} />
+                    <YAxis tick={CHART_AXIS} tickFormatter={(v) => fmtEur(v)} width={90} />
+                    <Tooltip
+                      formatter={(v) => fmtEur(Number(v))}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="gasto" name="Gasto mes" fill="#1B4A55" fillOpacity={0.55} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="facturacion" name="Facturacion mes" fill="#B9F8E5" radius={[4, 4, 0, 0]} />
+                    <Line
+                      type="monotone"
+                      dataKey="gastoAcum"
+                      name="Gasto acumulado"
+                      stroke="#143A45"
+                      strokeWidth={2.5}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="facturacionAcum"
+                      name="Facturacion acumulada"
+                      stroke="#1FAE7A"
+                      strokeWidth={2.5}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </>
