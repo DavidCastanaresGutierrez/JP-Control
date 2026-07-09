@@ -99,14 +99,10 @@ export function HoursView({
   })
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(null)
   const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null)
+  const [personaSeleccionada, setPersonaSeleccionada] = useState<string | null>(null)
 
   const toggle = (persona: string) => {
-    setSeleccion((prev) => {
-      const next = new Set(prev)
-      if (next.has(persona)) next.delete(persona)
-      else next.add(persona)
-      return next
-    })
+    setPersonaSeleccionada((prev) => (prev === persona ? null : persona))
   }
 
   const seleccionarDepartamento = (dept: string) => {
@@ -116,7 +112,8 @@ export function HoursView({
   const seleccionarTarea = (tarea: string) => {
     setTareaSeleccionada((prev) => (prev === tarea ? null : tarea))
   }
-  const hayFiltrosActivos = Boolean(departamentoSeleccionado) || Boolean(tareaSeleccionada)
+  const hayFiltrosActivos =
+    Boolean(departamentoSeleccionado) || Boolean(tareaSeleccionada) || Boolean(personaSeleccionada)
 
   // Modo de medida de la grafica/tabla de participantes
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
@@ -136,11 +133,20 @@ export function HoursView({
       : null
 
     return todasPersonas.filter((persona) => {
+      if (personaSeleccionada && persona !== personaSeleccionada) return false
       if (filtroDept && !filtroDept.has(persona)) return false
       if (filtroTarea && !filtroTarea.has(persona)) return false
       return true
     })
-  }, [departamentoSeleccionado, matriz.filas, project.personDept, tareaSeleccionada, tareas, todasPersonas])
+  }, [
+    departamentoSeleccionado,
+    matriz.filas,
+    personaSeleccionada,
+    project.personDept,
+    tareaSeleccionada,
+    tareas,
+    todasPersonas,
+  ])
 
   const horasParticipantesFiltradas = useMemo(() => {
     if (!hayFiltrosActivos) return project.hours
@@ -214,9 +220,10 @@ export function HoursView({
 
   const personasSel = matrizParticipantes.filas.filter((f) => seleccion.has(f.persona))
   const tareasVisibles = useMemo(() => {
-    if (!departamentoSeleccionado && !tareaSeleccionada) return tareas
+    if (!departamentoSeleccionado && !tareaSeleccionada && !personaSeleccionada) return tareas
 
-    const personasPermitidas = departamentoSeleccionado ? new Set(personasFiltradas) : null
+    const personasPermitidas =
+      departamentoSeleccionado || personaSeleccionada ? new Set(personasFiltradas) : null
     return tareasContrato(
       project.hours.filter((h) => {
         if (personasPermitidas && !personasPermitidas.has(h.persona)) return false
@@ -224,7 +231,14 @@ export function HoursView({
         return true
       }),
     )
-  }, [departamentoSeleccionado, personasFiltradas, project.hours, tareaSeleccionada, tareas])
+  }, [
+    departamentoSeleccionado,
+    personaSeleccionada,
+    personasFiltradas,
+    project.hours,
+    tareaSeleccionada,
+    tareas,
+  ])
   const hayTareas = tareas.length > 0
   const nAnomalias = matrizParticipantes.filas.reduce((s, f) => s + f.nAnomalias, 0)
   const deptSeleccionados = useMemo(() => {
@@ -236,14 +250,14 @@ export function HoursView({
   const estaFiltrado = hayFiltrosActivos || personasFiltradas.length < matriz.filas.length
   const filasControlVisibles = useMemo(() => {
     if (departamentoSeleccionado) return control.filas.filter((fila) => fila.dept === departamentoSeleccionado)
-    if (!tareaSeleccionada) return control.filas
+    if (!tareaSeleccionada && !personaSeleccionada) return control.filas
     const deptasVisibles = new Set<string>()
     const personasVisibles = new Set(personasFiltradas)
     for (const fila of control.filas) {
       if (fila.personas.some((persona) => personasVisibles.has(persona))) deptasVisibles.add(fila.dept)
     }
     return control.filas.filter((fila) => deptasVisibles.has(fila.dept))
-  }, [control.filas, departamentoSeleccionado, personasFiltradas, tareaSeleccionada])
+  }, [control.filas, departamentoSeleccionado, personaSeleccionada, personasFiltradas, tareaSeleccionada])
   const totalControlVisible = useMemo(() => {
     const asignado = filasControlVisibles.reduce((s, fila) => s + (fila.asignado ?? 0), 0)
     const share = filasControlVisibles.reduce((s, fila) => s + (fila.share ?? 0), 0)
@@ -543,7 +557,7 @@ export function HoursView({
                         ? personasSel[0].persona
                         : `${personasSel.length} participantes`}
                     </span>
-                    . Haz clic en la tabla para anadir o quitar.
+                    . Haz clic en una persona para filtrar sus tareas y departamento.
                   </>
                 )}
               </p>
@@ -565,6 +579,7 @@ export function HoursView({
                   onClick={() => {
                     setDepartamentoSeleccionado(null)
                     setTareaSeleccionada(null)
+                    setPersonaSeleccionada(null)
                     const all = matriz.filas.map((f) => f.persona)
                     setSeleccion(new Set(all))
                     onSelectPersons?.(all)
@@ -777,6 +792,12 @@ export function HoursView({
                   <>
                     {' '}
                     de <span className="font-bold text-ink">{deptSeleccionadosTexto}</span>
+                  </>
+                )}
+                {personaSeleccionada && (
+                  <>
+                    {' '}
+                    para <span className="font-bold text-ink">{personaSeleccionada}</span>
                   </>
                 )}
                 {tareaSeleccionada && (
