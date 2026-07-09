@@ -148,6 +148,14 @@ export function HoursView({
 
   const personasSel = matriz.filas.filter((f) => seleccion.has(f.persona))
   const nAnomalias = matriz.filas.reduce((s, f) => s + f.nAnomalias, 0)
+  const deptSeleccionados = useMemo(() => {
+    const dept = new Set<string>()
+    for (const persona of seleccion) {
+      const d = project.personDept?.[persona]?.trim()
+      if (d) dept.add(d)
+    }
+    return dept
+  }, [project.personDept, seleccion])
 
   // Personas con horas imputadas pero coste 0 € en el fichero de Concost:
   // suele significar que no tienen tarifa/grupo asignado en el ERP.
@@ -309,7 +317,7 @@ export function HoursView({
                     fill: '#E05A47',
                     fontSize: 12,
                     dx: -4,
-                    dy: -8,
+                    dy: -18,
                   }}
                 />
                 <ReferenceLine
@@ -693,13 +701,21 @@ export function HoursView({
                       : f.estado === 'atencion'
                         ? 'text-[#8A5A00]'
                         : 'text-success'
+                  const deptActivo = deptSeleccionados.has(f.dept)
                   return (
-                    <tr key={f.dept} className="border-t border-line">
+                    <tr
+                      key={f.dept}
+                      className={`border-t border-line transition-colors ${
+                        deptActivo ? 'bg-accent-300/20' : ''
+                      }`}
+                    >
                       <td className="px-3 py-2">
                         <button
                           type="button"
                           onClick={() => seleccionarDepartamento(f.personas)}
-                          className="text-left w-full group"
+                          className={`text-left w-full group ${
+                            deptActivo ? 'font-bold' : ''
+                          }`}
                         >
                           <div className="font-semibold text-ink group-hover:underline">
                             {f.dept}
