@@ -5,9 +5,7 @@ function Badge({ kind, children }: { kind: 'required' | 'optional'; children: st
   return (
     <span
       className={`rounded-md px-2 py-1 text-[11px] font-extrabold uppercase ${
-        kind === 'required'
-          ? 'bg-accent-500 text-primary-950'
-          : 'bg-surface text-ink-muted'
+        kind === 'required' ? 'bg-accent-500 text-primary-950' : 'bg-surface text-ink-muted'
       }`}
     >
       {children}
@@ -36,7 +34,7 @@ function ImportCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-full flex-col justify-between text-left rounded-lg border p-5 transition-colors ${
+      className={`flex h-full flex-col justify-between rounded-lg border p-5 text-left transition-colors ${
         badgeKind === 'required'
           ? 'border-accent-500 bg-accent-300/20 hover:bg-accent-300/35'
           : 'border-line bg-surface-muted hover:border-accent-300 hover:bg-accent-300/20'
@@ -46,7 +44,7 @@ function ImportCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-extrabold text-ink">{step}</div>
-            <div className="text-lg font-extrabold text-ink leading-tight">{title}</div>
+            <div className="text-lg font-extrabold leading-tight text-ink">{title}</div>
           </div>
           <Badge kind={badgeKind}>{badge}</Badge>
         </div>
@@ -60,16 +58,12 @@ function ImportCard({
 export function ConcostImportModal({
   title,
   description,
-  explotacionBadge = 'Obligatorio',
-  horasBadge = 'Opcional',
   onClose,
   onExplotacionFiles,
   onHorasFiles,
 }: {
   title: string
   description: string
-  explotacionBadge?: string
-  horasBadge?: string
   onClose: () => void
   onExplotacionFiles: (files: File[]) => void
   onHorasFiles: (files: File[]) => void
@@ -109,7 +103,7 @@ export function ConcostImportModal({
           <ImportCard
             step="1."
             title="Explotación"
-            badge={explotacionBadge}
+            badge="Obligatorio"
             badgeKind="required"
             action="Subir explotacion-detalle-*.xlsx"
             onClick={() => explotacionInputRef.current?.click()}
@@ -121,7 +115,7 @@ export function ConcostImportModal({
           <ImportCard
             step="2."
             title="Horas por empleado"
-            badge={horasBadge}
+            badge="Opcional"
             badgeKind="optional"
             action="Subir horas-empleado-detalle-*.xlsx"
             onClick={() => horasEmpleadoInputRef.current?.click()}

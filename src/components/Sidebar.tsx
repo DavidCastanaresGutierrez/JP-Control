@@ -92,8 +92,6 @@ export function Sidebar({
         <ConcostImportModal
           title="Actualizar datos Concost"
           description="El proyecto ya está cargado. Importa Explotación para actualizar facturación, gasto y movimientos, o Horas para actualizar participantes y ocupación."
-          explotacionBadge="Actualizar"
-          horasBadge="Actualizar"
           onClose={() => setModalOpen(false)}
           onExplotacionFiles={(files) => onImportConcost?.(files)}
           onHorasFiles={(files) => onImportConcost?.(files)}

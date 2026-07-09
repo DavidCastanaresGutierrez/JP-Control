@@ -168,6 +168,119 @@ function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
   return { records, code, areaPorPersona, warnings }
 }
 
+/**
+ * Formato "Detalle de horas por tareas" del ERP: cabecera con
+ * "Nro. | Nombre | Descripción | Fecha | H. Normales | H. Extra | Coste |
+ * Tarea del contrato | ID de empleado".
+ *
+ * En este informe la persona no se repite en cada linea diaria: aparece como
+ * una fila de agrupacion y las lineas de detalle posteriores cuelgan de ella.
+ */
+function parseDetalleTareas(rows: Row[]): ParsedHoras | null {
+  const headerIdx = rows.findIndex((r) => {
+    const cells = r ?? []
+    return (
+      cells.some((c) => typeof c === 'string' && /tarea\s+del\s+contrato/i.test(c)) &&
+      cells.some((c) => typeof c === 'string' && /h\.?\s*normales/i.test(c)) &&
+      cells.some((c) => typeof c === 'string' && /id\s+de\s+empleado/i.test(c))
+    )
+  })
+  if (headerIdx < 0) return null
+
+  const warnings: string[] = []
+  let code: string | undefined
+  let totalFichero: number | undefined
+  let totalCosteFichero: number | undefined
+  const acc: Acc = new Map()
+  const costeAcc: Acc = new Map()
+  const areaPorPersona: Record<string, string> = {}
+  let currentArea = ''
+  let currentPersona = ''
+  let currentTask = ''
+
+  for (const r of rows) {
+    const c0 = r?.[0]
+    if (typeof c0 === 'string' && c0.startsWith('Proyecto:')) {
+      const m = c0.match(/Proyecto:\s*(\S+)/)
+      if (m) code = m[1]
+    }
+  }
+
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i] ?? []
+
+    if (typeof r[1] === 'string' && /^total\s+proyecto/i.test(r[1].trim())) {
+      if (typeof r[4] === 'number') {
+        totalFichero = r[4] + (typeof r[5] === 'number' ? r[5] : 0)
+      }
+      if (typeof r[6] === 'number') totalCosteFichero = r[6]
+      continue
+    }
+
+    if (typeof r[0] === 'string' && r[0].trim() && r[1] === null && r[3] === null) {
+      currentTask = r[0].trim()
+      currentPersona = ''
+      continue
+    }
+
+    if (typeof r[0] === 'number' && typeof r[1] === 'string' && r[1].trim() && r[3] === null) {
+      const name = r[1].trim()
+      if (name.includes(',')) {
+        currentPersona = name
+        if (currentArea && !areaPorPersona[currentPersona]) areaPorPersona[currentPersona] = currentArea
+      } else {
+        currentArea = name
+        currentPersona = ''
+      }
+      continue
+    }
+
+    if (typeof r[0] === 'string' && /^grupo$/i.test(r[0].trim())) {
+      currentPersona = ''
+      continue
+    }
+
+    if (r[0] === null && typeof r[1] === 'string' && r[1].trim() && r[3] === null) {
+      currentPersona = r[1].trim()
+      if (currentArea && !areaPorPersona[currentPersona]) areaPorPersona[currentPersona] = currentArea
+      continue
+    }
+
+    if (typeof r[3] !== 'number' || r[3] < 20000 || r[3] > 80000) continue
+    if (!currentPersona) continue
+
+    const horas = (typeof r[4] === 'number' ? r[4] : 0) + (typeof r[5] === 'number' ? r[5] : 0)
+    if (horas === 0) continue
+
+    const mes = serialToISO(r[3]).slice(0, 7)
+    const tarea =
+      typeof r[7] === 'string' && r[7].trim() ? r[7].trim() : currentTask || 'Sin tarea'
+    addAcc(acc, currentPersona, mes, horas, tarea)
+    addAcc(costeAcc, currentPersona, mes, typeof r[6] === 'number' ? r[6] : 0, tarea)
+    if (currentArea && !areaPorPersona[currentPersona]) areaPorPersona[currentPersona] = currentArea
+  }
+
+  if (acc.size === 0) return null
+
+  const records = accToRecords(acc).map((rec) => ({
+    ...rec,
+    coste: Math.round((costeAcc.get(keyOf(rec.persona, rec.mes, rec.tarea)) ?? 0) * 100) / 100,
+  }))
+  const suma = records.reduce((s, r) => s + r.horas, 0)
+  if (totalFichero !== undefined && Math.abs(suma - totalFichero) > 0.01) {
+    warnings.push(
+      `Las horas leidas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
+    )
+  }
+  const sumaCoste = records.reduce((s, r) => s + (r.coste ?? 0), 0)
+  if (totalCosteFichero !== undefined && Math.abs(sumaCoste - totalCosteFichero) > 0.5) {
+    warnings.push(
+      `El coste leido (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
+    )
+  }
+  return { records, code, areaPorPersona, warnings }
+}
+
 /** Formato generico largo: columnas [persona, mes/fecha, horas] */
 function parseLargo(rows: Row[], headerIdx: number, personaCol: number): Acc | null {
   const header = rows[headerIdx]
@@ -231,6 +344,9 @@ export function parseHoras(data: ArrayBuffer): ParsedHoras {
       defval: null,
       raw: true,
     })
+
+    const tareas = parseDetalleTareas(rows)
+    if (tareas) return tareas
 
     const erp = parseDetalleEmpleado(rows)
     if (erp) return erp
