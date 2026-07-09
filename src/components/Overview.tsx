@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtPct } from '../lib/format'
+import { EmojiIcon, emoji } from '../lib/emoji'
 import { ConcostImportModal } from './ConcostImportModal'
 import { KpiCard } from './KpiCard'
 
@@ -145,7 +146,7 @@ export function Overview({
           <button
             onClick={() => setModalOpen(true)}
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 text-sm font-extrabold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
-          >
+            >
             <span className="text-base leading-none">+</span>
             Anadir proyecto
           </button>
@@ -156,15 +157,20 @@ export function Overview({
         <KpiCard
           label="Proyectos"
           value={String(visibleProjects.length)}
-          icon="P"
+          icon={<EmojiIcon>{emoji.folder}</EmojiIcon>}
           accent="slate"
           sub={buscando ? `Filtrados de ${projects.length}` : undefined}
         />
-        <KpiCard label="Facturado" value={fmtEur(totales.facturacion)} icon="F" accent="emerald" />
+        <KpiCard
+          label="Facturado"
+          value={fmtEur(totales.facturacion)}
+          icon={<EmojiIcon>{emoji.document}</EmojiIcon>}
+          accent="emerald"
+        />
         <KpiCard
           label="Gasto acumulado"
           value={fmtEur(totales.gasto)}
-          icon="G"
+          icon={<EmojiIcon>{emoji.money}</EmojiIcon>}
           accent={proyectosDesactualizados.length > 0 ? 'amber' : 'indigo'}
           sub={
             diasConcostMax !== null
@@ -175,7 +181,7 @@ export function Overview({
         <KpiCard
           label="Proyectos en alerta"
           value={String(totales.alertas)}
-          icon="!"
+          icon={<EmojiIcon>{totales.alertas > 0 ? emoji.alert : emoji.check}</EmojiIcon>}
           accent={hayAlertaFacturacion ? 'rose' : proyectosDesactualizados.length > 0 ? 'amber' : 'emerald'}
           sub={
             proyectosDesactualizados.length > 0 ? (
@@ -268,11 +274,11 @@ export function Overview({
                   </span>
                 ) : alerta ? (
                   <span className="shrink-0 rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
-                    ! Sin facturar {fmtPct(-k.desvioFacturacion!)}
+                    <EmojiIcon>{emoji.alert}</EmojiIcon> Sin facturar {fmtPct(-k.desvioFacturacion!)}
                   </span>
                 ) : (
                   <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
-                    OK
+                    <EmojiIcon>{emoji.check}</EmojiIcon> OK
                   </span>
                 )}
               </div>

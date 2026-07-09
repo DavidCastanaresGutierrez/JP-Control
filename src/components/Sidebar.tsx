@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
+import { EmojiIcon, emoji } from '../lib/emoji'
 import { ConcostImportModal } from './ConcostImportModal'
 
 export function Sidebar({
@@ -40,7 +41,9 @@ export function Sidebar({
             onClick={() => setModalOpen(true)}
             className="flex h-11 w-full items-center rounded-lg bg-accent-500 px-3.5 text-sm font-bold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
           >
-            <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">+</span>
+            <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
+              <EmojiIcon>{emoji.refresh}</EmojiIcon>
+            </span>
             Actualizar datos Concost
           </button>
         </div>
@@ -53,7 +56,9 @@ export function Sidebar({
             selected === null ? 'bg-accent-500 text-primary-950' : 'text-white/72 hover:bg-white/8 hover:text-white'
           }`}
         >
-          <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">[]</span>
+          <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
+            <EmojiIcon>{emoji.home}</EmojiIcon>
+          </span>
           Resumen general
         </button>
 
@@ -72,7 +77,11 @@ export function Sidebar({
               }`}
             >
               <div className="flex truncate text-sm font-semibold">
-                {alerta && <span title="Facturacion por detras del avance">!&nbsp;</span>}
+                {alerta && (
+                  <span title="Facturacion por detras del avance">
+                    <EmojiIcon>{emoji.alert}</EmojiIcon>&nbsp;
+                  </span>
+                )}
                 <span className="truncate">{p.name}</span>
               </div>
               <div className={`truncate text-[11px] ${active ? 'text-primary-900/70' : 'text-white/40'}`}>

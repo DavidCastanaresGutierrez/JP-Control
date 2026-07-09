@@ -16,6 +16,7 @@ import {
 import type { Project } from '../types'
 import { controlDepartamentos, enAlerta, kpis, monthlySeries } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtMes, fmtPct, fmtRatio } from '../lib/format'
+import { EmojiIcon, emoji } from '../lib/emoji'
 import { KpiCard } from './KpiCard'
 import { EntriesTable } from './EntriesTable'
 import { HoursView } from './HoursView'
@@ -107,7 +108,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Facturado"
               value={fmtEur(k.facturacion)}
-              icon=""
+              icon={<EmojiIcon>{emoji.document}</EmojiIcon>}
               accent="emerald"
               sub={
                 contrato
@@ -118,7 +119,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Avance / Facturacion"
               value={k.ratioAvanceFacturacion !== null ? fmtRatio(k.ratioAvanceFacturacion) : '-'}
-              icon={alerta ? '!' : atencion ? '' : 'OK'}
+              icon={<EmojiIcon>{alerta ? emoji.alert : atencion ? emoji.trend : emoji.check}</EmojiIcon>}
               accent={alerta ? 'rose' : atencion ? 'amber' : 'emerald'}
               sub={
                 k.ratioAvanceFacturacion !== null
@@ -133,7 +134,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Gasto acumulado"
               value={fmtEur(k.gasto)}
-              icon=""
+              icon={<EmojiIcon>{emoji.money}</EmojiIcon>}
               accent={alertaGasto ? 'rose' : 'indigo'}
               sub={
                 <>
@@ -152,7 +153,7 @@ export function ProjectDashboard({
             <KpiCard
               label="Resultado"
               value={fmtEur(k.resultado)}
-              icon={k.resultado >= 0 ? '' : ''}
+              icon={<EmojiIcon>{k.resultado >= 0 ? emoji.chart : emoji.alert}</EmojiIcon>}
               accent={k.resultado >= 0 ? 'emerald' : 'rose'}
               sub={k.margenPct !== null ? `margen ${fmtPct(k.margenPct)}` : undefined}
             />
@@ -253,7 +254,7 @@ export function ProjectDashboard({
                   {avance === null
                     ? `Has facturado el ${fmtPct(consumidoPct)} del contrato. Define el % de avance en Configuracion para compararlo.`
                     : consumoEstado === 'exceso'
-                      ? `! La facturacion (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el contrato se queda corto.`
+                      ? `${emoji.alert} La facturacion (${fmtPct(consumidoPct)}) va ${fmtPct(sobreAvance!)} por delante del avance (${fmtPct(avance)}): a este ritmo el contrato se queda corto.`
                       : consumoEstado === 'atencion'
                         ? `La facturacion (${fmtPct(consumidoPct)}) va ligeramente por delante del avance (${fmtPct(avance)}). Vigilar.`
                         : `La facturacion (${fmtPct(consumidoPct)}) va en linea o por debajo del avance (${fmtPct(avance)}). Vas bien.`}

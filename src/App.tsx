@@ -11,6 +11,7 @@ import {
 import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
+import { EmojiIcon, emoji } from './lib/emoji'
 import { parseExplotacion } from './lib/parseExplotacion'
 import { parseHoras } from './lib/parseHoras'
 import { Sidebar } from './components/Sidebar'
@@ -310,6 +311,9 @@ export default function App() {
                   : 'bg-danger text-white'
             }`}
           >
+            <span className="mr-1.5 align-[-1px]">
+              <EmojiIcon>{t.kind === 'ok' ? emoji.check : t.kind === 'warn' ? emoji.alert : emoji.alert}</EmojiIcon>
+            </span>
             {t.text}
           </div>
         ))}

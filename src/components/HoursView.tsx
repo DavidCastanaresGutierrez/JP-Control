@@ -24,6 +24,7 @@ import {
   tareasContrato,
 } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtMes, fmtNum, fmtPct } from '../lib/format'
+import { EmojiIcon, emoji } from '../lib/emoji'
 
 // Paleta cualitativa para hasta 10 participantes, derivada del sistema de diseno
 const LINE_COLORS = [
@@ -293,7 +294,7 @@ export function HoursView({
           </p>
         ) : forecast.agotado ? (
           <p className="text-sm rounded-[14px] px-4 py-2.5 bg-danger/10 text-danger font-semibold">
-            ! El presupuesto ya esta agotado: consumidos {fmtEur(forecast.consumido)} de{' '}
+            <EmojiIcon>{emoji.alert}</EmojiIcon> El presupuesto ya esta agotado: consumidos {fmtEur(forecast.consumido)} de{' '}
             {fmtEur(forecast.presupuesto)} ({fmtEur(-forecast.restante)} de exceso).
           </p>
         ) : (
@@ -704,7 +705,7 @@ export function HoursView({
 
             {sinTarifa.length > 0 && (
               <p className="text-xs rounded-[14px] px-4 py-2.5 bg-warning/12 text-[#8A5A00]">
-                ! <b>{sinTarifa.map((f) => f.persona).join(', ')}</b>{' '}
+                <EmojiIcon>{emoji.alert}</EmojiIcon> <b>{sinTarifa.map((f) => f.persona).join(', ')}</b>{' '}
                 {sinTarifa.length === 1 ? 'tiene' : 'tienen'} horas imputadas pero coste 0 EUR en el
                 fichero de Concost (probablemente sin tarifa/grupo asignado en el ERP). Su trabajo
                 no esta contando en el gasto ni en el control por departamento: corrigelo en
