@@ -2,15 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DB } from './types'
 import {
   deleteProject,
-  exportJSON,
-  importJSON,
   loadDB,
   mergeHours,
   saveDB,
   updateProject,
   upsertExplotacion,
 } from './lib/store'
-import { deleteRemoteProject, fetchRemoteProjects, pushProject, setToken } from './lib/api'
+import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
 import { parseExplotacion } from './lib/parseExplotacion'
 import { parseHoras } from './lib/parseHoras'
 import { Sidebar } from './components/Sidebar'
@@ -31,11 +29,9 @@ export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
   const [selected, setSelected] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
-  const backupInputRef = useRef<HTMLInputElement>(null)
 
   // ---- Sincronización con la nube (API /api/projects en Vercel) ----
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
-  const [codigoAcceso, setCodigoAcceso] = useState('')
   // Última versión de cada proyecto confirmada en la nube (para subir solo cambios)
   const lastSynced = useRef<Map<string, string>>(new Map())
 
@@ -213,26 +209,6 @@ export default function App() {
     setDb(next)
   }
 
-  const handleBackupExport = () => {
-    const blob = new Blob([exportJSON(db)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `jp-control-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }
-
-  const handleBackupImport = async (file: File) => {
-    try {
-      const next = importJSON(await file.text())
-      setDb(next)
-      setSelected(null)
-      toast('ok', `Copia restaurada: ${Object.keys(next.projects).length} proyectos.`)
-    } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Copia de seguridad no válida.')
-    }
-  }
-
   const projects = Object.values(db.projects).sort((a, b) => a.name.localeCompare(b.name))
   const project = selected ? db.projects[selected] : undefined
 
@@ -246,86 +222,6 @@ export default function App() {
       />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-background/95 px-6 py-3 text-xs backdrop-blur">
-          <div className="flex items-center gap-2 min-w-0">
-            {syncEstado === 'nube' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-[11px] font-bold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Sincronizado con la nube
-              </span>
-            )}
-            {syncEstado === 'local' && (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-[11px] font-bold text-ink-muted"
-                title="No hay base de datos configurada: los datos solo se guardan en este navegador."
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-ink-muted" /> Solo local
-              </span>
-            )}
-            {syncEstado === 'cargando' && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-[11px] font-bold text-ink-muted">
-                Conectando…
-              </span>
-            )}
-            {syncEstado === 'error' && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-danger/10 px-3 py-1 text-[11px] font-bold text-danger">
-                Error al sincronizar
-                <button onClick={conectar} className="underline">
-                  Reintentar
-                </button>
-              </span>
-            )}
-            {syncEstado === 'auth' && (
-              <form
-                className="flex items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setToken(codigoAcceso.trim())
-                  conectar()
-                }}
-              >
-                <input
-                  type="password"
-                  value={codigoAcceso}
-                  onChange={(e) => setCodigoAcceso(e.target.value)}
-                  placeholder="Código de acceso"
-                  className="h-8 w-40 rounded-lg border border-line bg-surface px-2.5 text-xs text-ink focus:border-accent-500 focus:ring-2 focus:ring-accent-500/40 outline-none"
-                />
-                <button
-                  type="submit"
-                  className="h-8 rounded-lg bg-accent-500 px-3 text-[11px] font-bold text-primary-950 hover:bg-accent-400 transition-colors"
-                >
-                  Conectar
-                </button>
-              </form>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-          <button
-            onClick={handleBackupExport}
-            className="border border-line bg-surface rounded-lg px-3.5 h-9 font-semibold hover:bg-surface-muted text-primary-900 transition-colors"
-          >
-            Exportar copia
-          </button>
-          <button
-            onClick={() => backupInputRef.current?.click()}
-            className="border border-line bg-surface rounded-lg px-3.5 h-9 font-semibold hover:bg-surface-muted text-primary-900 transition-colors"
-          >
-            Restaurar copia
-          </button>
-          </div>
-          <input
-            ref={backupInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleBackupImport(f)
-              e.target.value = ''
-            }}
-          />
-        </div>
-
         {project ? (
           <ProjectDashboard
             key={project.code}
