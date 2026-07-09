@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Manrope", "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --color-primary-950: #101828;
+  --color-primary-900: #1d2939;
+  --color-primary-800: #344054;
+
+  --color-accent-500: #7ce7c8;
+  --color-accent-400: #9af2d6;
+  --color-accent-300: #b9f8e5;
+
+  --color-background: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef4f2;
+
+  --color-ink: #102a32;
+  --color-ink-soft: #5c6f75;
+  --color-ink-muted: #8a9a9e;
+
+  --color-line: #dde7e4;
+  --color-line-strong: #c6d6d2;
+
+  --color-success: #1fae7a;
+  --color-warning: #f2b84b;
+  --color-danger: #e05a47;
+  --color-info: #3a8dff;
+
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+
+  --shadow-soft: 0 1px 2px rgba(16, 42, 50, 0.04), 0 12px 32px rgba(16, 42, 50, 0.06);
+  --shadow-hover: 0 4px 12px rgba(16, 42, 50, 0.08), 0 18px 44px rgba(16, 42, 50, 0.1);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-ink font-sans antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 8px;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(124, 231, 200, 0.55);
+  outline-offset: 2px;
+}
