@@ -27,6 +27,8 @@ export function Sidebar({
   selected,
   onSelect,
   onImportConcost,
+  archiveFilter,
+  onArchiveFilterChange,
   userEmail,
   userName,
   userPhotoUrl,
@@ -36,6 +38,8 @@ export function Sidebar({
   selected: string | null
   onSelect: (code: string | null) => void
   onImportConcost?: (files: File[]) => void
+  archiveFilter: 'active' | 'archived' | 'all'
+  onArchiveFilterChange: (filter: 'active' | 'archived' | 'all') => void
   userEmail?: string
   userName?: string
   userPhotoUrl?: string
@@ -44,6 +48,12 @@ export function Sidebar({
   const [modalOpen, setModalOpen] = useState(false)
   const [photoError, setPhotoError] = useState(false)
   const displayName = repairMojibake(userName)
+  const activeCount = projects.filter((project) => !project.archivedAt).length
+  const archivedCount = projects.filter((project) => project.archivedAt).length
+  const visibleProjects = projects.filter((project) => {
+    if (archiveFilter === 'all') return true
+    return archiveFilter === 'archived' ? Boolean(project.archivedAt) : !project.archivedAt
+  })
 
   useEffect(() => setPhotoError(false), [userPhotoUrl])
 
@@ -89,9 +99,32 @@ export function Sidebar({
         </button>
 
         <div className="px-3.5 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wider text-white/40">
-          Proyectos ({projects.length})
+          Proyectos
         </div>
-        {projects.map((p) => {
+        <div className="mb-2 space-y-1">
+          {[
+            { id: 'active' as const, label: 'Activos', count: activeCount },
+            { id: 'archived' as const, label: 'Archivados', count: archivedCount },
+            { id: 'all' as const, label: 'Todos', count: projects.length },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onArchiveFilterChange(item.id)}
+              className={`flex h-9 w-full items-center justify-between rounded-lg px-3.5 text-sm font-semibold transition-colors ${
+                archiveFilter === item.id
+                  ? 'bg-white/12 text-white'
+                  : 'text-white/62 hover:bg-white/8 hover:text-white'
+              }`}
+            >
+              <span>{item.label}</span>
+              <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-bold text-white/75">
+                {item.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {visibleProjects.map((p) => {
           const alerta = enAlerta(kpis(p))
           const active = selected === p.code
           return (
@@ -108,6 +141,11 @@ export function Sidebar({
                     <EmojiIcon>{emoji.alert}</EmojiIcon>&nbsp;
                   </span>
                 )}
+                {p.archivedAt && (
+                  <span title="Proyecto archivado">
+                    <EmojiIcon>{emoji.folder}</EmojiIcon>&nbsp;
+                  </span>
+                )}
                 <span className="truncate">{p.name}</span>
               </div>
               <div className={`truncate text-[11px] ${active ? 'text-primary-900/70' : 'text-white/40'}`}>
@@ -119,6 +157,11 @@ export function Sidebar({
         {projects.length === 0 && (
           <div className="px-3.5 py-3 text-xs text-white/40">
             Importa un fichero de explotacion para empezar.
+          </div>
+        )}
+        {projects.length > 0 && visibleProjects.length === 0 && (
+          <div className="px-3.5 py-3 text-xs text-white/40">
+            No hay proyectos en este filtro.
           </div>
         )}
       </nav>

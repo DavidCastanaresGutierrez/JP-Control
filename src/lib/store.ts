@@ -65,6 +65,7 @@ export function upsertExplotacion(db: DB, parsed: ParsedExplotacion): { db: DB; 
     hasta: parsed.hasta ?? prev?.hasta,
     lastImport: new Date().toISOString(),
     concostFileName: parsed.fileName,
+    archivedAt: prev?.archivedAt,
     entries: parsed.entries,
     hours: prev?.hours ?? [],
     budget: prev?.budget,

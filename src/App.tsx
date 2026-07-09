@@ -29,6 +29,7 @@ interface Toast {
 let toastId = 0
 
 type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
+type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
 
@@ -64,6 +65,7 @@ export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
+  const [archiveFilter, setArchiveFilter] = useState<ProjectArchiveFilter>('active')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
@@ -222,12 +224,17 @@ export default function App() {
     setDb(next)
   }
 
-  const projects = orderProjects(db.projects, projectOrder)
+  const allProjects = orderProjects(db.projects, projectOrder)
+  const projects = allProjects.filter((project) => {
+    if (archiveFilter === 'all') return true
+    const archived = Boolean(project.archivedAt)
+    return archiveFilter === 'archived' ? archived : !archived
+  })
   const project = selected ? db.projects[selected] : undefined
 
   const handleReorderProjects = (draggedCode: string, targetCode: string) => {
     setProjectOrder((current) => {
-      const codes = projects.map((p) => p.code)
+      const codes = allProjects.map((p) => p.code)
       const base = current.length > 0 ? [...current.filter((code) => db.projects[code])] : codes
       for (const code of codes) {
         if (!base.includes(code)) base.push(code)
@@ -269,10 +276,12 @@ export default function App() {
   return (
     <div className="flex h-full">
       <Sidebar
-        projects={projects}
+        projects={allProjects}
         selected={selected}
         onSelect={setSelected}
         onImportConcost={handleConcostFiles}
+        archiveFilter={archiveFilter}
+        onArchiveFilterChange={setArchiveFilter}
         userEmail={authSession?.email}
         userName={authSession?.username}
         userPhotoUrl={authSession?.photoUrl}
@@ -285,6 +294,13 @@ export default function App() {
             key={project.code}
             project={project}
             onUpdate={(patch) => setDb((d) => updateProject(d, project.code, patch))}
+            onArchiveToggle={() =>
+              setDb((d) =>
+                updateProject(d, project.code, {
+                  archivedAt: project.archivedAt ? undefined : new Date().toISOString(),
+                }),
+              )
+            }
             onDelete={() => {
               setDb((d) => deleteProject(d, project.code))
               setSelected(null)

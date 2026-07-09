@@ -37,10 +37,12 @@ function NumInput({
 export function Ajustes({
   project,
   onUpdate,
+  onArchiveToggle,
   onDelete,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
+  onArchiveToggle: () => void
   onDelete: () => void
 }) {
   const [confirm, setConfirm] = useState(false)
@@ -79,6 +81,31 @@ export function Ajustes({
       </div>
 
       <div className="max-w-2xl">
+        <div className="mb-4 rounded-[20px] border border-line bg-surface p-4 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-ink">
+                {project.archivedAt ? 'Proyecto archivado' : 'Archivar proyecto'}
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {project.archivedAt
+                  ? 'Este proyecto esta fuera de la vista de activos. Puedes reactivarlo cuando lo necesites.'
+                  : 'Mueve el proyecto a Archivados cuando este terminado. No se borran sus datos.'}
+              </p>
+            </div>
+            <button
+              onClick={onArchiveToggle}
+              className={`inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-bold transition-colors ${
+                project.archivedAt
+                  ? 'border border-line bg-surface text-ink-soft hover:bg-surface-muted'
+                  : 'bg-primary-800 text-white hover:bg-primary-900'
+              }`}
+            >
+              {project.archivedAt ? 'Reactivar proyecto' : 'Archivar proyecto'}
+            </button>
+          </div>
+        </div>
+
         {confirm ? (
           <div className="bg-danger/8 border border-danger/25 rounded-[20px] p-4">
             <p className="text-sm text-danger font-semibold">

@@ -32,10 +32,12 @@ type Tab = 'panel' | 'horas' | 'movimientos' | 'ajustes'
 export function ProjectDashboard({
   project,
   onUpdate,
+  onArchiveToggle,
   onDelete,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
+  onArchiveToggle: () => void
   onDelete: () => void
 }) {
   const [tab, setTab] = useState<Tab>('panel')
@@ -382,7 +384,12 @@ export function ProjectDashboard({
       )}
       {tab === 'movimientos' && <EntriesTable entries={project.entries} />}
       {tab === 'ajustes' && (
-        <Ajustes project={project} onUpdate={onUpdate} onDelete={onDelete} />
+        <Ajustes
+          project={project}
+          onUpdate={onUpdate}
+          onArchiveToggle={onArchiveToggle}
+          onDelete={onDelete}
+        />
       )}
     </div>
   )

@@ -30,6 +30,7 @@ export interface Project {
   hasta?: string // fecha "hasta" del último fichero importado
   lastImport?: string // ISO timestamp de la importación
   concostFileName?: string
+  archivedAt?: string // ISO timestamp si el proyecto esta archivado
   entries: Entry[]
   hours: HoursRecord[]
   /** Presupuesto de coste (lo que se puede gastar) */
