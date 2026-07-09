@@ -72,3 +72,18 @@ h3,
   outline: 3px solid rgba(124, 231, 200, 0.55);
   outline-offset: 2px;
 }
+
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface {
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none !important;
+}
