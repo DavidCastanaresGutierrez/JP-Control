@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import typasaLogo from '../assets/typsa-digital.png'
+import typasaLogo from '../assets/typsa-logo-white.svg'
 import { beginSsoLogin } from '../lib/auth'
 
 export function LoginView() {
