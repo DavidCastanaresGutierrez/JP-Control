@@ -26,6 +26,7 @@ export interface Project {
   code: string
   name: string
   director?: string
+  jp?: string // jefe de proyecto asignado (uno de los participantes)
   fechaAlta?: string
   hasta?: string // fecha "hasta" del último fichero importado
   lastImport?: string // ISO timestamp de la importación

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Project } from '../types'
+import { horasDePersonas } from '../lib/metrics'
 import { DeptAssignment } from './DeptAssignment'
 
 function NumInput({
@@ -47,6 +48,12 @@ export function Ajustes({
 }) {
   const [confirm, setConfirm] = useState(false)
 
+  const participantes = useMemo(() => {
+    const nombres = new Set(horasDePersonas(project.hours).map((h) => h.persona))
+    return [...nombres].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [project.hours])
+  const jpFueraDeLista = Boolean(project.jp) && !participantes.includes(project.jp as string)
+
   return (
     <div className="space-y-6 max-w-7xl">
       <div className="grid xl:grid-cols-[22rem_1fr] gap-6 items-start">
@@ -75,6 +82,31 @@ export function Ajustes({
             }
             suffix="%"
           />
+          <label className="block">
+            <span className="text-sm font-semibold text-ink">Jefe de proyecto (JP)</span>
+            <span className="block text-xs text-ink-soft">
+              Elige el JP entre los participantes. Luego puedes filtrar por su nombre en Tu cartera.
+            </span>
+            <select
+              value={project.jp ?? ''}
+              onChange={(e) => onUpdate({ jp: e.target.value || undefined })}
+              disabled={participantes.length === 0 && !jpFueraDeLista}
+              className="mt-1 w-full border border-line rounded-[10px] px-3 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none disabled:opacity-60"
+            >
+              <option value="">- Sin asignar -</option>
+              {participantes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+              {jpFueraDeLista && <option value={project.jp}>{project.jp}</option>}
+            </select>
+            {participantes.length === 0 && !jpFueraDeLista && (
+              <span className="mt-1 block text-xs text-ink-muted">
+                Importa el fichero de Horas para ver los participantes.
+              </span>
+            )}
+          </label>
         </div>
 
         <DeptAssignment project={project} onUpdate={onUpdate} />

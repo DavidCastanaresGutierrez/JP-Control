@@ -48,7 +48,7 @@ function normalizarBusqueda(value: string) {
 
 function proyectoCoincide(project: Project, query: string) {
   if (!query) return true
-  const campos = [project.name, project.code, project.director ?? '']
+  const campos = [project.name, project.code, project.director ?? '', project.jp ?? '']
   return campos.some((campo) => normalizarBusqueda(campo).includes(query))
 }
 
@@ -130,7 +130,7 @@ export function Overview({
               value={busqueda}
               onChange={(event) => setBusqueda(event.target.value)}
               className="h-12 w-full rounded-lg border border-line bg-surface px-4 pr-11 text-base font-semibold text-ink outline-none shadow-soft transition-colors placeholder:font-medium placeholder:text-ink-muted focus:border-accent-500"
-              placeholder="Buscar por nombre o numero de contrato"
+              placeholder="Buscar por nombre, contrato o JP"
             />
             {busqueda ? (
               <button
@@ -313,6 +313,12 @@ export function Overview({
               </div>
 
               <div className="mt-3 space-y-0.5 text-[11px] text-ink-muted">
+                {p.jp && (
+                  <div className="flex items-center justify-between gap-3 truncate" title={p.jp}>
+                    <span>JP:</span>
+                    <span className="truncate font-semibold text-ink-soft">{p.jp}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3">
                   <span>Actualizacion Concost:</span>
                   <span className="font-bold text-ink">
