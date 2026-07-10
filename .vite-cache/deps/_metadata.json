@@ -1,55 +1,55 @@
 {
-  "hash": "abe399c1",
-  "configHash": "6a64a23f",
+  "hash": "625ec20b",
+  "configHash": "9a149823",
   "lockfileHash": "374ef331",
-  "browserHash": "c7470597",
+  "browserHash": "4b5a7748",
   "optimized": {
     "@neondatabase/serverless": {
       "src": "../../node_modules/@neondatabase/serverless/index.mjs",
       "file": "@neondatabase_serverless.js",
-      "fileHash": "473b7501",
+      "fileHash": "e8e534ae",
       "needsInterop": false
     },
     "react-dom": {
       "src": "../../node_modules/react-dom/index.js",
       "file": "react-dom.js",
-      "fileHash": "b8cd5695",
+      "fileHash": "cbf39c1c",
       "needsInterop": true
     },
     "react-dom/client": {
       "src": "../../node_modules/react-dom/client.js",
       "file": "react-dom_client.js",
-      "fileHash": "ae4414d0",
+      "fileHash": "cd869911",
       "needsInterop": true
     },
     "react": {
       "src": "../../node_modules/react/index.js",
       "file": "react.js",
-      "fileHash": "95749876",
+      "fileHash": "2351dd6a",
       "needsInterop": true
     },
     "react/jsx-dev-runtime": {
       "src": "../../node_modules/react/jsx-dev-runtime.js",
       "file": "react_jsx-dev-runtime.js",
-      "fileHash": "3c1a5f8b",
+      "fileHash": "e96c1885",
       "needsInterop": true
     },
     "react/jsx-runtime": {
       "src": "../../node_modules/react/jsx-runtime.js",
       "file": "react_jsx-runtime.js",
-      "fileHash": "5c139d59",
+      "fileHash": "fb5910e2",
       "needsInterop": true
     },
     "recharts": {
       "src": "../../node_modules/recharts/es6/index.js",
       "file": "recharts.js",
-      "fileHash": "fa12a6c2",
+      "fileHash": "b7952b65",
       "needsInterop": false
     },
     "xlsx": {
       "src": "../../node_modules/xlsx/xlsx.mjs",
       "file": "xlsx.js",
-      "fileHash": "8850e0c3",
+      "fileHash": "9a187764",
       "needsInterop": false
     }
   },
