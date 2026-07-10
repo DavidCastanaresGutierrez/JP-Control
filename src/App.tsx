@@ -9,6 +9,7 @@ import {
   upsertExplotacion,
 } from './lib/store'
 import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
+import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { EmojiIcon, emoji } from './lib/emoji'
@@ -34,11 +35,15 @@ type ProjectScope = 'mine' | 'all'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
 
-function tokensNombre(value: string): string[] {
-  return value
+function normalizarTexto(value: string): string {
+  return repairMojibake(value)
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
+}
+
+function tokensNombre(value: string): string[] {
+  return normalizarTexto(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .split(' ')
     .filter((token) => token.length > 1)
@@ -49,13 +54,15 @@ function esJpDelUsuario(project: Project, userName?: string, userEmail?: string)
   if (!project.jp) return false
   const jp = new Set(tokensNombre(project.jp))
   if (jp.size === 0) return false
-  const usuario = new Set([
-    ...tokensNombre(userName ?? ''),
-    ...tokensNombre((userEmail ?? '').split('@')[0].replace(/[._-]+/g, ' ')),
-  ])
+
+  const usuario = new Set(tokensNombre(userName ?? ''))
   let comunes = 0
   for (const token of jp) if (usuario.has(token)) comunes++
-  return jp.size === 1 ? comunes >= 1 : comunes >= 2
+  if (jp.size === 1 ? comunes >= 1 : comunes >= 2) return true
+
+  // Red de seguridad: emails tipo "dcastanares" contienen el apellido del JP.
+  const emailLocal = normalizarTexto((userEmail ?? '').split('@')[0]).replace(/[^a-z0-9]+/g, '')
+  return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
 }
 
 function loadProjectOrder(): string[] {

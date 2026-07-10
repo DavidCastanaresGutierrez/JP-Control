@@ -1,18 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Project } from '../types'
 import { EmojiIcon, emoji } from '../lib/emoji'
+import { repairMojibake } from '../lib/format'
 import { ConcostImportModal } from './ConcostImportModal'
-
-function repairMojibake(value?: string): string {
-  const text = (value ?? '').trim()
-  if (!/[ÃÂâ]/.test(text)) return text
-  try {
-    const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 0xff))
-    return new TextDecoder('utf-8').decode(bytes)
-  } catch {
-    return text
-  }
-}
 
 function initialsFromUser(name?: string, email?: string): string {
   const source = repairMojibake(name || email || 'Usuario TYPSA')

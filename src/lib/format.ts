@@ -35,6 +35,18 @@ export function fmtFecha(iso: string): string {
   return `${d}/${m}/${y}`
 }
 
+/** Repara texto con mojibake (UTF-8 mal decodificado como latin-1), p.ej. "CastaÃ±ares" -> "Castañares". */
+export function repairMojibake(value?: string): string {
+  const text = (value ?? '').trim()
+  if (!/[ÃÂâ]/.test(text)) return text
+  try {
+    const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 0xff))
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch {
+    return text
+  }
+}
+
 /** Serial de fecha Excel (sistema 1900) a ISO yyyy-mm-dd */
 export function serialToISO(n: number): string {
   return new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
