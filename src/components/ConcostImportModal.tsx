@@ -83,10 +83,10 @@ export function ConcostImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-950/45 p-4">
-      <div className="w-full max-w-4xl rounded-xl border border-line bg-surface shadow-hover">
-        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
-          <div>
-            <h2 className="font-display text-2xl font-extrabold text-ink">{title}</h2>
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-line bg-surface shadow-hover">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-4 py-4 sm:px-6 sm:py-5">
+          <div className="min-w-0">
+            <h2 className="font-display text-xl font-extrabold text-ink sm:text-2xl">{title}</h2>
             <p className="mt-1 text-sm text-ink-soft">{description}</p>
           </div>
           <button
@@ -99,7 +99,7 @@ export function ConcostImportModal({
           </button>
         </div>
 
-        <div className="grid gap-4 p-6 md:grid-cols-3">
+        <div className="grid gap-4 overflow-y-auto p-4 sm:p-6 md:grid-cols-3">
           <ImportCard
             step="1."
             title="Explotacion"

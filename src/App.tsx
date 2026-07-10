@@ -108,6 +108,7 @@ export default function App() {
   const [myRole, setMyRole] = useState<Role | null>(null)
   const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
   const [adminView, setAdminView] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const lastSynced = useRef<Map<string, string>>(new Map())
 
   const conectar = useCallback(async () => {
@@ -346,18 +347,30 @@ export default function App() {
 
   return (
     <div className="flex h-full">
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-primary-950/50 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <Sidebar
         projects={scopedProjects}
         selected={selected}
+        mobileOpen={mobileNavOpen}
+        onRequestClose={() => setMobileNavOpen(false)}
         onSelect={(code) => {
           setAdminView(false)
           setSelected(code)
+          setMobileNavOpen(false)
         }}
         onImportConcost={handleConcostFiles}
         scope={scope}
         onScopeChange={(s) => {
           setAdminView(false)
           setScope(s)
+          setMobileNavOpen(false)
         }}
         archiveFilter={archiveFilter}
         onArchiveFilterChange={setArchiveFilter}
@@ -370,46 +383,70 @@ export default function App() {
         onOpenAdmin={() => {
           setSelected(null)
           setAdminView(true)
+          setMobileNavOpen(false)
         }}
       />
 
-      <main className="flex-1 overflow-y-auto">
-        {adminView ? (
-          <AdminPanel
-            meEmail={authSession?.email ?? ''}
-            users={adminUsers ?? []}
-            onChangeRole={handleChangeRole}
-          />
-        ) : project ? (
-          <ProjectDashboard
-            key={project.code}
-            project={project}
-            onUpdate={(patch) => setDb((d) => updateProject(d, project.code, patch))}
-            onArchiveToggle={() =>
-              setDb((d) =>
-                updateProject(d, project.code, {
-                  archivedAt: project.archivedAt ? undefined : new Date().toISOString(),
-                }),
-              )
-            }
-            onDelete={() => {
-              setDb((d) => deleteProject(d, project.code))
-              setSelected(null)
-            }}
-          />
-        ) : (
-          <Overview
-            projects={projects}
-            scope={scope}
-            onSelect={setSelected}
-            onReorder={handleReorderProjects}
-            onFiles={handleExplotacionFiles}
-            onHoursFiles={handleOverviewHoursFiles}
-          />
-        )}
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Abrir menu"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-ink-soft"
+          >
+            <span className="flex flex-col items-center justify-center gap-[3px]">
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+            </span>
+          </button>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent-500 text-xs font-black text-primary-950">
+            JP
+          </div>
+          <div className="truncate font-display text-base font-extrabold tracking-tight text-ink">
+            JP Control
+          </div>
+        </header>
 
-      <div className="fixed bottom-4 right-4 z-50 max-w-md space-y-2">
+        <main className="flex-1 overflow-y-auto">
+          {adminView ? (
+            <AdminPanel
+              meEmail={authSession?.email ?? ''}
+              users={adminUsers ?? []}
+              onChangeRole={handleChangeRole}
+            />
+          ) : project ? (
+            <ProjectDashboard
+              key={project.code}
+              project={project}
+              onUpdate={(patch) => setDb((d) => updateProject(d, project.code, patch))}
+              onArchiveToggle={() =>
+                setDb((d) =>
+                  updateProject(d, project.code, {
+                    archivedAt: project.archivedAt ? undefined : new Date().toISOString(),
+                  }),
+                )
+              }
+              onDelete={() => {
+                setDb((d) => deleteProject(d, project.code))
+                setSelected(null)
+              }}
+            />
+          ) : (
+            <Overview
+              projects={projects}
+              scope={scope}
+              onSelect={setSelected}
+              onReorder={handleReorderProjects}
+              onFiles={handleExplotacionFiles}
+              onHoursFiles={handleOverviewHoursFiles}
+            />
+          )}
+        </main>
+      </div>
+
+      <div className="fixed inset-x-4 bottom-4 z-50 space-y-2 sm:inset-x-auto sm:right-4 sm:max-w-md">
         {toasts.map((t) => (
           <div
             key={t.id}

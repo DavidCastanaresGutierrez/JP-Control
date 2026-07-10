@@ -29,7 +29,7 @@ export function KpiCard({
       )}
       <div className="min-w-0">
         <div className="text-[11px] font-bold text-ink-muted uppercase tracking-wide">{label}</div>
-        <div className="text-[22px] leading-tight font-extrabold text-ink mt-1 truncate tabular-nums">{value}</div>
+        <div className="text-lg sm:text-[22px] leading-tight font-extrabold text-ink mt-1 truncate tabular-nums">{value}</div>
         {sub && <div className="text-xs leading-snug text-ink-soft mt-1">{sub}</div>}
       </div>
     </div>

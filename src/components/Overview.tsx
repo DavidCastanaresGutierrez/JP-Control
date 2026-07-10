@@ -115,10 +115,10 @@ export function Overview({
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="font-display text-[30px] font-extrabold leading-tight tracking-tight text-ink">
+        <div className="w-full sm:min-w-[18rem] sm:w-auto sm:flex-1">
+          <h1 className="font-display text-[26px] font-extrabold leading-tight tracking-tight text-ink sm:text-[30px]">
             {scope === 'mine' ? 'Mi cartera de proyectos' : 'Todos los proyectos'}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
@@ -127,8 +127,8 @@ export function Overview({
               : 'Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.'}
           </p>
         </div>
-        <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
-          <label className="relative min-w-[20rem] max-w-xl flex-1">
+        <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto sm:min-w-[18rem] sm:flex-1">
+          <label className="relative min-w-0 max-w-xl flex-1 sm:min-w-[20rem]">
             <span className="sr-only">Buscar proyecto</span>
             <input
               value={busqueda}

@@ -65,7 +65,7 @@ export function DeptAssignment({
 
   if (personas.length === 0 && partidas.length === 0) {
     return (
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg">Departamentos</h3>
         <p className="text-sm text-ink-soft mt-1">
           Importa las horas por empleado y el detalle de explotacion para asignar personas y
@@ -76,7 +76,7 @@ export function DeptAssignment({
   }
 
   return (
-    <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-6">
+    <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-6">
       <div>
         <h3 className="font-bold text-ink text-lg">Departamentos</h3>
         <p className="text-xs text-ink-soft mt-0.5">
@@ -94,17 +94,17 @@ export function DeptAssignment({
               const actual = project.personDept?.[persona] ?? ''
               const esOtro = actual !== '' && !DEPARTAMENTOS.includes(actual as never)
               return (
-                <div key={persona} className="flex items-center gap-2">
-                  <span className="flex-1 truncate text-sm text-ink-soft" title={persona}>
+                <div key={persona} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-ink-soft" title={persona}>
                     {persona}
                   </span>
-                  <span className="text-xs text-ink-muted tabular-nums w-20 text-right">
+                  <span className="shrink-0 text-xs text-ink-muted tabular-nums w-16 text-right sm:w-20">
                     {medidaPersona(persona)}
                   </span>
                   <select
                     value={actual}
                     onChange={(e) => setDept(persona, e.target.value)}
-                    className="w-48 text-sm border border-line rounded-[10px] px-2 py-1 bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+                    className="w-full shrink-0 text-sm border border-line rounded-[10px] px-2 py-1 bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none sm:w-48"
                   >
                     <option value="">- Sin asignar -</option>
                     {DEPARTAMENTOS.map((d) => (
@@ -143,17 +143,17 @@ export function DeptAssignment({
                     const actual = asignado || OTROS_GASTOS
                     const esOtro = asignado !== '' && !DEPARTAMENTOS.includes(asignado as never)
                     return (
-                      <div key={p.id} className="flex items-center gap-2">
-                        <span className="flex-1 truncate text-sm text-ink-soft" title={p.concepto}>
+                      <div key={p.id} className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm text-ink-soft" title={p.concepto}>
                           {p.concepto}
                         </span>
-                        <span className="text-xs text-ink-muted tabular-nums w-20 text-right">
+                        <span className="shrink-0 text-xs text-ink-muted tabular-nums w-16 text-right sm:w-20">
                           {fmtEur(p.coste)}
                         </span>
                         <select
                           value={actual}
                           onChange={(e) => setExtDept(p.id, e.target.value)}
-                          className="w-48 text-sm border border-line rounded-[10px] px-2 py-1 bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+                          className="w-full shrink-0 text-sm border border-line rounded-[10px] px-2 py-1 bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none sm:w-48"
                         >
                           <option value={OTROS_GASTOS}>{OTROS_GASTOS}</option>
                           {DEPARTAMENTOS.map((d) => (

@@ -57,7 +57,7 @@ export function Ajustes({
   return (
     <div className="space-y-6 max-w-7xl">
       <div className="grid xl:grid-cols-[22rem_1fr] gap-6 items-start">
-        <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
+        <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-5">
           <h3 className="font-bold text-ink text-lg">Parametros del proyecto</h3>
           <NumInput
             label="Importe de contrato (honorarios)"

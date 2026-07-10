@@ -335,7 +335,7 @@ export function HoursView({
   return (
     <div className="space-y-6">
       {/* Prediccion de agotamiento de presupuesto */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg">
           Prediccion: cuando se agota el presupuesto?
         </h3>
@@ -496,7 +496,7 @@ export function HoursView({
       </div>
 
       {/* Coste mensual de horas (cuenta 9101 de la explotacion) */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg">Coste mensual de horas de oficina (9101)</h3>
         <p className="text-xs text-ink-soft mb-4">
           Del detalle de explotacion. Un salto brusco de un mes a otro suele indicar cambios de
@@ -518,7 +518,7 @@ export function HoursView({
       </div>
 
       {/* Horas por participante */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-bold text-ink text-lg">Horas por participante</h3>
@@ -777,7 +777,7 @@ export function HoursView({
       {/* Control por departamento + tareas del contrato */}
       {(
         <div className="grid xl:grid-cols-2 gap-5">
-          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-5">
           <div>
             <h3 className="font-bold text-ink text-lg">Control por departamento</h3>
             <p className="text-xs text-ink-soft">
@@ -994,7 +994,7 @@ export function HoursView({
             La asignacion de personas y facturas a departamentos se hace en la pestana Configuracion.
           </p>
         </div>
-          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-4">
             <div>
               <h3 className="font-bold text-ink text-lg">Tareas del contrato</h3>
               <p className="text-xs text-ink-soft">
