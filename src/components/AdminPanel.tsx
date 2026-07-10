@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AppUser, Role } from '../lib/adminApi'
 import { repairMojibake } from '../lib/format'
 
@@ -13,7 +14,8 @@ const ROLE_HINTS: Record<Role, string> = {
   administracion: 'Ademas puede gestionar los roles de otros usuarios.',
 }
 
-function formatFecha(iso: string): string {
+function formatFecha(iso: string | null): string {
+  if (!iso) return 'Nunca'
   try {
     return new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })
   } catch {
@@ -21,22 +23,83 @@ function formatFecha(iso: string): string {
   }
 }
 
+function RoleSelect({
+  value,
+  onChange,
+}: {
+  value: Role
+  onChange: (role: Role) => void
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Role)}
+      title={ROLE_HINTS[value]}
+      className="border border-line rounded-[10px] px-3 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+    >
+      {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
+        <option key={role} value={role}>
+          {ROLE_LABELS[role]}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export function AdminPanel({
   meEmail,
   users,
   onChangeRole,
+  onAddUser,
 }: {
   meEmail: string
   users: AppUser[]
   onChangeRole: (email: string, role: Role) => void
+  onAddUser: (email: string, role: Role) => void
 }) {
+  const [newEmail, setNewEmail] = useState('')
+  const [newRole, setNewRole] = useState<Role>('edicion')
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = newEmail.trim()
+    if (!email) return
+    onAddUser(email, newRole)
+    setNewEmail('')
+    setNewRole('edicion')
+  }
+
   return (
     <div className="max-w-4xl p-8">
       <h2 className="font-display text-2xl font-extrabold text-ink">Administracion de usuarios</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Asigna el rol de cada persona que ha iniciado sesion en la aplicacion. Lectura solo permite ver los
-        proyectos; Edicion permite modificarlos; Administracion permite ademas gestionar estos roles.
+        Asigna el rol de cada persona que usa la aplicacion. Lectura solo permite ver los proyectos;
+        Edicion permite modificarlos; Administracion permite ademas gestionar estos roles.
       </p>
+
+      <form
+        onSubmit={handleAdd}
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-[24px] border border-line bg-surface p-5 shadow-soft"
+      >
+        <label className="block">
+          <span className="text-sm font-semibold text-ink">Anadir usuario</span>
+          <input
+            type="email"
+            required
+            placeholder="nombre@typsa.es"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="mt-1 w-64 border border-line rounded-[10px] px-3 py-2 text-sm text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+          />
+        </label>
+        <RoleSelect value={newRole} onChange={setNewRole} />
+        <button
+          type="submit"
+          className="h-[42px] rounded-[10px] bg-accent-500 px-4 text-sm font-bold text-primary-950 transition-colors hover:bg-accent-400"
+        >
+          Anadir
+        </button>
+      </form>
 
       <div className="mt-6 overflow-hidden rounded-[24px] border border-line bg-surface shadow-soft">
         <table className="w-full text-left text-sm">
@@ -63,18 +126,7 @@ export function AdminPanel({
                 </td>
                 <td className="px-5 py-3 text-ink-soft">{formatFecha(user.lastLoginAt)}</td>
                 <td className="px-5 py-3">
-                  <select
-                    value={user.role}
-                    onChange={(e) => onChangeRole(user.email, e.target.value as Role)}
-                    title={ROLE_HINTS[user.role]}
-                    className="border border-line rounded-[10px] px-3 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
-                  >
-                    {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
-                      <option key={role} value={role}>
-                        {ROLE_LABELS[role]}
-                      </option>
-                    ))}
-                  </select>
+                  <RoleSelect value={user.role} onChange={(role) => onChangeRole(user.email, role)} />
                   {user.email.toLowerCase() === meEmail.toLowerCase() && (
                     <span className="ml-2 text-xs text-ink-soft">(tu)</span>
                   )}

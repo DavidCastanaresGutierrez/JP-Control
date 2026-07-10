@@ -9,7 +9,7 @@ import {
   upsertExplotacion,
 } from './lib/store'
 import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
-import { fetchUsers, updateUserRole } from './lib/adminApi'
+import { fetchUsers, saveUserRole } from './lib/adminApi'
 import type { AppUser, Role } from './lib/adminApi'
 import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
@@ -322,11 +322,21 @@ export default function App() {
   const handleChangeRole = async (email: string, role: Role) => {
     const prev = adminUsers
     setAdminUsers((list) => list?.map((u) => (u.email === email ? { ...u, role } : u)) ?? list)
-    const result = await updateUserRole(email, role)
+    const result = await saveUserRole(email, role)
     if (!result.ok) {
       setAdminUsers(prev)
       toast('error', result.error ?? `No se ha podido actualizar el rol de ${email}.`)
     }
+  }
+
+  const handleAddUser = async (email: string, role: Role) => {
+    const result = await saveUserRole(email, role)
+    if (!result.ok) {
+      toast('error', result.error ?? `No se ha podido anadir a ${email}.`)
+      return
+    }
+    setAdminUsers((list) => [...(list ?? []).filter((u) => u.email !== result.user.email), result.user])
+    toast('ok', `${result.user.email} anadido con rol ${role}.`)
   }
 
   const hasSsoCallbackData = (() => {
@@ -379,6 +389,7 @@ export default function App() {
             meEmail={authSession?.email ?? ''}
             users={adminUsers ?? []}
             onChangeRole={handleChangeRole}
+            onAddUser={handleAddUser}
           />
         ) : project ? (
           <ProjectDashboard

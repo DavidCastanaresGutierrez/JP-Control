@@ -7,7 +7,7 @@ export interface AppUser {
   email: string
   name: string
   role: Role
-  lastLoginAt: string
+  lastLoginAt: string | null
 }
 
 type Sql = NeonQueryFunction<false, false>
@@ -15,13 +15,17 @@ type Sql = NeonQueryFunction<false, false>
 let usersTableReady: Promise<unknown> | null = null
 
 export function ensureUsersTable(sql: Sql) {
-  usersTableReady ??= sql`
-    CREATE TABLE IF NOT EXISTS jp_users (
-      email text PRIMARY KEY,
-      name text NOT NULL DEFAULT '',
-      role text NOT NULL DEFAULT 'edicion',
-      last_login_at timestamptz NOT NULL DEFAULT now()
-    )`
+  usersTableReady ??= (async () => {
+    await sql`
+      CREATE TABLE IF NOT EXISTS jp_users (
+        email text PRIMARY KEY,
+        name text NOT NULL DEFAULT '',
+        role text NOT NULL DEFAULT 'edicion',
+        last_login_at timestamptz NULL
+      )`
+    // Migra tablas creadas antes de permitir usuarios anadidos a mano (sin login todavia).
+    await sql`ALTER TABLE jp_users ALTER COLUMN last_login_at DROP NOT NULL`
+  })()
   return usersTableReady.catch((err) => {
     usersTableReady = null
     throw err
@@ -70,25 +74,28 @@ export async function getUserRole(sql: Sql, email: string): Promise<Role> {
 
 export async function listUsers(sql: Sql): Promise<AppUser[]> {
   const rows = (await sql`
-    SELECT email, name, role, last_login_at FROM jp_users ORDER BY last_login_at DESC`) as {
+    SELECT email, name, role, last_login_at FROM jp_users ORDER BY last_login_at DESC NULLS LAST`) as {
     email: string
     name: string
     role: Role
-    last_login_at: string
+    last_login_at: string | null
   }[]
   return rows.map((r) => ({ email: r.email, name: r.name, role: r.role, lastLoginAt: r.last_login_at }))
 }
 
-export async function setUserRole(sql: Sql, email: string, role: Role): Promise<AppUser | null> {
+/** Anade un usuario nuevo con el rol indicado (ultimo acceso "nunca" hasta que inicie sesion), o si ya
+ *  existe simplemente le cambia el rol sin tocar su nombre ni su ultimo acceso. */
+export async function upsertUserRole(sql: Sql, email: string, name: string, role: Role): Promise<AppUser> {
   const rows = (await sql`
-    UPDATE jp_users SET role = ${role} WHERE email = ${email}
+    INSERT INTO jp_users (email, name, role, last_login_at)
+    VALUES (${email}, ${name}, ${role}, NULL)
+    ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING email, name, role, last_login_at`) as {
     email: string
     name: string
     role: Role
-    last_login_at: string
+    last_login_at: string | null
   }[]
   const row = rows[0]
-  if (!row) return null
   return { email: row.email, name: row.name, role: row.role, lastLoginAt: row.last_login_at }
 }
