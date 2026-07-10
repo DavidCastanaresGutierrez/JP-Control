@@ -1,5 +1,5 @@
 import type { Project } from '../types'
-import { getAuthToken, updateAuthToken } from './auth'
+import { apiFetch } from './http'
 
 export type RemoteProjects =
   | { estado: 'ok'; projects: Record<string, Project> }
@@ -7,25 +7,9 @@ export type RemoteProjects =
   | { estado: 'sin-nube' }
 
 async function call(path: string, init?: RequestInit): Promise<Response | 'sin-nube'> {
-  try {
-    const token = getAuthToken()
-    const res = await fetch(path, {
-      ...init,
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init?.headers,
-      },
-    })
-    if (res.status === 404 || res.status === 503) return 'sin-nube'
-    // El backend renueva la sesion SSO en silencio y devuelve el nuevo app JWT
-    const renewed = res.headers.get('authorization')
-    if (renewed?.startsWith('Bearer ')) updateAuthToken(renewed.slice(7))
-    return res
-  } catch {
-    return 'sin-nube'
-  }
+  const res = await apiFetch(path, init)
+  if (!res || res.status === 404 || res.status === 503) return 'sin-nube'
+  return res
 }
 
 export async function fetchRemoteProjects(): Promise<RemoteProjects> {

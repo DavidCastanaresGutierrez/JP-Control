@@ -114,6 +114,16 @@ node scripts/test-horas.mjs
   la tabla `jp_projects` (una fila JSON por proyecto) automáticamente en el primer uso.
 - Concurrencia: gana la última escritura por proyecto (pensado para un equipo
   pequeño, no para edición simultánea intensiva del mismo proyecto).
+- **Roles de usuario** (solo con SSO + base de datos configurados): cada persona
+  que inicia sesión se registra automáticamente en la tabla `jp_users`
+  ([api/users.ts](api/users.ts)) con un rol — *Lectura* (solo ver), *Edición*
+  (ver y modificar) o *Administración* (además gestiona los roles de los demás
+  desde el panel «Administración» del menú lateral). El resto entra con rol de
+  Edición hasta que un administrador lo cambie. La lista de administradores
+  fijos se controla con la variable de entorno `ADMIN_EMAILS` (correos
+  separados por comas); si no se define, por defecto es solo
+  `dcastanares@typsa.es`. Ese rol se reafirma en cada login, así que no se
+  puede quitar por accidente (ni desde el panel).
 
 ## Despliegue en Vercel (GitHub + Neon Postgres)
 

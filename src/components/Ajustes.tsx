@@ -63,12 +63,14 @@ export function Ajustes({
             label="Importe de contrato (honorarios)"
             hint="Contra esto se mide el % facturado, el indicador principal del panel."
             value={project.contractValue}
-            onChange={(v) => onUpdate({ contractValue: v })}
+            onChange={(v) =>
+              onUpdate({ contractValue: v, budget: v === undefined ? project.budget : v * 0.9 })
+            }
             suffix="EUR"
           />
           <NumInput
             label="Presupuesto de coste"
-            hint="Coste maximo previsto para ejecutar el trabajo; contra esto se mide el % de gasto (referencia secundaria)."
+            hint="Coste maximo previsto para ejecutar el trabajo; contra esto se mide el % de gasto (referencia secundaria). Se calcula automaticamente como el 90% del importe de contrato, pero puedes ajustarlo a mano."
             value={project.budget}
             onChange={(v) => onUpdate({ budget: v })}
             suffix="EUR"

@@ -9,6 +9,8 @@ import {
   upsertExplotacion,
 } from './lib/store'
 import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
+import { fetchUsers, updateUserRole } from './lib/adminApi'
+import type { AppUser, Role } from './lib/adminApi'
 import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
@@ -18,6 +20,7 @@ import { parseHoras } from './lib/parseHoras'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { ProjectDashboard } from './components/ProjectDashboard'
+import { AdminPanel } from './components/AdminPanel'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
 
@@ -102,6 +105,9 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
+  const [myRole, setMyRole] = useState<Role | null>(null)
+  const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
+  const [adminView, setAdminView] = useState(false)
   const lastSynced = useRef<Map<string, string>>(new Map())
 
   const conectar = useCallback(async () => {
@@ -132,6 +138,23 @@ export default function App() {
   useEffect(() => {
     conectar()
   }, [conectar, authSession])
+
+  useEffect(() => {
+    if (isSsoEnabled && !authSession) {
+      setMyRole(null)
+      setAdminUsers(null)
+      return
+    }
+    fetchUsers().then((result) => {
+      if (result.estado !== 'ok') {
+        setMyRole(null)
+        setAdminUsers(null)
+        return
+      }
+      setMyRole(result.me.role)
+      setAdminUsers(result.users ?? null)
+    })
+  }, [authSession])
 
   useEffect(() => {
     localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
@@ -292,8 +315,19 @@ export default function App() {
     await logoutSso()
     setAuthSession(null)
     setSelected(null)
+    setAdminView(false)
     setSyncEstado('auth')
   }, [])
+
+  const handleChangeRole = async (email: string, role: Role) => {
+    const prev = adminUsers
+    setAdminUsers((list) => list?.map((u) => (u.email === email ? { ...u, role } : u)) ?? list)
+    const result = await updateUserRole(email, role)
+    if (!result.ok) {
+      setAdminUsers(prev)
+      toast('error', result.error ?? `No se ha podido actualizar el rol de ${email}.`)
+    }
+  }
 
   const hasSsoCallbackData = (() => {
     const params = new URLSearchParams(window.location.search)
@@ -315,20 +349,38 @@ export default function App() {
       <Sidebar
         projects={scopedProjects}
         selected={selected}
-        onSelect={setSelected}
+        onSelect={(code) => {
+          setAdminView(false)
+          setSelected(code)
+        }}
         onImportConcost={handleConcostFiles}
         scope={scope}
-        onScopeChange={setScope}
+        onScopeChange={(s) => {
+          setAdminView(false)
+          setScope(s)
+        }}
         archiveFilter={archiveFilter}
         onArchiveFilterChange={setArchiveFilter}
         userEmail={authSession?.email}
         userName={authSession?.username}
         userPhotoUrl={authSession?.photoUrl}
         onLogout={isSsoEnabled ? handleLogout : undefined}
+        showAdmin={myRole === 'administracion'}
+        adminActive={adminView}
+        onOpenAdmin={() => {
+          setSelected(null)
+          setAdminView(true)
+        }}
       />
 
       <main className="flex-1 overflow-y-auto">
-        {project ? (
+        {adminView ? (
+          <AdminPanel
+            meEmail={authSession?.email ?? ''}
+            users={adminUsers ?? []}
+            onChangeRole={handleChangeRole}
+          />
+        ) : project ? (
           <ProjectDashboard
             key={project.code}
             project={project}
