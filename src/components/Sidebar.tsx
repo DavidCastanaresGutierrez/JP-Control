@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { Project } from '../types'
-import { enAlerta, kpis } from '../lib/metrics'
 import { EmojiIcon, emoji } from '../lib/emoji'
 import { ConcostImportModal } from './ConcostImportModal'
 
@@ -50,10 +49,6 @@ export function Sidebar({
   const displayName = repairMojibake(userName)
   const activeCount = projects.filter((project) => !project.archivedAt).length
   const archivedCount = projects.filter((project) => project.archivedAt).length
-  const visibleProjects = projects.filter((project) => {
-    if (archiveFilter === 'all') return true
-    return archiveFilter === 'archived' ? Boolean(project.archivedAt) : !project.archivedAt
-  })
 
   useEffect(() => setPhotoError(false), [userPhotoUrl])
 
@@ -103,9 +98,9 @@ export function Sidebar({
         </div>
         <div className="mb-2 space-y-1">
           {[
+            { id: 'all' as const, label: 'Todos', count: projects.length },
             { id: 'active' as const, label: 'Activos', count: activeCount },
             { id: 'archived' as const, label: 'Archivados', count: archivedCount },
-            { id: 'all' as const, label: 'Todos', count: projects.length },
           ].map((item) => (
             <button
               key={item.id}
@@ -124,44 +119,9 @@ export function Sidebar({
           ))}
         </div>
 
-        {visibleProjects.map((p) => {
-          const alerta = enAlerta(kpis(p))
-          const active = selected === p.code
-          return (
-            <button
-              key={p.code}
-              onClick={() => onSelect(p.code)}
-              className={`w-full rounded-lg px-3.5 py-2.5 text-left transition-colors ${
-                active ? 'bg-accent-500 text-primary-950' : 'text-white/72 hover:bg-white/8 hover:text-white'
-              }`}
-            >
-              <div className="flex truncate text-sm font-semibold">
-                {alerta && (
-                  <span title="Facturacion por detras del avance">
-                    <EmojiIcon>{emoji.alert}</EmojiIcon>&nbsp;
-                  </span>
-                )}
-                {p.archivedAt && (
-                  <span title="Proyecto archivado">
-                    <EmojiIcon>{emoji.folder}</EmojiIcon>&nbsp;
-                  </span>
-                )}
-                <span className="truncate">{p.name}</span>
-              </div>
-              <div className={`truncate text-[11px] ${active ? 'text-primary-900/70' : 'text-white/40'}`}>
-                {p.code}
-              </div>
-            </button>
-          )
-        })}
         {projects.length === 0 && (
           <div className="px-3.5 py-3 text-xs text-white/40">
             Importa un fichero de explotacion para empezar.
-          </div>
-        )}
-        {projects.length > 0 && visibleProjects.length === 0 && (
-          <div className="px-3.5 py-3 text-xs text-white/40">
-            No hay proyectos en este filtro.
           </div>
         )}
       </nav>

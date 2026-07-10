@@ -124,12 +124,12 @@ export function Overview({
           </p>
         </div>
         <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
-          <label className="relative min-w-[16rem] max-w-md flex-1">
+          <label className="relative min-w-[20rem] max-w-xl flex-1">
             <span className="sr-only">Buscar proyecto</span>
             <input
               value={busqueda}
               onChange={(event) => setBusqueda(event.target.value)}
-              className="h-11 w-full rounded-lg border border-line bg-surface px-4 pr-10 text-sm font-semibold text-ink outline-none shadow-soft transition-colors placeholder:font-medium placeholder:text-ink-muted focus:border-accent-500"
+              className="h-12 w-full rounded-lg border border-line bg-surface px-4 pr-11 text-base font-semibold text-ink outline-none shadow-soft transition-colors placeholder:font-medium placeholder:text-ink-muted focus:border-accent-500"
               placeholder="Buscar por nombre o numero de contrato"
             />
             {busqueda ? (
@@ -145,7 +145,7 @@ export function Overview({
           </label>
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 text-sm font-extrabold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
+            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-500 px-5 text-sm font-extrabold text-primary-950 shadow-soft transition-colors hover:bg-accent-400"
             >
             <span className="text-base leading-none">+</span>
             Anadir proyecto
