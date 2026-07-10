@@ -26,6 +26,8 @@ export function Sidebar({
   selected,
   onSelect,
   onImportConcost,
+  scope,
+  onScopeChange,
   archiveFilter,
   onArchiveFilterChange,
   userEmail,
@@ -37,6 +39,8 @@ export function Sidebar({
   selected: string | null
   onSelect: (code: string | null) => void
   onImportConcost?: (files: File[]) => void
+  scope: 'mine' | 'all'
+  onScopeChange: (scope: 'mine' | 'all') => void
   archiveFilter: 'active' | 'archived' | 'all'
   onArchiveFilterChange: (filter: 'active' | 'archived' | 'all') => void
   userEmail?: string
@@ -81,20 +85,31 @@ export function Sidebar({
       )}
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-        <button
-          onClick={() => onSelect(null)}
-          className={`flex h-11 w-full items-center rounded-lg px-3.5 text-sm font-semibold transition-colors ${
-            selected === null ? 'bg-accent-500 text-primary-950' : 'text-white/72 hover:bg-white/8 hover:text-white'
-          }`}
-        >
-          <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
-            <EmojiIcon>{emoji.home}</EmojiIcon>
-          </span>
-          Tu cartera
-        </button>
+        {[
+          { id: 'mine' as const, label: 'Mi cartera', icon: emoji.home },
+          { id: 'all' as const, label: 'Todos los proyectos', icon: emoji.folder },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              onScopeChange(item.id)
+              onSelect(null)
+            }}
+            className={`flex h-11 w-full items-center rounded-lg px-3.5 text-sm font-semibold transition-colors ${
+              selected === null && scope === item.id
+                ? 'bg-accent-500 text-primary-950'
+                : 'text-white/72 hover:bg-white/8 hover:text-white'
+            }`}
+          >
+            <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
+              <EmojiIcon>{item.icon}</EmojiIcon>
+            </span>
+            {item.label}
+          </button>
+        ))}
 
         <div className="px-3.5 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wider text-white/40">
-          Proyectos
+          {scope === 'mine' ? 'En mi cartera' : 'Proyectos'}
         </div>
         <div className="mb-2 space-y-1">
           {[
@@ -121,7 +136,9 @@ export function Sidebar({
 
         {projects.length === 0 && (
           <div className="px-3.5 py-3 text-xs text-white/40">
-            Importa un fichero de explotacion para empezar.
+            {scope === 'mine'
+              ? 'No hay proyectos donde figures como JP.'
+              : 'Importa un fichero de explotacion para empezar.'}
           </div>
         )}
       </nav>

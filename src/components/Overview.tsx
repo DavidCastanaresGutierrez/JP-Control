@@ -54,12 +54,14 @@ function proyectoCoincide(project: Project, query: string) {
 
 export function Overview({
   projects,
+  scope,
   onSelect,
   onReorder,
   onFiles,
   onHoursFiles,
 }: {
   projects: Project[]
+  scope: 'mine' | 'all'
   onSelect: (code: string) => void
   onReorder: (draggedCode: string, targetCode: string) => void
   onFiles: (files: File[]) => void
@@ -117,10 +119,12 @@ export function Overview({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-[18rem] flex-1">
           <h1 className="font-display text-[30px] font-extrabold leading-tight tracking-tight text-ink">
-            Tu cartera de proyectos
+            {scope === 'mine' ? 'Mi cartera de proyectos' : 'Todos los proyectos'}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.
+            {scope === 'mine'
+              ? 'Proyectos en los que figuras como jefe de proyecto (JP).'
+              : 'Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.'}
           </p>
         </div>
         <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
@@ -342,10 +346,22 @@ export function Overview({
 
         {projects.length === 0 && (
           <div className="rounded-lg border border-line bg-surface p-8 text-center md:col-span-2 xl:col-span-3">
-            <div className="text-lg font-extrabold text-ink">Todavia no hay proyectos importados</div>
-            <p className="mt-1 text-sm text-ink-soft">
-              Anade primero el fichero de Explotacion de Concost para crear el proyecto.
-            </p>
+            {scope === 'mine' ? (
+              <>
+                <div className="text-lg font-extrabold text-ink">No tienes proyectos como JP</div>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Asigna el JP en la Configuracion de cada proyecto para que aparezca aqui, o consulta
+                  "Todos los proyectos".
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-extrabold text-ink">Todavia no hay proyectos importados</div>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Anade primero el fichero de Explotacion de Concost para crear el proyecto.
+                </p>
+              </>
+            )}
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DB } from './types'
+import type { DB, Project } from './types'
 import {
   deleteProject,
   loadDB,
@@ -30,8 +30,33 @@ let toastId = 0
 
 type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
 type ProjectArchiveFilter = 'active' | 'archived' | 'all'
+type ProjectScope = 'mine' | 'all'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
+
+function tokensNombre(value: string): string[] {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((token) => token.length > 1)
+}
+
+/** Determina si el usuario logueado figura como JP del proyecto, cotejando nombre y email. */
+function esJpDelUsuario(project: Project, userName?: string, userEmail?: string): boolean {
+  if (!project.jp) return false
+  const jp = new Set(tokensNombre(project.jp))
+  if (jp.size === 0) return false
+  const usuario = new Set([
+    ...tokensNombre(userName ?? ''),
+    ...tokensNombre((userEmail ?? '').split('@')[0].replace(/[._-]+/g, ' ')),
+  ])
+  let comunes = 0
+  for (const token of jp) if (usuario.has(token)) comunes++
+  return jp.size === 1 ? comunes >= 1 : comunes >= 2
+}
 
 function loadProjectOrder(): string[] {
   try {
@@ -65,6 +90,7 @@ export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
+  const [scope, setScope] = useState<ProjectScope>('mine')
   const [archiveFilter, setArchiveFilter] = useState<ProjectArchiveFilter>('active')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
@@ -225,7 +251,11 @@ export default function App() {
   }
 
   const allProjects = orderProjects(db.projects, projectOrder)
-  const projects = allProjects.filter((project) => {
+  const scopedProjects =
+    scope === 'mine'
+      ? allProjects.filter((p) => esJpDelUsuario(p, authSession?.username, authSession?.email))
+      : allProjects
+  const projects = scopedProjects.filter((project) => {
     if (archiveFilter === 'all') return true
     const archived = Boolean(project.archivedAt)
     return archiveFilter === 'archived' ? archived : !archived
@@ -276,10 +306,12 @@ export default function App() {
   return (
     <div className="flex h-full">
       <Sidebar
-        projects={allProjects}
+        projects={scopedProjects}
         selected={selected}
         onSelect={setSelected}
         onImportConcost={handleConcostFiles}
+        scope={scope}
+        onScopeChange={setScope}
         archiveFilter={archiveFilter}
         onArchiveFilterChange={setArchiveFilter}
         userEmail={authSession?.email}
@@ -309,6 +341,7 @@ export default function App() {
         ) : (
           <Overview
             projects={projects}
+            scope={scope}
             onSelect={setSelected}
             onReorder={handleReorderProjects}
             onFiles={handleExplotacionFiles}
