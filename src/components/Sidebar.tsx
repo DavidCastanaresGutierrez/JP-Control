@@ -27,6 +27,8 @@ export function Sidebar({
   showAdmin,
   adminActive,
   onOpenAdmin,
+  mobileOpen,
+  onRequestClose,
 }: {
   projects: Project[]
   selected: string | null
@@ -43,6 +45,8 @@ export function Sidebar({
   showAdmin?: boolean
   adminActive?: boolean
   onOpenAdmin?: () => void
+  mobileOpen?: boolean
+  onRequestClose?: () => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [photoError, setPhotoError] = useState(false)
@@ -53,16 +57,28 @@ export function Sidebar({
   useEffect(() => setPhotoError(false), [userPhotoUrl])
 
   return (
-    <aside className="flex w-[17rem] shrink-0 flex-col bg-primary-950 text-white/72">
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 flex w-[17rem] max-w-[85vw] shrink-0 transform flex-col overflow-y-auto bg-primary-950 text-white/72 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-[17rem] lg:max-w-none lg:translate-x-0 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
       <div className="border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500 font-black text-primary-950">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-500 font-black text-primary-950">
             JP
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="font-display text-lg font-extrabold tracking-tight text-white">JP Control</div>
             <div className="mt-0.5 truncate text-xs text-white/45">Seguimiento economico</div>
           </div>
+          <button
+            type="button"
+            onClick={onRequestClose}
+            aria-label="Cerrar menu"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-white/60 hover:bg-white/8 hover:text-white lg:hidden"
+          >
+            x
+          </button>
         </div>
       </div>
 

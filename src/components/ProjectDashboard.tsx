@@ -77,10 +77,10 @@ export function ProjectDashboard({
   ]
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[28px] font-extrabold text-ink tracking-tight">
+        <div className="min-w-0">
+          <h1 className="font-display text-[22px] sm:text-[28px] font-extrabold text-ink tracking-tight truncate">
             {project.name}
           </h1>
           <div className="text-sm text-ink-soft mt-0.5">
@@ -89,18 +89,20 @@ export function ProjectDashboard({
             {project.hasta && <> - Datos hasta {fmtFecha(project.hasta)}</>}
           </div>
         </div>
-        <div className="flex rounded-full border border-line bg-surface p-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 h-9 text-sm font-semibold rounded-full transition-colors ${
-                tab === t.id ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="-mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0">
+          <div className="flex w-max rounded-full border border-line bg-surface p-1">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`px-4 h-9 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${
+                  tab === t.id ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -162,7 +164,7 @@ export function ProjectDashboard({
           </div>
 
           {/* Consumo sobre presupuesto (barra principal unificada) */}
-          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
               <div>
                 <h3 className="font-bold text-ink text-lg">Facturado sobre contrato</h3>
@@ -278,7 +280,7 @@ export function ProjectDashboard({
 
           <div className="grid lg:grid-cols-2 gap-5">
             {/* Gasto por departamento */}
-            <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+            <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
               <h3 className="font-bold text-ink text-lg mb-1">Gasto por departamento</h3>
               <p className="text-xs text-ink-soft mb-3">
                 Coste de personal mas facturas de externos asignadas a cada departamento. La
@@ -340,7 +342,7 @@ export function ProjectDashboard({
             </div>
 
             {/* Evolucion mensual */}
-            <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+            <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
               <h3 className="font-bold text-ink text-lg mb-4">Evolucion mensual</h3>
               <div className="select-none" style={{ userSelect: 'none' }}>
                 <ResponsiveContainer width="100%" height={300}>
