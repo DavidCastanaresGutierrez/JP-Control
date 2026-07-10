@@ -130,30 +130,22 @@ export function Ajustes({
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirm(true)}
-            title="Eliminar proyecto"
-            aria-label="Eliminar proyecto"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[14px] border border-line text-ink-muted hover:text-danger hover:border-danger/40 hover:bg-danger/8 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-          </button>
+          <div className="rounded-[20px] border border-line bg-surface p-4 shadow-soft">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-ink">Eliminar proyecto</h3>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  Borra el proyecto y todos sus datos de este navegador. No se puede deshacer.
+                </p>
+              </div>
+              <button
+                onClick={() => setConfirm(true)}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-danger px-4 text-sm font-bold text-white transition-opacity hover:opacity-90"
+              >
+                Eliminar proyecto
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
