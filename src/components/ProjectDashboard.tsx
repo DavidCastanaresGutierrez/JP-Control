@@ -105,10 +105,10 @@ export function ProjectDashboard({
                     ? 'Dejar de seguir este proyecto en Mi cartera'
                     : 'Seguir este proyecto en Mi cartera'
                 }
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg transition-colors ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-lg transition-colors ${
                   isWatching
-                    ? 'text-warning'
-                    : 'text-ink-muted hover:bg-surface-muted hover:text-warning'
+                    ? 'border-warning/40 bg-warning/15 text-warning'
+                    : 'border-line bg-surface-muted text-ink-muted hover:border-warning/40 hover:text-warning'
                 }`}
               >
                 <EmojiIcon>{isWatching ? emoji.star : emoji.starOutline}</EmojiIcon>
