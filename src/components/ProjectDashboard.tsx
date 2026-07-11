@@ -34,11 +34,15 @@ export function ProjectDashboard({
   onUpdate,
   onArchiveToggle,
   onDelete,
+  isWatching,
+  onToggleWatch,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
   onArchiveToggle: () => void
   onDelete: () => void
+  isWatching?: boolean
+  onToggleWatch?: () => void
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const k = useMemo(() => kpis(project), [project])
@@ -87,9 +91,30 @@ export function ProjectDashboard({
     <div className="p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-display text-[22px] sm:text-[28px] font-extrabold text-ink tracking-tight truncate">
-            {project.name}
-          </h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="font-display text-[22px] sm:text-[28px] font-extrabold text-ink tracking-tight truncate">
+              {project.name}
+            </h1>
+            {onToggleWatch && (
+              <button
+                type="button"
+                onClick={onToggleWatch}
+                aria-pressed={isWatching}
+                title={
+                  isWatching
+                    ? 'Dejar de seguir este proyecto en Mi cartera'
+                    : 'Seguir este proyecto en Mi cartera'
+                }
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg transition-colors ${
+                  isWatching
+                    ? 'text-warning'
+                    : 'text-ink-muted hover:bg-surface-muted hover:text-warning'
+                }`}
+              >
+                <EmojiIcon>{isWatching ? emoji.star : emoji.starOutline}</EmojiIcon>
+              </button>
+            )}
+          </div>
           <div className="text-sm text-ink-soft mt-0.5">
             {project.code}
             {project.director && <> - Dir.: {project.director}</>}

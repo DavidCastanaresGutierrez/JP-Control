@@ -59,6 +59,8 @@ export function Overview({
   onReorder,
   onFiles,
   onHoursFiles,
+  userEmail,
+  onToggleWatch,
 }: {
   projects: Project[]
   scope: 'mine' | 'all'
@@ -66,6 +68,8 @@ export function Overview({
   onReorder: (draggedCode: string, targetCode: string) => void
   onFiles: (files: File[]) => void
   onHoursFiles: (files: File[]) => void
+  userEmail?: string
+  onToggleWatch?: (code: string) => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -123,7 +127,7 @@ export function Overview({
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             {scope === 'mine'
-              ? 'Proyectos en los que figuras como jefe de proyecto (JP).'
+              ? 'Proyectos en los que figuras como jefe de proyecto (JP) o que sigues.'
               : 'Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.'}
           </p>
         </div>
@@ -208,6 +212,9 @@ export function Overview({
           const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > 30
           const isDragging = draggingCode === p.code
           const isDropTarget = dragOverCode === p.code && draggingCode !== p.code
+          const estaSeguido = Boolean(
+            userEmail && (p.watchers ?? []).includes(userEmail.trim().toLowerCase()),
+          )
 
           return (
             <div
@@ -272,19 +279,44 @@ export function Overview({
                   <div className="truncate font-bold text-ink">{p.name}</div>
                   <div className="text-xs text-ink-muted">{p.code}</div>
                 </div>
-                {necesitaActualizacion ? (
-                  <span className="shrink-0 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-[#8A5A00]">
-                    Actualizar Concost {fmtDias(diasActualizacion)}
-                  </span>
-                ) : alerta ? (
-                  <span className="shrink-0 rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
-                    <EmojiIcon>{emoji.alert}</EmojiIcon> Sin facturar {fmtPct(-k.desvioFacturacion!)}
-                  </span>
-                ) : (
-                  <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
-                    <EmojiIcon>{emoji.check}</EmojiIcon> OK
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {onToggleWatch && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleWatch(p.code)
+                      }}
+                      onDragStart={(event) => event.preventDefault()}
+                      aria-pressed={estaSeguido}
+                      title={
+                        estaSeguido
+                          ? 'Dejar de seguir este proyecto en Mi cartera'
+                          : 'Seguir este proyecto en Mi cartera'
+                      }
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base transition-colors ${
+                        estaSeguido
+                          ? 'text-warning'
+                          : 'text-ink-muted hover:bg-surface-muted hover:text-warning'
+                      }`}
+                    >
+                      <EmojiIcon>{estaSeguido ? emoji.star : emoji.starOutline}</EmojiIcon>
+                    </button>
+                  )}
+                  {necesitaActualizacion ? (
+                    <span className="shrink-0 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-[#8A5A00]">
+                      Actualizar Concost {fmtDias(diasActualizacion)}
+                    </span>
+                  ) : alerta ? (
+                    <span className="shrink-0 rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
+                      <EmojiIcon>{emoji.alert}</EmojiIcon> Sin facturar {fmtPct(-k.desvioFacturacion!)}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
+                      <EmojiIcon>{emoji.check}</EmojiIcon> OK
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -348,10 +380,10 @@ export function Overview({
           <div className="rounded-lg border border-line bg-surface p-8 text-center md:col-span-2 xl:col-span-3">
             {scope === 'mine' ? (
               <>
-                <div className="text-lg font-extrabold text-ink">No tienes proyectos como JP</div>
+                <div className="text-lg font-extrabold text-ink">No tienes proyectos en tu cartera</div>
                 <p className="mt-1 text-sm text-ink-soft">
-                  Asigna el JP en la Configuracion de cada proyecto para que aparezca aqui, o consulta
-                  "Todos los proyectos".
+                  Asigna el JP en la Configuracion de cada proyecto, o marca la estrella de un
+                  proyecto en "Todos los proyectos" para seguirlo sin ser su JP.
                 </p>
               </>
             ) : (

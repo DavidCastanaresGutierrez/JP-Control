@@ -12,6 +12,8 @@ export const emoji = {
   refresh: String.fromCodePoint(0x1f504),
   search: String.fromCodePoint(0x1f50d),
   settings: String.fromCodePoint(0x2699, 0xfe0f),
+  star: String.fromCodePoint(0x2b50),
+  starOutline: String.fromCodePoint(0x2606),
   trend: String.fromCodePoint(0x1f4c9),
 } as const
 

@@ -46,6 +46,8 @@ export interface Project {
   extDept?: Record<string, string>
   /** Corresponsabilidad: % del total asignado a cada departamento (departamento -> 0-100) */
   deptShare?: Record<string, number>
+  /** Emails (en minusculas) de usuarios que siguen el proyecto sin ser su JP */
+  watchers?: string[]
 }
 
 export interface DB {
