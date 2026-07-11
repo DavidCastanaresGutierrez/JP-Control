@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   Bar,
   CartesianGrid,
@@ -51,6 +51,13 @@ export function ProjectDashboard({
     () => control.filas.filter((f) => f.coste > 0).map((f) => ({ name: f.dept, value: f.coste })),
     [control],
   )
+  // Departamento pendiente de aplicar como filtro al abrir la pestana Horas
+  // (clic desde "Gasto por departamento" del Panel).
+  const pendingHorasDept = useRef<string | null>(null)
+  const irAHorasPorDepartamento = (dept: string) => {
+    pendingHorasDept.current = dept
+    setTab('horas')
+  }
 
   const budget = project.budget ?? project.contractValue
   const contrato = project.contractValue ?? project.budget
@@ -297,9 +304,17 @@ export function ProjectDashboard({
                         innerRadius={55}
                         outerRadius={90}
                         paddingAngle={2}
+                        onClick={(_, i) => {
+                          const item = gastoPorDept[i]
+                          if (item) irAHorasPorDepartamento(item.name)
+                        }}
                       >
                         {gastoPorDept.map((_, i) => (
-                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          <Cell
+                            key={i}
+                            fill={PIE_COLORS[i % PIE_COLORS.length]}
+                            style={{ cursor: 'pointer' }}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -312,7 +327,13 @@ export function ProjectDashboard({
                     {gastoPorDept.map((d, i) => {
                       const total = gastoPorDept.reduce((s, x) => s + x.value, 0)
                       return (
-                        <div key={d.name} className="flex items-center gap-2 text-sm">
+                        <button
+                          key={d.name}
+                          type="button"
+                          onClick={() => irAHorasPorDepartamento(d.name)}
+                          title={`Ver ${d.name} en Horas`}
+                          className="flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left text-sm transition-colors hover:bg-surface-muted"
+                        >
                           <span
                             className="w-3 h-3 rounded-sm shrink-0"
                             style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
@@ -322,7 +343,7 @@ export function ProjectDashboard({
                             {total > 0 ? fmtPct((d.value / total) * 100) : ''}
                           </span>
                           <span className="font-bold text-ink tabular-nums">{fmtEur(d.value)}</span>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -382,7 +403,7 @@ export function ProjectDashboard({
       )}
 
       {tab === 'horas' && (
-        <HoursView project={project} onUpdate={onUpdate} />
+        <HoursView project={project} onUpdate={onUpdate} initialDeptFocus={pendingHorasDept} />
       )}
       {tab === 'movimientos' && <EntriesTable entries={project.entries} />}
       {tab === 'ajustes' && (
