@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { RefObject } from 'react'
 import {
   Bar,
   BarChart,
@@ -58,10 +59,13 @@ export function HoursView({
   project,
   onUpdate,
   onSelectPersons,
+  initialDeptFocus,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
   onSelectPersons?: (personas: string[]) => void
+  /** Departamento a preseleccionar al abrir esta pestana (clic desde el Panel), consumido una sola vez. */
+  initialDeptFocus?: RefObject<string | null>
 }) {
   const coste = useMemo(() => costeHorasMensual(project.entries), [project.entries])
   const matriz = useMemo(() => matrizHoras(project.hours), [project.hours])
@@ -97,7 +101,11 @@ export function HoursView({
     if (conAnomalias.length) return new Set(conAnomalias)
     return new Set(matriz.filas.slice(0, 1).map((f) => f.persona))
   })
-  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(null)
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(() => {
+    const dept = initialDeptFocus?.current ?? null
+    if (initialDeptFocus) initialDeptFocus.current = null
+    return dept
+  })
   const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null)
   const [personaSeleccionada, setPersonaSeleccionada] = useState<string | null>(null)
 
