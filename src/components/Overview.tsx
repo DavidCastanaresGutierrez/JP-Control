@@ -269,7 +269,7 @@ export function Overview({
                 endDrag()
               }}
               onDragEnd={endDrag}
-              className={`rounded-lg border bg-surface p-5 text-left shadow-soft transition-all hover:border-accent-300 hover:shadow-hover ${
+              className={`min-w-0 rounded-lg border bg-surface p-5 text-left shadow-soft transition-all hover:border-accent-300 hover:shadow-hover ${
                 isDropTarget ? 'translate-y-0.5 border-accent-500 ring-2 ring-accent-300/70' : 'border-line'
               } ${isDragging ? 'scale-[0.99] opacity-60' : ''} cursor-grab active:cursor-grabbing`}
               title="Arrastra para ordenar o haz clic para abrir"
@@ -350,9 +350,11 @@ export function Overview({
 
               <div className="mt-3 space-y-0.5 text-[11px] text-ink-muted">
                 {p.jp && (
-                  <div className="flex items-center justify-between gap-3 truncate" title={p.jp}>
-                    <span>JP:</span>
-                    <span className="truncate font-semibold text-ink-soft">{p.jp}</span>
+                  <div className="flex items-center justify-between gap-3" title={p.jp}>
+                    <span className="shrink-0">JP:</span>
+                    <span className="min-w-0 flex-1 truncate text-right font-semibold text-ink-soft">
+                      {p.jp}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-3">
@@ -361,9 +363,9 @@ export function Overview({
                     {p.lastImport ? fmtFechaImportacion(p.lastImport) : 'sin fecha'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 truncate" title={p.concostFileName}>
-                  <span>Archivo Explotacion:</span>
-                  <span className="truncate font-semibold text-ink-soft">
+                <div className="flex items-center justify-between gap-3" title={p.concostFileName}>
+                  <span className="shrink-0">Archivo Explotacion:</span>
+                  <span className="min-w-0 flex-1 truncate text-right font-semibold text-ink-soft">
                     {p.concostFileName ?? 'no registrado'}
                   </span>
                 </div>
