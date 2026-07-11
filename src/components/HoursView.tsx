@@ -620,7 +620,6 @@ export function HoursView({
                     }
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   {personasSel.map((f) => (
                     <Line
                       key={f.persona}
