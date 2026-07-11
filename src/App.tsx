@@ -68,6 +68,13 @@ function esJpDelUsuario(project: Project, userName?: string, userEmail?: string)
   return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
 }
 
+/** El usuario ha marcado el proyecto para seguirlo sin ser su JP. */
+function esSeguidoPorUsuario(project: Project, userEmail?: string): boolean {
+  const email = (userEmail ?? '').trim().toLowerCase()
+  if (!email) return false
+  return (project.watchers ?? []).includes(email)
+}
+
 function loadProjectOrder(): string[] {
   try {
     const raw = localStorage.getItem(PROJECT_ORDER_KEY)
@@ -284,7 +291,11 @@ export default function App() {
   const allProjects = orderProjects(db.projects, projectOrder)
   const scopedProjects =
     scope === 'mine'
-      ? allProjects.filter((p) => esJpDelUsuario(p, authSession?.username, authSession?.email))
+      ? allProjects.filter(
+          (p) =>
+            esJpDelUsuario(p, authSession?.username, authSession?.email) ||
+            esSeguidoPorUsuario(p, authSession?.email),
+        )
       : allProjects
   const projects = scopedProjects.filter((project) => {
     if (archiveFilter === 'all') return true
@@ -292,6 +303,7 @@ export default function App() {
     return archiveFilter === 'archived' ? archived : !archived
   })
   const project = selected ? db.projects[selected] : undefined
+  const siguiendoProyecto = project ? esSeguidoPorUsuario(project, authSession?.email) : false
 
   const handleReorderProjects = (draggedCode: string, targetCode: string) => {
     setProjectOrder((current) => {
@@ -301,6 +313,22 @@ export default function App() {
         if (!base.includes(code)) base.push(code)
       }
       return moveCode(base, draggedCode, targetCode)
+    })
+  }
+
+  const handleToggleWatch = (code: string) => {
+    const email = authSession?.email?.trim().toLowerCase()
+    if (!email) {
+      toast('warn', 'Inicia sesion para poder marcar proyectos a seguir.')
+      return
+    }
+    setDb((d) => {
+      const p = d.projects[code]
+      if (!p) return d
+      const watchers = new Set(p.watchers ?? [])
+      if (watchers.has(email)) watchers.delete(email)
+      else watchers.add(email)
+      return updateProject(d, code, { watchers: [...watchers] })
     })
   }
 
@@ -432,6 +460,8 @@ export default function App() {
                 setDb((d) => deleteProject(d, project.code))
                 setSelected(null)
               }}
+              isWatching={siguiendoProyecto}
+              onToggleWatch={() => handleToggleWatch(project.code)}
             />
           ) : (
             <Overview
@@ -441,6 +471,8 @@ export default function App() {
               onReorder={handleReorderProjects}
               onFiles={handleExplotacionFiles}
               onHoursFiles={handleOverviewHoursFiles}
+              userEmail={authSession?.email}
+              onToggleWatch={handleToggleWatch}
             />
           )}
         </main>
