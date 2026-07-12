@@ -417,6 +417,11 @@ export default function App() {
     setDb((d) => updateDepartamento(d, miDepartamento, { objetivoFacturablePct: pct }))
   }
 
+  const handleSetMesInicio = (mes: string | undefined) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { mesInicio: mes }))
+  }
+
   const handleLoginSuccess = useCallback(
     (session: AuthSession) => {
       setAuthSession(session)
@@ -547,6 +552,7 @@ export default function App() {
               onImportFile={handleImportHorasProduccion}
               onUpdateRoster={handleUpdateRoster}
               onSetObjetivo={handleSetObjetivo}
+              onSetMesInicio={handleSetMesInicio}
             />
           ) : project ? (
             <ProjectDashboard

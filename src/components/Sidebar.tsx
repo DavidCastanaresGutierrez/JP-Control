@@ -171,7 +171,7 @@ export function Sidebar({
           <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
             <EmojiIcon>{emoji.chart}</EmojiIcon>
           </span>
-          Mi departamento
+          Control por Departamento
         </button>
 
         {showAdmin && (

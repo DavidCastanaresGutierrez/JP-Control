@@ -63,6 +63,7 @@ export function DepartmentDashboard({
   onImportFile,
   onUpdateRoster,
   onSetObjetivo,
+  onSetMesInicio,
 }: {
   departamento: string | null
   modulo: DepartmentModule | undefined
@@ -70,6 +71,7 @@ export function DepartmentDashboard({
   onImportFile: (file: File) => void
   onUpdateRoster: (roster: DepartmentModule['roster']) => void
   onSetObjetivo: (pct: number | undefined) => void
+  onSetMesInicio: (mes: string | undefined) => void
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const [mesSel, setMesSel] = useState<string | null>(null)
@@ -111,7 +113,7 @@ export function DepartmentDashboard({
     return (
       <div className="p-4 sm:p-6 max-w-xl">
         <h1 className="font-display text-[26px] font-extrabold text-ink tracking-tight sm:text-[30px]">
-          Mi departamento
+          Control por Departamento
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
           Elige el departamento que diriges para ver su ocupación, dedicación y carga de trabajo.
@@ -626,6 +628,7 @@ export function DepartmentDashboard({
           onImportFile={onImportFile}
           onUpdateRoster={onUpdateRoster}
           onSetObjetivo={onSetObjetivo}
+          onSetMesInicio={onSetMesInicio}
         />
       )}
     </div>
@@ -638,6 +641,7 @@ function DepartmentConfig({
   onImportFile,
   onUpdateRoster,
   onSetObjetivo,
+  onSetMesInicio,
 }: {
   departamento: string
   modulo: DepartmentModule | undefined
@@ -645,6 +649,7 @@ function DepartmentConfig({
   onImportFile: (file: File) => void
   onUpdateRoster: (roster: DepartmentModule['roster']) => void
   onSetObjetivo: (pct: number | undefined) => void
+  onSetMesInicio: (mes: string | undefined) => void
 }) {
   const roster = modulo?.roster ?? {}
   const seleccionadas = new Set(Object.keys(roster).filter((p) => roster[p].activo))
@@ -716,6 +721,32 @@ function DepartmentConfig({
           />
           <span className="text-sm text-ink-soft">%</span>
         </label>
+      </div>
+
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
+        <h3 className="font-bold text-ink text-lg mb-1">Mes de inicio del análisis</h3>
+        <p className="text-xs text-ink-soft mb-3">
+          Descarta el histórico de horas anterior a este mes en todos los cálculos y gráficos (útil
+          tras una reestructuración de equipo, por ejemplo). Déjalo en blanco para usar todo el
+          histórico importado.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={modulo?.mesInicio ?? ''}
+            onChange={(e) => onSetMesInicio(e.target.value || undefined)}
+            className="border border-line rounded-[10px] px-3 py-2 text-sm text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+          />
+          {modulo?.mesInicio && (
+            <button
+              type="button"
+              onClick={() => onSetMesInicio(undefined)}
+              className="text-xs font-semibold text-ink-soft underline hover:text-ink"
+            >
+              Quitar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
