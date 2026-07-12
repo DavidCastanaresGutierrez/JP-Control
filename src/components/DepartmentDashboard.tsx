@@ -58,6 +58,14 @@ const ESTADO_LABEL: Record<string, string> = {
   'sin-datos': 'Sin datos',
 }
 
+function normalizarBusqueda(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
 export function DepartmentDashboard({
   departamento,
   modulo,
@@ -82,6 +90,8 @@ export function DepartmentDashboard({
   const [medidaComparativa, setMedidaComparativa] = useState<'ocupacion' | 'horas' | 'facturable'>(
     'ocupacion',
   )
+  const [buscadorDedicacion, setBuscadorDedicacion] = useState('')
+  const [buscadorPersona, setBuscadorPersona] = useState('')
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -96,7 +106,24 @@ export function DepartmentDashboard({
   )
   const dedicacion = useMemo(() => (modulo ? dedicacionPorPersona(modulo) : []), [modulo])
   const equipoActivo = useMemo(() => (modulo ? personasActivas(modulo) : []), [modulo])
-  const personaVista = personaSel ?? equipoActivo[0] ?? null
+  const queryDedicacion = normalizarBusqueda(buscadorDedicacion)
+  const dedicacionFiltrada = useMemo(
+    () =>
+      queryDedicacion
+        ? dedicacion.filter((d) => normalizarBusqueda(d.persona).includes(queryDedicacion))
+        : dedicacion,
+    [dedicacion, queryDedicacion],
+  )
+  const queryPersona = normalizarBusqueda(buscadorPersona)
+  const equipoFiltrado = useMemo(
+    () =>
+      queryPersona
+        ? equipoActivo.filter((p) => normalizarBusqueda(p).includes(queryPersona))
+        : equipoActivo,
+    [equipoActivo, queryPersona],
+  )
+  const personaVista =
+    personaSel && equipoFiltrado.includes(personaSel) ? personaSel : (equipoFiltrado[0] ?? null)
   const evolucionPersona = useMemo(
     () => (modulo && personaVista ? evolucionFacturabilidadPersona(modulo, personaVista) : []),
     [modulo, personaVista],
@@ -710,10 +737,31 @@ export function DepartmentDashboard({
 
       {tab === 'dedicacion' && !sinDatos && (
         <div className="space-y-4">
-          <p className="text-xs text-ink-soft">
-            Reparto de horas por proyecto/actividad de cada persona, sobre todo el periodo importado.
-          </p>
-          {dedicacion.map((d) => (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink-soft">
+              Reparto de horas por proyecto/actividad de cada persona, sobre todo el periodo importado.
+            </p>
+            <label className="relative w-full sm:w-64">
+              <span className="sr-only">Buscar persona</span>
+              <input
+                value={buscadorDedicacion}
+                onChange={(e) => setBuscadorDedicacion(e.target.value)}
+                placeholder="Buscar persona"
+                className="h-9 w-full rounded-[10px] border border-line bg-surface px-3 pr-8 text-sm text-ink outline-none focus:border-accent-500"
+              />
+              {buscadorDedicacion && (
+                <button
+                  type="button"
+                  onClick={() => setBuscadorDedicacion('')}
+                  aria-label="Limpiar busqueda"
+                  className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-sm font-black text-ink-muted hover:bg-surface-muted hover:text-ink"
+                >
+                  x
+                </button>
+              )}
+            </label>
+          </div>
+          {dedicacionFiltrada.map((d) => (
             <div key={d.persona} className="bg-surface rounded-[20px] shadow-soft border border-line p-5">
               <div className="flex items-baseline justify-between gap-3 mb-3">
                 <h4 className="font-bold text-ink">{d.persona}</h4>
@@ -752,6 +800,11 @@ export function DepartmentDashboard({
               Sin datos de dedicación todavía.
             </div>
           )}
+          {dedicacion.length > 0 && dedicacionFiltrada.length === 0 && (
+            <div className="rounded-[20px] border border-line bg-surface p-8 text-center text-sm text-ink-soft">
+              Ninguna persona coincide con "{buscadorDedicacion}".
+            </div>
+          )}
         </div>
       )}
 
@@ -759,17 +812,39 @@ export function DepartmentDashboard({
         <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h3 className="font-bold text-ink text-lg">Evolución mensual por persona</h3>
-            <select
-              value={personaVista ?? ''}
-              onChange={(e) => setPersonaSel(e.target.value)}
-              className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
-            >
-              {equipoActivo.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="relative w-full sm:w-56">
+                <span className="sr-only">Buscar persona</span>
+                <input
+                  value={buscadorPersona}
+                  onChange={(e) => setBuscadorPersona(e.target.value)}
+                  placeholder="Buscar persona"
+                  className="h-9 w-full rounded-[10px] border border-line bg-surface px-3 pr-8 text-sm text-ink outline-none focus:border-accent-500"
+                />
+                {buscadorPersona && (
+                  <button
+                    type="button"
+                    onClick={() => setBuscadorPersona('')}
+                    aria-label="Limpiar busqueda"
+                    className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-sm font-black text-ink-muted hover:bg-surface-muted hover:text-ink"
+                  >
+                    x
+                  </button>
+                )}
+              </label>
+              <select
+                value={personaVista ?? ''}
+                onChange={(e) => setPersonaSel(e.target.value)}
+                className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
+              >
+                {equipoFiltrado.length === 0 && <option value="">Sin coincidencias</option>}
+                {equipoFiltrado.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <p className="text-xs text-ink-soft mb-4">
             Horas imputadas, horas facturables y % de facturabilidad mes a mes, para comparar la
