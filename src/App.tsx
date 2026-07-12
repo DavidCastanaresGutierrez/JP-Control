@@ -412,6 +412,11 @@ export default function App() {
     setDb((d) => updateDepartamento(d, miDepartamento, { roster }))
   }
 
+  const handleSetObjetivo = (pct: number | undefined) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { objetivoFacturablePct: pct }))
+  }
+
   const handleLoginSuccess = useCallback(
     (session: AuthSession) => {
       setAuthSession(session)
@@ -541,6 +546,7 @@ export default function App() {
               onChooseDepartamento={setMiDepartamento}
               onImportFile={handleImportHorasProduccion}
               onUpdateRoster={handleUpdateRoster}
+              onSetObjetivo={handleSetObjetivo}
             />
           ) : project ? (
             <ProjectDashboard

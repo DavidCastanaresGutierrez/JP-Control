@@ -107,6 +107,8 @@ export interface DepartmentModule {
   horas: HoraProduccion[]
   /** Reclasificacion manual de un proyecto/actividad (por defecto se infiere por palabras clave) */
   tipoActividad?: Record<string, TipoActividad>
+  /** % de facturabilidad objetivo del departamento, para comparar con el real */
+  objetivoFacturablePct?: number
   lastImport?: string
   fileName?: string
 }

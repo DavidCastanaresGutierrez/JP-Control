@@ -276,3 +276,92 @@ export function evolucionFacturabilidadPersona(
     }
   })
 }
+
+export interface DistribucionItem {
+  clave: string
+  horas: number
+  pct: number
+  tipo: TipoActividad
+}
+
+/** Horas de un mes concreto de las personas activas del equipo, para vistas agregadas. */
+function horasActivosMes(modulo: DepartmentModule, mes: string): HoraProduccion[] {
+  const activos = new Set(personasActivas(modulo))
+  return horasDelDepartamento(modulo).filter((h) => h.mes === mes && activos.has(h.persona))
+}
+
+/** Distribución del esfuerzo del equipo por proyecto/actividad, para un mes. */
+export function distribucionPorProyecto(
+  modulo: DepartmentModule,
+  mes: string,
+  overridesActividad?: Record<string, TipoActividad>,
+): DistribucionItem[] {
+  const horas = horasActivosMes(modulo, mes)
+  const total = horas.reduce((s, h) => s + h.horas, 0)
+  const porProyecto = new Map<string, number>()
+  for (const h of horas) porProyecto.set(h.proyecto, (porProyecto.get(h.proyecto) ?? 0) + h.horas)
+  return [...porProyecto.entries()]
+    .map(([proyecto, hrs]) => ({
+      clave: proyecto,
+      horas: Math.round(hrs * 100) / 100,
+      pct: total > 0 ? (hrs / total) * 100 : 0,
+      tipo: clasificarActividad(proyecto, overridesActividad),
+    }))
+    .sort((a, b) => b.horas - a.horas)
+}
+
+/** Distribución del esfuerzo del equipo por tipo de actividad, para un mes. */
+export function distribucionPorTipoActividad(
+  modulo: DepartmentModule,
+  mes: string,
+  overridesActividad?: Record<string, TipoActividad>,
+): DistribucionItem[] {
+  const horas = horasActivosMes(modulo, mes)
+  const total = horas.reduce((s, h) => s + h.horas, 0)
+  const porTipo = new Map<TipoActividad, number>()
+  for (const h of horas) {
+    const tipo = clasificarActividad(h.proyecto, overridesActividad)
+    porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + h.horas)
+  }
+  return [...porTipo.entries()]
+    .map(([tipo, hrs]) => ({
+      clave: TIPO_ACTIVIDAD_LABEL[tipo],
+      horas: Math.round(hrs * 100) / 100,
+      pct: total > 0 ? (hrs / total) * 100 : 0,
+      tipo,
+    }))
+    .sort((a, b) => b.horas - a.horas)
+}
+
+export interface MesDepartamento {
+  mes: string
+  horasImputadas: number
+  horasFacturables: number
+  horasInternas: number
+  horasSoporte: number
+  horasInnovacion: number
+  horasFormacion: number
+  facturabilidadPct: number | null
+  ocupacionMediaPct: number | null
+}
+
+/** Evolucion mensual agregada de todo el equipo (activos), a lo largo de todo el periodo importado. */
+export function evolucionTemporalDepartamento(
+  modulo: DepartmentModule,
+  overridesActividad?: Record<string, TipoActividad>,
+): MesDepartamento[] {
+  return mesesDisponibles(modulo).map((mes) => {
+    const d = dashboardDepartamento(modulo, mes, overridesActividad)
+    return {
+      mes,
+      horasImputadas: d.horasImputadas,
+      horasFacturables: d.horasFacturables,
+      horasInternas: d.horasInternas,
+      horasSoporte: d.horasSoporte,
+      horasInnovacion: d.horasInnovacion,
+      horasFormacion: d.horasFormacion,
+      facturabilidadPct: d.facturabilidadPct,
+      ocupacionMediaPct: d.ocupacionMediaPct,
+    }
+  })
+}
