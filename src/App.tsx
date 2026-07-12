@@ -200,6 +200,12 @@ export default function App() {
   }, [authSession])
 
   useEffect(() => {
+    if (isSsoEnabled && deptView && myRole !== 'administracion' && myRole !== 'director_departamento') {
+      setDeptView(false)
+    }
+  }, [deptView, myRole])
+
+  useEffect(() => {
     localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
   }, [projectOrder])
 
@@ -391,6 +397,8 @@ export default function App() {
   const departamentoModulo: DepartmentModule | undefined = miDepartamento
     ? db.departamentos[miDepartamento]
     : undefined
+  const puedeAccederDepartamento =
+    !isSsoEnabled || myRole === 'administracion' || myRole === 'director_departamento'
 
   const handleImportHorasProduccion = async (file: File) => {
     if (!miDepartamento) return
@@ -506,6 +514,7 @@ export default function App() {
           setAdminView(true)
           setMobileNavOpen(false)
         }}
+        showDept={puedeAccederDepartamento}
         departamentoActive={deptView}
         onOpenDepartamento={() => {
           setSelected(null)
@@ -544,7 +553,7 @@ export default function App() {
               users={adminUsers ?? []}
               onChangeRole={handleChangeRole}
             />
-          ) : deptView ? (
+          ) : deptView && puedeAccederDepartamento ? (
             <DepartmentDashboard
               departamento={miDepartamento}
               modulo={departamentoModulo}

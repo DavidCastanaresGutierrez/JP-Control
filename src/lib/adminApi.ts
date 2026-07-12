@@ -1,6 +1,6 @@
 import { apiFetch } from './http'
 
-export type Role = 'lectura' | 'edicion' | 'administracion'
+export type Role = 'lectura' | 'edicion' | 'director_departamento' | 'administracion'
 
 export interface AppUser {
   email: string

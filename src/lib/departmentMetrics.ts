@@ -339,6 +339,68 @@ export function distribucionPorTipoActividad(
     .sort((a, b) => b.horas - a.horas)
 }
 
+export interface CeldaComparativa {
+  horasImputadas: number
+  ocupacionPct: number | null
+  facturablePct: number | null
+}
+
+export interface FilaComparativaOcupacion {
+  persona: string
+  celdas: CeldaComparativa[]
+  totalHorasImputadas: number
+  mediaOcupacionPct: number | null
+}
+
+export interface ComparativaOcupacion {
+  meses: string[]
+  filas: FilaComparativaOcupacion[]
+}
+
+/**
+ * Comparativa mensual de ocupación, horas y facturabilidad de todas las
+ * personas activas, con los mismos meses en columna, para poder cruzarlas
+ * entre sí (igual que la tabla de participantes de un proyecto).
+ */
+export function comparativaOcupacion(
+  modulo: DepartmentModule,
+  overridesActividad?: Record<string, TipoActividad>,
+): ComparativaOcupacion {
+  const meses = mesesDisponibles(modulo)
+  const horas = horasDelDepartamento(modulo)
+
+  const filas = personasActivas(modulo)
+    .map((persona) => {
+      const horasPersona = horas.filter((h) => h.persona === persona)
+      const jornadaPct = modulo.roster[persona]?.jornadaPct
+      const celdas = meses.map((mes) => {
+        const delMes = horasPersona.filter((h) => h.mes === mes)
+        const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
+        const horasFacturables = Math.round(
+          delMes
+            .filter((h) => clasificarActividad(h.proyecto, overridesActividad) === 'facturable')
+            .reduce((s, h) => s + h.horas, 0) * 100,
+        ) / 100
+        const horasDisponibles = capacidadPersona(mes, jornadaPct)
+        return {
+          horasImputadas,
+          ocupacionPct: horasDisponibles > 0 ? (horasImputadas / horasDisponibles) * 100 : null,
+          facturablePct: horasImputadas > 0 ? (horasFacturables / horasImputadas) * 100 : null,
+        }
+      })
+      const totalHorasImputadas = Math.round(celdas.reduce((s, c) => s + c.horasImputadas, 0) * 100) / 100
+      const ocupaciones = celdas.map((c) => c.ocupacionPct).filter((v): v is number => v !== null)
+      const mediaOcupacionPct =
+        ocupaciones.length > 0
+          ? Math.round((ocupaciones.reduce((s, v) => s + v, 0) / ocupaciones.length) * 10) / 10
+          : null
+      return { persona, celdas, totalHorasImputadas, mediaOcupacionPct }
+    })
+    .sort((a, b) => b.totalHorasImputadas - a.totalHorasImputadas)
+
+  return { meses, filas }
+}
+
 export interface MesDepartamento {
   mes: string
   horasImputadas: number
