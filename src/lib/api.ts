@@ -1,8 +1,13 @@
-import type { Project } from '../types'
+import type { DepartmentModule, Project } from '../types'
 import { apiFetch } from './http'
 
 export type RemoteProjects =
   | { estado: 'ok'; projects: Record<string, Project> }
+  | { estado: 'auth' }
+  | { estado: 'sin-nube' }
+
+export type RemoteDepartments =
+  | { estado: 'ok'; departamentos: Record<string, DepartmentModule> }
   | { estado: 'auth' }
   | { estado: 'sin-nube' }
 
@@ -34,6 +39,31 @@ export async function pushProject(project: Project): Promise<boolean> {
 
 export async function deleteRemoteProject(code: string): Promise<boolean> {
   const res = await call(`/api/projects?code=${encodeURIComponent(code)}`, { method: 'DELETE' })
+  return res !== 'sin-nube' && res.ok
+}
+
+export async function fetchRemoteDepartments(): Promise<RemoteDepartments> {
+  const res = await call('/api/departments')
+  if (res === 'sin-nube') return { estado: 'sin-nube' }
+  if (res.status === 401) return { estado: 'auth' }
+  if (!res.ok) return { estado: 'sin-nube' }
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
+    return { estado: 'sin-nube' }
+  }
+  const body = (await res.json()) as { departamentos?: Record<string, DepartmentModule> }
+  return { estado: 'ok', departamentos: body.departamentos ?? {} }
+}
+
+export async function pushDepartment(modulo: DepartmentModule): Promise<boolean> {
+  const res = await call('/api/departments', {
+    method: 'PUT',
+    body: JSON.stringify({ nombre: modulo.departamento, data: modulo }),
+  })
+  return res !== 'sin-nube' && res.ok
+}
+
+export async function deleteRemoteDepartment(nombre: string): Promise<boolean> {
+  const res = await call(`/api/departments?nombre=${encodeURIComponent(nombre)}`, { method: 'DELETE' })
   return res !== 'sin-nube' && res.ok
 }
 
