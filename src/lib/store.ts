@@ -1,4 +1,4 @@
-import type { DB, HoursRecord, ParsedExplotacion, Project } from '../types'
+import type { DB, DepartmentModule, HoraProduccion, HoursRecord, ParsedExplotacion, Project } from '../types'
 
 const KEY = 'jp-control-db-v1'
 
@@ -35,12 +35,13 @@ export function loadDB(): DB {
             migrateProjectDepartments(project),
           ]),
         ),
+        departamentos: parsed.departamentos ?? {},
       }
     }
   } catch {
     // localStorage corrupto: empezamos de cero
   }
-  return { projects: {} }
+  return { projects: {}, departamentos: {} }
 }
 
 export function saveDB(db: DB) {
@@ -76,7 +77,7 @@ export function upsertExplotacion(db: DB, parsed: ParsedExplotacion): { db: DB; 
     deptShare: prev?.deptShare,
   }
   return {
-    db: { projects: { ...db.projects, [parsed.code]: project } },
+    db: { ...db, projects: { ...db.projects, [parsed.code]: project } },
     skipped: false,
   }
 }
@@ -112,19 +113,19 @@ export function mergeHours(
       if (!personDept[persona] && area) personDept[persona] = area
     }
   }
-  return { projects: { ...db.projects, [code]: { ...p, hours, personDept } } }
+  return { ...db, projects: { ...db.projects, [code]: { ...p, hours, personDept } } }
 }
 
 export function updateProject(db: DB, code: string, patch: Partial<Project>): DB {
   const p = db.projects[code]
   if (!p) return db
-  return { projects: { ...db.projects, [code]: { ...p, ...patch } } }
+  return { ...db, projects: { ...db.projects, [code]: { ...p, ...patch } } }
 }
 
 export function deleteProject(db: DB, code: string): DB {
   const projects = { ...db.projects }
   delete projects[code]
-  return { projects }
+  return { ...db, projects }
 }
 
 export function exportJSON(db: DB): string {
@@ -140,5 +141,28 @@ export function importJSON(raw: string): DB {
     projects: Object.fromEntries(
       Object.entries(parsed.projects ?? {}).map(([code, project]) => [code, migrateProjectDepartments(project)]),
     ),
+    departamentos: parsed.departamentos ?? {},
   }
+}
+
+/** Crea (si no existe) o devuelve el modulo de un departamento. */
+export function ensureDepartamento(db: DB, nombre: string): DB {
+  if (db.departamentos[nombre]) return db
+  const modulo: DepartmentModule = { departamento: nombre, roster: {}, horas: [] }
+  return { ...db, departamentos: { ...db.departamentos, [nombre]: modulo } }
+}
+
+export function updateDepartamento(db: DB, nombre: string, patch: Partial<DepartmentModule>): DB {
+  const actual = db.departamentos[nombre] ?? { departamento: nombre, roster: {}, horas: [] }
+  return { ...db, departamentos: { ...db.departamentos, [nombre]: { ...actual, ...patch } } }
+}
+
+/** Sustituye las horas importadas de "produccion completa" de un departamento. */
+export function setHorasProduccion(
+  db: DB,
+  nombre: string,
+  horas: HoraProduccion[],
+  fileName: string,
+): DB {
+  return updateDepartamento(db, nombre, { horas, lastImport: new Date().toISOString(), fileName })
 }

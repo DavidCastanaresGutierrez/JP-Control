@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, Project } from './types'
+import type { DB, DepartmentModule, Project } from './types'
 import {
   deleteProject,
   loadDB,
   mergeHours,
   saveDB,
+  setHorasProduccion,
+  updateDepartamento,
   updateProject,
   upsertExplotacion,
 } from './lib/store'
-import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
+import {
+  deleteRemoteDepartment,
+  deleteRemoteProject,
+  fetchRemoteDepartments,
+  fetchRemoteProjects,
+  pushDepartment,
+  pushProject,
+} from './lib/api'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
 import type { AppUser, Role } from './lib/adminApi'
 import { repairMojibake } from './lib/format'
@@ -17,10 +26,12 @@ import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib
 import { EmojiIcon, emoji } from './lib/emoji'
 import { parseExplotacion } from './lib/parseExplotacion'
 import { parseHoras } from './lib/parseHoras'
+import { parseHorasProduccion } from './lib/parseHorasProduccion'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { ProjectDashboard } from './components/ProjectDashboard'
 import { AdminPanel } from './components/AdminPanel'
+import { DepartmentDashboard } from './components/DepartmentDashboard'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
 
@@ -37,6 +48,15 @@ type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
+const MI_DEPARTAMENTO_KEY = 'jp-control-mi-departamento-v1'
+
+function loadMiDepartamento(): string | null {
+  try {
+    return localStorage.getItem(MI_DEPARTAMENTO_KEY)
+  } catch {
+    return null
+  }
+}
 
 function normalizarTexto(value: string): string {
   return repairMojibake(value)
@@ -115,8 +135,11 @@ export default function App() {
   const [myRole, setMyRole] = useState<Role | null>(null)
   const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
   const [adminView, setAdminView] = useState(false)
+  const [deptView, setDeptView] = useState(false)
+  const [miDepartamento, setMiDepartamento] = useState<string | null>(() => loadMiDepartamento())
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const lastSynced = useRef<Map<string, string>>(new Map())
+  const lastSyncedDept = useRef<Map<string, string>>(new Map())
 
   const conectar = useCallback(async () => {
     if (isSsoEnabled && !getAuthSession()) {
@@ -139,7 +162,19 @@ export default function App() {
     lastSynced.current = new Map(
       Object.entries(remoto.projects).map(([code, p]) => [code, JSON.stringify(p)]),
     )
-    setDb((local) => ({ projects: { ...local.projects, ...remoto.projects } }))
+    const remotoDept = await fetchRemoteDepartments()
+    if (remotoDept.estado === 'ok') {
+      lastSyncedDept.current = new Map(
+        Object.entries(remotoDept.departamentos).map(([nombre, d]) => [nombre, JSON.stringify(d)]),
+      )
+    }
+    setDb((local) => ({
+      projects: { ...local.projects, ...remoto.projects },
+      departamentos: {
+        ...local.departamentos,
+        ...(remotoDept.estado === 'ok' ? remotoDept.departamentos : {}),
+      },
+    }))
     setSyncEstado('nube')
   }, [])
 
@@ -189,9 +224,30 @@ export default function App() {
           return
         }
       }
+      for (const [nombre, modulo] of Object.entries(db.departamentos)) {
+        const snapshot = JSON.stringify(modulo)
+        if (lastSyncedDept.current.get(nombre) === snapshot) continue
+        if (await pushDepartment(modulo)) lastSyncedDept.current.set(nombre, snapshot)
+        else {
+          setSyncEstado('error')
+          return
+        }
+      }
+      for (const nombre of [...lastSyncedDept.current.keys()]) {
+        if (db.departamentos[nombre]) continue
+        if (await deleteRemoteDepartment(nombre)) lastSyncedDept.current.delete(nombre)
+        else {
+          setSyncEstado('error')
+          return
+        }
+      }
     }, 1000)
     return () => clearTimeout(timer)
   }, [db, syncEstado])
+
+  useEffect(() => {
+    if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
+  }, [miDepartamento])
 
   const toast = (kind: Toast['kind'], text: string) => {
     const id = ++toastId
@@ -332,6 +388,30 @@ export default function App() {
     })
   }
 
+  const departamentoModulo: DepartmentModule | undefined = miDepartamento
+    ? db.departamentos[miDepartamento]
+    : undefined
+
+  const handleImportHorasProduccion = async (file: File) => {
+    if (!miDepartamento) return
+    try {
+      const parsed = parseHorasProduccion(await file.arrayBuffer())
+      setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
+      toast(
+        'ok',
+        `${file.name}: ${parsed.horas.length.toLocaleString('es-ES')} apuntes de ${parsed.personas.length} personas importados.`,
+      )
+      parsed.warnings.forEach((w) => toast('warn', w))
+    } catch (err) {
+      toast('error', `${file.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
+    }
+  }
+
+  const handleUpdateRoster = (roster: DepartmentModule['roster']) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { roster }))
+  }
+
   const handleLoginSuccess = useCallback(
     (session: AuthSession) => {
       setAuthSession(session)
@@ -390,6 +470,7 @@ export default function App() {
         onRequestClose={() => setMobileNavOpen(false)}
         onSelect={(code) => {
           setAdminView(false)
+          setDeptView(false)
           setSelected(code)
           setMobileNavOpen(false)
         }}
@@ -397,6 +478,7 @@ export default function App() {
         scope={scope}
         onScopeChange={(s) => {
           setAdminView(false)
+          setDeptView(false)
           setScope(s)
           setMobileNavOpen(false)
         }}
@@ -410,7 +492,15 @@ export default function App() {
         adminActive={adminView}
         onOpenAdmin={() => {
           setSelected(null)
+          setDeptView(false)
           setAdminView(true)
+          setMobileNavOpen(false)
+        }}
+        departamentoActive={deptView}
+        onOpenDepartamento={() => {
+          setSelected(null)
+          setAdminView(false)
+          setDeptView(true)
           setMobileNavOpen(false)
         }}
       />
@@ -443,6 +533,14 @@ export default function App() {
               meEmail={authSession?.email ?? ''}
               users={adminUsers ?? []}
               onChangeRole={handleChangeRole}
+            />
+          ) : deptView ? (
+            <DepartmentDashboard
+              departamento={miDepartamento}
+              modulo={departamentoModulo}
+              onChooseDepartamento={setMiDepartamento}
+              onImportFile={handleImportHorasProduccion}
+              onUpdateRoster={handleUpdateRoster}
             />
           ) : project ? (
             <ProjectDashboard

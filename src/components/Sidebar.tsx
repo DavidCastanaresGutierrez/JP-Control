@@ -27,6 +27,8 @@ export function Sidebar({
   showAdmin,
   adminActive,
   onOpenAdmin,
+  departamentoActive,
+  onOpenDepartamento,
   mobileOpen,
   onRequestClose,
 }: {
@@ -45,6 +47,8 @@ export function Sidebar({
   showAdmin?: boolean
   adminActive?: boolean
   onOpenAdmin?: () => void
+  departamentoActive?: boolean
+  onOpenDepartamento?: () => void
   mobileOpen?: boolean
   onRequestClose?: () => void
 }) {
@@ -153,6 +157,23 @@ export function Sidebar({
               : 'Importa un fichero de explotacion para empezar.'}
           </div>
         )}
+        <div className="px-3.5 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wider text-white/40">
+          Departamento
+        </div>
+        <button
+          onClick={onOpenDepartamento}
+          className={`flex h-11 w-full items-center rounded-lg px-3.5 text-sm font-semibold transition-colors ${
+            departamentoActive
+              ? 'bg-accent-500 text-primary-950'
+              : 'text-white/72 hover:bg-white/8 hover:text-white'
+          }`}
+        >
+          <span className="inline-flex w-5 shrink-0 items-center justify-center text-base leading-none">
+            <EmojiIcon>{emoji.chart}</EmojiIcon>
+          </span>
+          Mi departamento
+        </button>
+
         {showAdmin && (
           <>
             <div className="px-3.5 pb-1 pt-4 text-[11px] font-bold uppercase tracking-wider text-white/40">
