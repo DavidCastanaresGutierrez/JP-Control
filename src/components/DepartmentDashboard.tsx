@@ -92,6 +92,7 @@ export function DepartmentDashboard({
   )
   const [buscadorDedicacion, setBuscadorDedicacion] = useState('')
   const [buscadorPersona, setBuscadorPersona] = useState('')
+  const [filtroEstadoOcupacion, setFiltroEstadoOcupacion] = useState<'baja' | 'sobre' | null>(null)
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -103,6 +104,10 @@ export function DepartmentDashboard({
   const ocupacion = useMemo(
     () => (modulo && mesActual ? tablaOcupacion(modulo, mesActual) : []),
     [modulo, mesActual],
+  )
+  const ocupacionFiltrada = useMemo(
+    () => (filtroEstadoOcupacion ? ocupacion.filter((f) => f.estado === filtroEstadoOcupacion) : ocupacion),
+    [ocupacion, filtroEstadoOcupacion],
   )
   const dedicacion = useMemo(() => (modulo ? dedicacionPorPersona(modulo) : []), [modulo])
   const equipoActivo = useMemo(() => (modulo ? personasActivas(modulo) : []), [modulo])
@@ -353,12 +358,28 @@ export function DepartmentDashboard({
                 value={String(dashboard.personasSobreocupadas)}
                 icon={<EmojiIcon>{dashboard.personasSobreocupadas > 0 ? emoji.alert : emoji.check}</EmojiIcon>}
                 accent={dashboard.personasSobreocupadas > 0 ? 'rose' : 'emerald'}
+                onClick={
+                  dashboard.personasSobreocupadas > 0
+                    ? () => {
+                        setFiltroEstadoOcupacion('sobre')
+                        setTab('ocupacion')
+                      }
+                    : undefined
+                }
               />
               <KpiCard
                 label="Personas infraocupadas"
                 value={String(dashboard.personasInfraocupadas)}
                 icon={<EmojiIcon>{dashboard.personasInfraocupadas > 0 ? emoji.alert : emoji.check}</EmojiIcon>}
                 accent={dashboard.personasInfraocupadas > 0 ? 'amber' : 'emerald'}
+                onClick={
+                  dashboard.personasInfraocupadas > 0
+                    ? () => {
+                        setFiltroEstadoOcupacion('baja')
+                        setTab('ocupacion')
+                      }
+                    : undefined
+                }
               />
             </div>
           </div>
@@ -615,6 +636,21 @@ export function DepartmentDashboard({
               ))}
             </select>
           </div>
+          {filtroEstadoOcupacion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-line bg-surface-muted/60 text-xs">
+              <span className="text-ink-soft">
+                Mostrando solo personas con{' '}
+                <span className="font-bold text-ink">{ESTADO_LABEL[filtroEstadoOcupacion].toLowerCase()}</span>.
+              </span>
+              <button
+                type="button"
+                onClick={() => setFiltroEstadoOcupacion(null)}
+                className="font-semibold text-primary-800 underline"
+              >
+                Quitar filtro
+              </button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-muted text-[11px] text-ink-muted uppercase tracking-wide">
@@ -629,7 +665,7 @@ export function DepartmentDashboard({
                 </tr>
               </thead>
               <tbody>
-                {ocupacion.map((f) => (
+                {ocupacionFiltrada.map((f) => (
                   <tr key={f.persona} className="border-t border-line">
                     <td className="px-4 py-2.5 font-semibold text-ink whitespace-nowrap">{f.persona}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-ink-soft">{fmtNum(f.horasDisponibles)} h</td>
@@ -662,6 +698,13 @@ export function DepartmentDashboard({
                   <tr>
                     <td colSpan={7} className="px-4 py-6 text-center text-ink-soft">
                       Sin apuntes de horas para este mes.
+                    </td>
+                  </tr>
+                )}
+                {ocupacion.length > 0 && ocupacionFiltrada.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-ink-soft">
+                      Nadie tiene {ESTADO_LABEL[filtroEstadoOcupacion!].toLowerCase()} este mes.
                     </td>
                   </tr>
                 )}

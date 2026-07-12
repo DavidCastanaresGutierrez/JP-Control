@@ -6,12 +6,14 @@ export function KpiCard({
   sub,
   accent = 'indigo',
   icon,
+  onClick,
 }: {
   label: string
   value: string
   sub?: ReactNode
   accent?: 'indigo' | 'emerald' | 'rose' | 'amber' | 'slate'
   icon?: ReactNode
+  onClick?: () => void
 }) {
   const accents: Record<string, string> = {
     indigo: 'bg-surface-muted text-primary-900',
@@ -20,8 +22,15 @@ export function KpiCard({
     amber: 'bg-warning/15 text-[#8A5A00]',
     slate: 'bg-surface-muted text-ink-muted',
   }
+  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <div className="bg-surface rounded-lg shadow-soft border border-line p-4 flex items-start gap-3 hover:shadow-hover transition-shadow">
+    <Wrapper
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`w-full bg-surface rounded-lg shadow-soft border border-line p-4 flex items-start gap-3 hover:shadow-hover transition-shadow text-left ${
+        onClick ? 'cursor-pointer hover:border-accent-300' : ''
+      }`}
+    >
       {icon && (
         <div className={`rounded-md w-10 h-10 shrink-0 flex items-center justify-center text-lg leading-none ${accents[accent]}`}>
           {icon}
@@ -32,6 +41,6 @@ export function KpiCard({
         <div className="text-lg sm:text-[22px] leading-tight font-extrabold text-ink mt-1 truncate tabular-nums">{value}</div>
         {sub && <div className="text-xs leading-snug text-ink-soft mt-1">{sub}</div>}
       </div>
-    </div>
+    </Wrapper>
   )
 }
