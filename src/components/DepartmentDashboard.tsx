@@ -1,11 +1,24 @@
 import { useMemo, useState } from 'react'
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import type { DepartmentModule } from '../types'
 import { DEPARTAMENTOS_REALES } from '../types'
 import {
   clasificarActividad,
   dashboardDepartamento,
   dedicacionPorPersona,
+  evolucionFacturabilidadPersona,
   mesesDisponibles,
+  personasActivas,
   tablaOcupacion,
   TIPO_ACTIVIDAD_LABEL,
   todasLasPersonas,
@@ -16,7 +29,11 @@ import { EmojiIcon, emoji } from '../lib/emoji'
 import { KpiCard } from './KpiCard'
 import { UploadZone } from './UploadZone'
 
-type Tab = 'panel' | 'ocupacion' | 'dedicacion' | 'configuracion'
+type Tab = 'panel' | 'ocupacion' | 'dedicacion' | 'persona' | 'configuracion'
+
+const CHART_GRID = '#E2ECE9'
+const CHART_AXIS = { fontSize: 12, fill: '#8A9A9E' }
+const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }
 
 const ESTADO_COLOR: Record<string, string> = {
   ok: 'bg-success/10 text-success',
@@ -47,6 +64,7 @@ export function DepartmentDashboard({
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const [mesSel, setMesSel] = useState<string | null>(null)
+  const [personaSel, setPersonaSel] = useState<string | null>(null)
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -60,6 +78,12 @@ export function DepartmentDashboard({
     [modulo, mesActual],
   )
   const dedicacion = useMemo(() => (modulo ? dedicacionPorPersona(modulo) : []), [modulo])
+  const equipoActivo = useMemo(() => (modulo ? personasActivas(modulo) : []), [modulo])
+  const personaVista = personaSel ?? equipoActivo[0] ?? null
+  const evolucionPersona = useMemo(
+    () => (modulo && personaVista ? evolucionFacturabilidadPersona(modulo, personaVista) : []),
+    [modulo, personaVista],
+  )
 
   if (!departamento) {
     return (
@@ -95,6 +119,7 @@ export function DepartmentDashboard({
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'panel', label: 'Panel' },
     { id: 'ocupacion', label: 'Ocupación' },
+    { id: 'persona', label: 'Por persona' },
     { id: 'dedicacion', label: 'Dedicación' },
     { id: 'configuracion', label: 'Configuración' },
   ]
@@ -345,6 +370,66 @@ export function DepartmentDashboard({
             <div className="rounded-[20px] border border-line bg-surface p-8 text-center text-sm text-ink-soft">
               Sin datos de dedicación todavía.
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'persona' && !sinDatos && (
+        <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h3 className="font-bold text-ink text-lg">Evolución mensual por persona</h3>
+            <select
+              value={personaVista ?? ''}
+              onChange={(e) => setPersonaSel(e.target.value)}
+              className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
+            >
+              {equipoActivo.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-ink-soft mb-4">
+            Horas imputadas, horas facturables y % de facturabilidad mes a mes, para comparar la
+            evolución de la persona a lo largo del año.
+          </p>
+
+          {evolucionPersona.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <ComposedChart data={evolucionPersona.map((m) => ({ ...m, mesLabel: fmtMes(m.mes) }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                <XAxis dataKey="mesLabel" tick={CHART_AXIS} />
+                <YAxis yAxisId="horas" tick={CHART_AXIS} unit=" h" width={55} />
+                <YAxis
+                  yAxisId="pct"
+                  orientation="right"
+                  tick={CHART_AXIS}
+                  unit=" %"
+                  width={55}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip
+                  formatter={(v, name) => (name === '% facturable' ? `${fmtNum(Number(v))} %` : `${fmtNum(Number(v))} h`)}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar yAxisId="horas" dataKey="horasImputadas" name="Horas imputadas" fill="#1B4A55" fillOpacity={0.55} radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="horas" dataKey="horasFacturables" name="Horas facturables" fill="#7CE7C8" radius={[4, 4, 0, 0]} />
+                <Line
+                  yAxisId="pct"
+                  type="monotone"
+                  dataKey="facturablePct"
+                  name="% facturable"
+                  stroke="#3A8DFF"
+                  strokeWidth={2.5}
+                  dot={{ r: 3 }}
+                  connectNulls
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-sm text-ink-soft">Sin datos para esta persona.</p>
           )}
         </div>
       )}
