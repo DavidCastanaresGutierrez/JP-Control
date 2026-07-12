@@ -1,7 +1,12 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 
-export type Role = 'lectura' | 'edicion' | 'administracion'
-export const ROLES: Role[] = ['lectura', 'edicion', 'administracion']
+export type Role = 'lectura' | 'edicion' | 'director_departamento' | 'administracion'
+export const ROLES: Role[] = ['lectura', 'edicion', 'director_departamento', 'administracion']
+
+/** Roles con acceso al modulo de Control por Departamento. */
+export function puedeAccederDepartamento(role: Role): boolean {
+  return role === 'administracion' || role === 'director_departamento'
+}
 
 export interface AppUser {
   email: string

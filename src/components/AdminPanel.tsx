@@ -4,13 +4,16 @@ import { repairMojibake } from '../lib/format'
 const ROLE_LABELS: Record<Role, string> = {
   lectura: 'Lectura',
   edicion: 'Edicion',
+  director_departamento: 'Director de departamento',
   administracion: 'Administracion',
 }
 
 const ROLE_HINTS: Record<Role, string> = {
-  lectura: 'Puede ver los proyectos pero no modificarlos.',
-  edicion: 'Puede ver y modificar los proyectos.',
-  administracion: 'Ademas puede gestionar los roles de otros usuarios.',
+  lectura: 'Puede ver los proyectos pero no modificarlos. Sin acceso a Control por Departamento.',
+  edicion: 'Puede ver y modificar los proyectos. Sin acceso a Control por Departamento.',
+  director_departamento:
+    'Puede ver y modificar los proyectos, y ademas accede al modulo de Control por Departamento.',
+  administracion: 'Acceso completo, incluido Control por Departamento, y puede gestionar los roles de otros usuarios.',
 }
 
 function formatFecha(iso: string): string {
@@ -34,8 +37,10 @@ export function AdminPanel({
     <div className="max-w-4xl p-4 sm:p-8">
       <h2 className="font-display text-2xl font-extrabold text-ink">Administracion de usuarios</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Asigna el rol de cada persona que ha iniciado sesion en la aplicacion. Lectura solo permite ver los
-        proyectos; Edicion permite modificarlos; Administracion permite ademas gestionar estos roles.
+        Asigna el rol de cada persona que ha iniciado sesion en la aplicacion. Lectura solo permite ver
+        los proyectos; Edicion permite modificarlos; Director de departamento anade acceso al modulo de
+        Control por Departamento; Administracion permite ademas gestionar estos roles. Solo un
+        administrador puede cambiar el rol de otros usuarios.
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-[24px] border border-line bg-surface shadow-soft">

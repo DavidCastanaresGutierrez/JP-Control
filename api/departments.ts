@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireProjectAuth } from './_sso.js'
-import { ensureUsersTable, getUserRole } from './_roles.js'
+import { ensureUsersTable, getUserRole, puedeAccederDepartamento } from './_roles.js'
 
 const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
 
@@ -25,20 +25,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       )`
     await initPromise
 
+    const email = String(auth.email ?? '').trim().toLowerCase()
+    if (email) {
+      await ensureUsersTable(sql)
+      const myRole = await getUserRole(sql, email)
+      if (!puedeAccederDepartamento(myRole)) {
+        return res.status(403).json({ error: 'No tienes acceso al modulo de Control por Departamento.' })
+      }
+    }
+
     if (req.method === 'GET') {
       const rows = await sql`SELECT nombre, data FROM jp_departments`
       const departamentos: Record<string, unknown> = {}
       for (const r of rows) departamentos[r.nombre as string] = r.data
       return res.status(200).json({ departamentos })
-    }
-
-    const email = String(auth.email ?? '').trim().toLowerCase()
-    if ((req.method === 'PUT' || req.method === 'DELETE') && email) {
-      await ensureUsersTable(sql)
-      const myRole = await getUserRole(sql, email)
-      if (myRole === 'lectura') {
-        return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar departamentos.' })
-      }
     }
 
     if (req.method === 'PUT') {
