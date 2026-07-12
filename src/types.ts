@@ -109,6 +109,8 @@ export interface DepartmentModule {
   tipoActividad?: Record<string, TipoActividad>
   /** % de facturabilidad objetivo del departamento, para comparar con el real */
   objetivoFacturablePct?: number
+  /** Mes yyyy-mm a partir del cual se analizan las horas (descarta historico anterior) */
+  mesInicio?: string
   lastImport?: string
   fileName?: string
 }

@@ -44,10 +44,16 @@ export function todasLasPersonas(modulo: DepartmentModule): string[] {
   return Object.keys(modulo.roster)
 }
 
-/** Horas del departamento: solo las de personas que están en el roster (activas o no) */
+/**
+ * Horas del departamento: solo las de personas que están en el roster (activas
+ * o no) y, si se ha definido un mes de inicio del análisis, solo desde ese mes
+ * en adelante (para descartar histórico previo a una reestructuración, etc.).
+ */
 export function horasDelDepartamento(modulo: DepartmentModule): HoraProduccion[] {
   const roster = new Set(Object.keys(modulo.roster))
-  return modulo.horas.filter((h) => roster.has(h.persona))
+  return modulo.horas.filter(
+    (h) => roster.has(h.persona) && (!modulo.mesInicio || h.mes >= modulo.mesInicio),
+  )
 }
 
 export function mesesDisponibles(modulo: DepartmentModule): string[] {
