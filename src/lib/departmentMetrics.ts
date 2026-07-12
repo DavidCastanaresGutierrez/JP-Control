@@ -237,3 +237,42 @@ export function dedicacionPorPersona(modulo: DepartmentModule): DedicacionPerson
     .filter((d) => d.totalHoras > 0)
     .sort((a, b) => b.totalHoras - a.totalHoras)
 }
+
+export interface MesFacturabilidad {
+  mes: string
+  horasImputadas: number
+  horasFacturables: number
+  facturablePct: number | null
+  ocupacionPct: number | null
+}
+
+/** Evolucion mensual de horas y % de facturabilidad de una persona (todo el periodo importado). */
+export function evolucionFacturabilidadPersona(
+  modulo: DepartmentModule,
+  persona: string,
+  overridesActividad?: Record<string, TipoActividad>,
+): MesFacturabilidad[] {
+  const horas = horasDelDepartamento(modulo).filter((h) => h.persona === persona)
+  if (horas.length === 0) return []
+
+  const meses = monthRange([...new Set(horas.map((h) => h.mes))])
+  const jornadaPct = modulo.roster[persona]?.jornadaPct
+
+  return meses.map((mes) => {
+    const delMes = horas.filter((h) => h.mes === mes)
+    const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
+    const horasFacturables = Math.round(
+      delMes
+        .filter((h) => clasificarActividad(h.proyecto, overridesActividad) === 'facturable')
+        .reduce((s, h) => s + h.horas, 0) * 100,
+    ) / 100
+    const horasDisponibles = capacidadPersona(mes, jornadaPct)
+    return {
+      mes,
+      horasImputadas,
+      horasFacturables,
+      facturablePct: horasImputadas > 0 ? (horasFacturables / horasImputadas) * 100 : null,
+      ocupacionPct: horasDisponibles > 0 ? (horasImputadas / horasDisponibles) * 100 : null,
+    }
+  })
+}
