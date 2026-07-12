@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -66,6 +67,10 @@ function normalizarBusqueda(value: string): string {
     .trim()
 }
 
+function truncarEtiqueta(value: string, max = 26): string {
+  return value.length > max ? `${value.slice(0, max - 1)}\u2026` : value
+}
+
 export function DepartmentDashboard({
   departamento,
   modulo,
@@ -93,6 +98,8 @@ export function DepartmentDashboard({
   const [buscadorDedicacion, setBuscadorDedicacion] = useState('')
   const [buscadorPersona, setBuscadorPersona] = useState('')
   const [filtroEstadoOcupacion, setFiltroEstadoOcupacion] = useState<'baja' | 'sobre' | null>(null)
+  const [personaDetalleDedicacion, setPersonaDetalleDedicacion] = useState<string | null>(null)
+  const [proyectoFiltroDedicacion, setProyectoFiltroDedicacion] = useState<string | null>(null)
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -114,10 +121,12 @@ export function DepartmentDashboard({
   const queryDedicacion = normalizarBusqueda(buscadorDedicacion)
   const dedicacionFiltrada = useMemo(
     () =>
-      queryDedicacion
-        ? dedicacion.filter((d) => normalizarBusqueda(d.persona).includes(queryDedicacion))
-        : dedicacion,
-    [dedicacion, queryDedicacion],
+      dedicacion
+        .filter((d) => (queryDedicacion ? normalizarBusqueda(d.persona).includes(queryDedicacion) : true))
+        .filter((d) =>
+          proyectoFiltroDedicacion ? d.reparto.some((r) => r.proyecto === proyectoFiltroDedicacion) : true,
+        ),
+    [dedicacion, queryDedicacion, proyectoFiltroDedicacion],
   )
   const queryPersona = normalizarBusqueda(buscadorPersona)
   const equipoFiltrado = useMemo(
@@ -804,40 +813,119 @@ export function DepartmentDashboard({
               )}
             </label>
           </div>
-          {dedicacionFiltrada.map((d) => (
-            <div key={d.persona} className="bg-surface rounded-[20px] shadow-soft border border-line p-5">
-              <div className="flex items-baseline justify-between gap-3 mb-3">
-                <h4 className="font-bold text-ink">{d.persona}</h4>
-                <span className="text-xs text-ink-muted">{fmtNum(d.totalHoras)} h totales</span>
-              </div>
-              <div className="space-y-2">
-                {d.reparto.slice(0, 8).map((r) => {
-                  const tipo = clasificarActividad(r.proyecto)
-                  return (
-                    <div key={r.proyecto}>
-                      <div className="flex items-center justify-between gap-3 text-xs mb-1">
-                        <span className="truncate text-ink-soft" title={r.proyecto}>
-                          {r.proyecto}
-                          {tipo !== 'facturable' && (
-                            <span className="ml-1.5 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-bold text-ink-muted">
-                              {TIPO_ACTIVIDAD_LABEL[tipo]}
-                            </span>
-                          )}
-                        </span>
-                        <span className="shrink-0 font-bold text-ink tabular-nums">{fmtPct(r.pct)}</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
-                        <div
-                          className={`h-full rounded-full ${tipo === 'facturable' ? 'bg-success' : 'bg-info'}`}
-                          style={{ width: `${Math.min(100, r.pct)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          {proyectoFiltroDedicacion && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-line bg-surface-muted/60 px-4 py-2.5 text-xs">
+              <span className="text-ink-soft">
+                Mostrando solo personas con horas en{' '}
+                <span className="font-bold text-ink">{proyectoFiltroDedicacion}</span>.
+              </span>
+              <button
+                type="button"
+                onClick={() => setProyectoFiltroDedicacion(null)}
+                className="font-semibold text-primary-800 underline"
+              >
+                Quitar filtro
+              </button>
             </div>
-          ))}
+          )}
+          {dedicacionFiltrada.map((d) => {
+            const expandida = personaDetalleDedicacion === d.persona
+            const reparteGrafico = d.reparto.slice(0, 15)
+            return (
+              <div
+                key={d.persona}
+                role="button"
+                tabIndex={0}
+                onClick={() => setPersonaDetalleDedicacion(expandida ? null : d.persona)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setPersonaDetalleDedicacion(expandida ? null : d.persona)
+                  }
+                }}
+                className="bg-surface rounded-[20px] shadow-soft border border-line p-5 text-left cursor-pointer transition-colors hover:border-accent-300"
+              >
+                <div className="flex items-baseline justify-between gap-3 mb-3">
+                  <h4 className="font-bold text-ink">{d.persona}</h4>
+                  <span className="text-xs text-ink-muted">{fmtNum(d.totalHoras)} h totales</span>
+                </div>
+                <div className="space-y-2">
+                  {d.reparto.slice(0, 8).map((r) => {
+                    const tipo = clasificarActividad(r.proyecto)
+                    return (
+                      <div key={r.proyecto}>
+                        <div className="flex items-center justify-between gap-3 text-xs mb-1">
+                          <span className="min-w-0 truncate text-ink-soft" title={r.proyecto}>
+                            {r.proyecto}
+                            {tipo !== 'facturable' && (
+                              <span className="ml-1.5 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-bold text-ink-muted">
+                                {TIPO_ACTIVIDAD_LABEL[tipo]}
+                              </span>
+                            )}
+                          </span>
+                          <span className="shrink-0 font-bold text-ink tabular-nums">{fmtPct(r.pct)}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
+                          <div
+                            className={`h-full rounded-full ${tipo === 'facturable' ? 'bg-success' : 'bg-info'}`}
+                            style={{ width: `${Math.min(100, r.pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-3 text-[11px] font-semibold text-primary-800">
+                  {expandida ? 'Ocultar detalle ▴' : 'Ver detalle ▾'}
+                </div>
+                {expandida && (
+                  <div
+                    className="mt-4 pt-4 border-t border-line overflow-x-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ResponsiveContainer width="100%" height={Math.max(160, reparteGrafico.length * 32)}>
+                      <BarChart data={reparteGrafico} layout="vertical" margin={{ left: 4, right: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
+                        <XAxis type="number" tick={CHART_AXIS} unit=" h" />
+                        <YAxis
+                          type="category"
+                          dataKey="proyecto"
+                          tick={{ ...CHART_AXIS, fontSize: 11 }}
+                          tickFormatter={(v) => truncarEtiqueta(String(v))}
+                          width={190}
+                        />
+                        <Tooltip
+                          formatter={(v) => `${fmtNum(Number(v))} h`}
+                          labelFormatter={(label) => truncarEtiqueta(String(label), 30)}
+                          contentStyle={{ ...TOOLTIP_STYLE, maxWidth: 200 }}
+                          allowEscapeViewBox={{ x: false, y: true }}
+                        />
+                        <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
+                          {reparteGrafico.map((r) => (
+                            <Cell
+                              key={r.proyecto}
+                              fill={clasificarActividad(r.proyecto) === 'facturable' ? '#7CE7C8' : '#3A8DFF'}
+                              cursor="pointer"
+                              onClick={(e) => {
+                                e?.stopPropagation?.()
+                                setProyectoFiltroDedicacion((prev) => (prev === r.proyecto ? null : r.proyecto))
+                              }}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {d.reparto.length > reparteGrafico.length && (
+                      <p className="mt-2 text-[11px] text-ink-muted">
+                        Mostrando los {reparteGrafico.length} proyectos con más horas de{' '}
+                        {d.reparto.length} totales.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
           {dedicacion.length === 0 && (
             <div className="rounded-[20px] border border-line bg-surface p-8 text-center text-sm text-ink-soft">
               Sin datos de dedicación todavía.
