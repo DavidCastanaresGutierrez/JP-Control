@@ -28,6 +28,7 @@ import {
   evolucionTemporalDepartamento,
   mesesDisponibles,
   personasActivas,
+  posiblesBajas,
   tablaOcupacion,
   TIPO_ACTIVIDAD_LABEL,
   todasLasPersonas,
@@ -351,11 +352,12 @@ export function DepartmentDashboard({
             <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
               Reparto de horas no facturables
             </div>
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
               <KpiCard label="Horas internas / gestión" value={`${fmtNum(dashboard.horasInternas)} h`} accent="slate" />
               <KpiCard label="Horas de soporte" value={`${fmtNum(dashboard.horasSoporte)} h`} accent="slate" />
               <KpiCard label="Horas de innovación" value={`${fmtNum(dashboard.horasInnovacion)} h`} accent="slate" />
               <KpiCard label="Horas de formación" value={`${fmtNum(dashboard.horasFormacion)} h`} accent="slate" />
+              <KpiCard label="Horas de vacaciones" value={`${fmtNum(dashboard.horasVacaciones)} h`} accent="slate" />
             </div>
           </div>
 
@@ -1054,11 +1056,17 @@ function DepartmentConfig({
 }) {
   const roster = modulo?.roster ?? {}
   const seleccionadas = new Set(Object.keys(roster).filter((p) => roster[p].activo))
+  const avisosBaja = useMemo(() => (modulo ? posiblesBajas(modulo) : []), [modulo])
 
   const toggle = (persona: string) => {
     const next = { ...roster }
     if (next[persona]?.activo) delete next[persona]
     else next[persona] = { activo: true, jornadaPct: next[persona]?.jornadaPct ?? 100 }
+    onUpdateRoster(next)
+  }
+
+  const setFechaBaja = (persona: string, fechaBaja: string | undefined) => {
+    const next = { ...roster, [persona]: { ...roster[persona], fechaBaja } }
     onUpdateRoster(next)
   }
 
@@ -1080,22 +1088,59 @@ function DepartmentConfig({
       <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg mb-1">Equipo del departamento</h3>
         <p className="text-xs text-ink-soft mb-3">
-          Marca qué personas (de las que aparecen en el Excel importado) forman parte de tu equipo.
+          Marca qué personas (de las que aparecen en el Excel importado) forman parte de tu equipo. Si
+          alguien se ha ido de la empresa, ponle la fecha de baja para que deje de contar en Ocupación y
+          en las alertas sin perder su histórico.
         </p>
+        {avisosBaja.length > 0 && (
+          <div className="mb-3 rounded-[14px] border border-warning/40 bg-warning/10 px-4 py-3 text-xs text-[#8A5A00]">
+            <p className="font-bold mb-1">
+              {avisosBaja.length === 1
+                ? '1 persona sin actividad reciente'
+                : `${avisosBaja.length} personas sin actividad reciente`}
+            </p>
+            <p>
+              Revisa si siguen en el equipo y, si no, ponles la fecha de baja abajo:{' '}
+              {avisosBaja.map((a) => a.persona).join(', ')}.
+            </p>
+          </div>
+        )}
         {todasPersonasImportadas.length === 0 ? (
           <p className="text-sm text-ink-soft">Importa antes el Excel de producción completa.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1 max-h-[28rem] overflow-y-auto pr-1">
+          <div className="flex flex-col divide-y divide-line/60 max-h-[28rem] overflow-y-auto pr-1">
             {todasPersonasImportadas.map((persona) => (
-              <label key={persona} className="flex items-center gap-2 py-1 text-sm text-ink cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={seleccionadas.has(persona)}
-                  onChange={() => toggle(persona)}
-                  className="h-4 w-4 rounded border-line accent-accent-500"
-                />
-                <span className="truncate">{persona}</span>
-              </label>
+              <div key={persona} className="flex items-center gap-2 py-1.5">
+                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-ink cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={seleccionadas.has(persona)}
+                    onChange={() => toggle(persona)}
+                    className="h-4 w-4 shrink-0 rounded border-line accent-accent-500"
+                  />
+                  <span className="truncate">{persona}</span>
+                </label>
+                {seleccionadas.has(persona) && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <input
+                      type="month"
+                      value={roster[persona]?.fechaBaja ?? ''}
+                      onChange={(e) => setFechaBaja(persona, e.target.value || undefined)}
+                      title="Fecha de baja (opcional): a partir de este mes deja de contar en Ocupación y alertas"
+                      className="w-[8.5rem] rounded-md border border-line px-1.5 py-0.5 text-xs text-ink-soft outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/40"
+                    />
+                    {roster[persona]?.fechaBaja && (
+                      <button
+                        type="button"
+                        onClick={() => setFechaBaja(persona, undefined)}
+                        className="text-[11px] font-semibold text-ink-soft underline hover:text-ink"
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

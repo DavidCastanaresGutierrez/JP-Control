@@ -6,6 +6,7 @@ const RE_INNOVACION = /i\+d\+i/i
 const RE_SOPORTE = /soporte/i
 const RE_FORMACION = /formaci[oó]n/i
 const RE_GESTION = /labores no asignables|tareas transversales|ofertas/i
+const RE_VACACIONES = /vacaciones|permiso retribuido/i
 
 /**
  * Clasifica un proyecto/actividad por palabras clave de su nombre en Concost.
@@ -17,6 +18,7 @@ export function clasificarActividad(
   overrides?: Record<string, TipoActividad>,
 ): TipoActividad {
   if (overrides?.[proyecto]) return overrides[proyecto]
+  if (RE_VACACIONES.test(proyecto)) return 'vacaciones'
   if (RE_INNOVACION.test(proyecto)) return 'innovacion'
   if (RE_SOPORTE.test(proyecto)) return 'soporte'
   if (RE_FORMACION.test(proyecto)) return 'formacion'
@@ -31,13 +33,26 @@ export const TIPO_ACTIVIDAD_LABEL: Record<TipoActividad, string> = {
   soporte: 'Soporte',
   formacion: 'Formación',
   gestion: 'Gestión / interno',
+  vacaciones: 'Vacaciones',
 }
 
-/** Personas activas del roster (excluye las marcadas como baja) */
+/** Personas activas del roster (excluye las marcadas como baja del checklist) */
 export function personasActivas(modulo: DepartmentModule): string[] {
   return Object.entries(modulo.roster)
     .filter(([, r]) => r.activo)
     .map(([persona]) => persona)
+}
+
+/** Si una persona cuenta para un mes concreto: activa en el roster y, si tiene fecha de baja, antes de esa fecha. */
+export function activoEnMes(modulo: DepartmentModule, persona: string, mes: string): boolean {
+  const r = modulo.roster[persona]
+  if (!r?.activo) return false
+  return !r.fechaBaja || mes < r.fechaBaja
+}
+
+/** Personas activas del roster que además siguen contando en un mes concreto (no se han dado de baja antes de ese mes). */
+export function personasActivasEnMes(modulo: DepartmentModule, mes: string): string[] {
+  return personasActivas(modulo).filter((persona) => activoEnMes(modulo, persona, mes))
 }
 
 export function todasLasPersonas(modulo: DepartmentModule): string[] {
@@ -98,7 +113,7 @@ export function tablaOcupacion(
     porPersona.get(h.persona)!.push(h)
   }
 
-  return personasActivas(modulo)
+  return personasActivasEnMes(modulo, mes)
     .map((persona) => {
       const registros = porPersona.get(persona) ?? []
       const horasImputadas = Math.round(registros.reduce((s, h) => s + h.horas, 0) * 100) / 100
@@ -147,6 +162,7 @@ export interface DashboardDepartamento {
   horasSoporte: number
   horasInnovacion: number
   horasFormacion: number
+  horasVacaciones: number
   capacidadLibre: number
   personasSobreocupadas: number
   personasInfraocupadas: number
@@ -162,7 +178,7 @@ export function dashboardDepartamento(
   const base = {
     mes: mesUsado,
     personasTotal: todasLasPersonas(modulo).length,
-    personasActivas: personasActivas(modulo).length,
+    personasActivas: mesUsado ? personasActivasEnMes(modulo, mesUsado).length : personasActivas(modulo).length,
     horasImputadas: 0,
     horasFacturables: 0,
     facturabilidadPct: null,
@@ -171,6 +187,7 @@ export function dashboardDepartamento(
     horasSoporte: 0,
     horasInnovacion: 0,
     horasFormacion: 0,
+    horasVacaciones: 0,
     capacidadLibre: 0,
     personasSobreocupadas: 0,
     personasInfraocupadas: 0,
@@ -205,6 +222,7 @@ export function dashboardDepartamento(
     horasSoporte: Math.round((porTipo.get('soporte') ?? 0) * 100) / 100,
     horasInnovacion: Math.round((porTipo.get('innovacion') ?? 0) * 100) / 100,
     horasFormacion: Math.round((porTipo.get('formacion') ?? 0) * 100) / 100,
+    horasVacaciones: Math.round((porTipo.get('vacaciones') ?? 0) * 100) / 100,
     capacidadLibre: Math.round(Math.max(0, horasDisponiblesTotal - horasImputadas) * 100) / 100,
     personasSobreocupadas: filas.filter((f) => f.estado === 'sobre').length,
     personasInfraocupadas: filas.filter((f) => f.estado === 'baja').length,
@@ -292,7 +310,7 @@ export interface DistribucionItem {
 
 /** Horas de un mes concreto de las personas activas del equipo, para vistas agregadas. */
 function horasActivosMes(modulo: DepartmentModule, mes: string): HoraProduccion[] {
-  const activos = new Set(personasActivas(modulo))
+  const activos = new Set(personasActivasEnMes(modulo, mes))
   return horasDelDepartamento(modulo).filter((h) => h.mes === mes && activos.has(h.persona))
 }
 
@@ -382,9 +400,10 @@ export function comparativaOcupacion(
             .reduce((s, h) => s + h.horas, 0) * 100,
         ) / 100
         const horasDisponibles = capacidadPersona(mes, jornadaPct)
+        const activaEsteMes = activoEnMes(modulo, persona, mes)
         return {
           horasImputadas,
-          ocupacionPct: horasDisponibles > 0 ? (horasImputadas / horasDisponibles) * 100 : null,
+          ocupacionPct: activaEsteMes && horasDisponibles > 0 ? (horasImputadas / horasDisponibles) * 100 : null,
           facturablePct: horasImputadas > 0 ? (horasFacturables / horasImputadas) * 100 : null,
         }
       })
@@ -409,6 +428,7 @@ export interface MesDepartamento {
   horasSoporte: number
   horasInnovacion: number
   horasFormacion: number
+  horasVacaciones: number
   facturabilidadPct: number | null
   ocupacionMediaPct: number | null
 }
@@ -428,8 +448,47 @@ export function evolucionTemporalDepartamento(
       horasSoporte: d.horasSoporte,
       horasInnovacion: d.horasInnovacion,
       horasFormacion: d.horasFormacion,
+      horasVacaciones: d.horasVacaciones,
       facturabilidadPct: d.facturabilidadPct,
       ocupacionMediaPct: d.ocupacionMediaPct,
     }
   })
+}
+
+const MESES_SIN_ACTIVIDAD_AVISO = 2
+
+export interface PosibleBaja {
+  persona: string
+  ultimoMesConActividad: string | null
+}
+
+/**
+ * Personas del roster (sin fecha de baja ya puesta) sin horas reales (fuera de
+ * vacaciones) en los ultimos meses disponibles del departamento: probable
+ * indicio de que se han ido y falta marcarles la fecha de baja.
+ */
+export function posiblesBajas(
+  modulo: DepartmentModule,
+  overridesActividad?: Record<string, TipoActividad>,
+  mesesAviso: number = MESES_SIN_ACTIVIDAD_AVISO,
+): PosibleBaja[] {
+  const meses = mesesDisponibles(modulo)
+  if (meses.length === 0) return []
+  const mesesRecientes = new Set(meses.slice(-mesesAviso))
+  const horas = horasDelDepartamento(modulo)
+
+  return personasActivas(modulo)
+    .filter((persona) => !modulo.roster[persona]?.fechaBaja)
+    .map((persona): PosibleBaja | null => {
+      const horasPersona = horas.filter((h) => h.persona === persona && h.horas > 0)
+      const actividadReciente = horasPersona.some(
+        (h) =>
+          mesesRecientes.has(h.mes) && clasificarActividad(h.proyecto, overridesActividad) !== 'vacaciones',
+      )
+      if (actividadReciente) return null
+      const ultimoMesConActividad: string | null =
+        [...horasPersona].sort((a, b) => b.mes.localeCompare(a.mes))[0]?.mes ?? null
+      return { persona, ultimoMesConActividad }
+    })
+    .filter((p): p is PosibleBaja => p !== null)
 }
