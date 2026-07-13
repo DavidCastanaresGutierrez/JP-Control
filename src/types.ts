@@ -92,12 +92,14 @@ export interface HoraProduccion {
   tarea?: string
 }
 
-export type TipoActividad = 'facturable' | 'innovacion' | 'soporte' | 'formacion' | 'gestion'
+export type TipoActividad = 'facturable' | 'innovacion' | 'soporte' | 'formacion' | 'gestion' | 'vacaciones'
 
 export interface RosterPersona {
   activo: boolean
   /** % de jornada de la persona (100 = jornada completa); por defecto 100 */
   jornadaPct?: number
+  /** Mes yyyy-mm desde el que la persona ya no cuenta (baja de la empresa). Sus meses anteriores se mantienen en el historico. */
+  fechaBaja?: string
 }
 
 export interface DepartmentModule {
