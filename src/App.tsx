@@ -140,6 +140,7 @@ export default function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const lastSynced = useRef<Map<string, string>>(new Map())
   const lastSyncedDept = useRef<Map<string, string>>(new Map())
+  const dbQuotaWarned = useRef(false)
 
   const conectar = useCallback(async () => {
     if (isSsoEnabled && !getAuthSession()) {
@@ -206,11 +207,24 @@ export default function App() {
   }, [deptView, myRole])
 
   useEffect(() => {
-    localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
+    try {
+      localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
+    } catch {
+      // sin espacio en localStorage: el orden de proyectos no es critico, se ignora
+    }
   }, [projectOrder])
 
   useEffect(() => {
-    saveDB(db)
+    if (!saveDB(db) && !dbQuotaWarned.current) {
+      dbQuotaWarned.current = true
+      toast(
+        'warn',
+        'El navegador no tiene espacio para guardar todos los datos localmente (probablemente por un import grande de horas de departamento). ' +
+          (syncEstado === 'nube'
+            ? 'Se seguira sincronizando con la nube con normalidad.'
+            : 'Activa la sincronizacion con la nube para no perder datos al recargar.'),
+      )
+    }
     if (syncEstado !== 'nube') return
     const timer = setTimeout(async () => {
       for (const [code, project] of Object.entries(db.projects)) {
@@ -252,7 +266,13 @@ export default function App() {
   }, [db, syncEstado])
 
   useEffect(() => {
-    if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
+    if (miDepartamento) {
+      try {
+        localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
+      } catch {
+        // sin espacio en localStorage: no es critico, se ignora
+      }
+    }
   }, [miDepartamento])
 
   const toast = (kind: Toast['kind'], text: string) => {

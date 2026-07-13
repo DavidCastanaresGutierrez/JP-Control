@@ -44,8 +44,18 @@ export function loadDB(): DB {
   return { projects: {}, departamentos: {} }
 }
 
-export function saveDB(db: DB) {
-  localStorage.setItem(KEY, JSON.stringify(db))
+/**
+ * Guarda en localStorage. Devuelve false (sin lanzar) si se supera la cuota del
+ * navegador (habitual al importar producción completa de un departamento con
+ * miles de apuntes de horas) para no tumbar el render de toda la app.
+ */
+export function saveDB(db: DB): boolean {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(db))
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
