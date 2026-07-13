@@ -45,13 +45,23 @@ export function loadDB(): DB {
 }
 
 /**
- * Guarda en localStorage. Devuelve false (sin lanzar) si se supera la cuota del
- * navegador (habitual al importar producción completa de un departamento con
- * miles de apuntes de horas) para no tumbar el render de toda la app.
+ * Guarda en localStorage. El detalle de horas de producción de cada
+ * departamento (miles de apuntes por import) no se guarda aquí: localStorage
+ * es solo la cache local para arrancar rapido, y ese detalle facilmente supera
+ * su cuota (unos pocos MB por origen). La base de datos (jp_departments, via
+ * /api/departments) es la fuente de verdad para las horas; se recupera al
+ * conectar con la nube. Devuelve false (sin lanzar) si aun asi se supera la
+ * cuota, para no tumbar el render de toda la app.
  */
 export function saveDB(db: DB): boolean {
   try {
-    localStorage.setItem(KEY, JSON.stringify(db))
+    const liviano: DB = {
+      projects: db.projects,
+      departamentos: Object.fromEntries(
+        Object.entries(db.departamentos).map(([nombre, modulo]) => [nombre, { ...modulo, horas: [] }]),
+      ),
+    }
+    localStorage.setItem(KEY, JSON.stringify(liviano))
     return true
   } catch {
     return false
