@@ -27,6 +27,7 @@ import {
   evolucionFacturabilidadPersona,
   evolucionTemporalDepartamento,
   mesesDisponibles,
+  mesVencido,
   personasActivas,
   posiblesBajas,
   tablaOcupacion,
@@ -104,6 +105,11 @@ export function DepartmentDashboard({
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
+  const mesVencidoCalc = useMemo(() => mesVencido(meses), [meses])
+  const enMesEnCurso = mesSel === null
+  const enMesVencido = mesSel !== null && mesSel === mesVencidoCalc
+  const irAMesEnCurso = () => setMesSel(null)
+  const irAMesVencido = () => mesVencidoCalc && setMesSel(mesVencidoCalc)
 
   const dashboard = useMemo(
     () => (modulo && mesActual ? dashboardDepartamento(modulo, mesActual) : null),
@@ -280,17 +286,40 @@ export function DepartmentDashboard({
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-bold text-ink text-lg">Resumen del mes</h3>
-            <select
-              value={mesActual ?? ''}
-              onChange={(e) => setMesSel(e.target.value)}
-              className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
-            >
-              {meses.map((m) => (
-                <option key={m} value={m}>
-                  {fmtMes(m)}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-full border border-line p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={irAMesEnCurso}
+                  className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    enMesEnCurso ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+                  }`}
+                >
+                  Mes en curso
+                </button>
+                <button
+                  type="button"
+                  onClick={irAMesVencido}
+                  title="Último mes ya cerrado, con unos días de margen para que todos terminen de fichar el mes anterior"
+                  className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    enMesVencido ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+                  }`}
+                >
+                  Mes vencido
+                </button>
+              </div>
+              <select
+                value={mesActual ?? ''}
+                onChange={(e) => setMesSel(e.target.value)}
+                className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
+              >
+                {meses.map((m) => (
+                  <option key={m} value={m}>
+                    {fmtMes(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -635,17 +664,40 @@ export function DepartmentDashboard({
           <div className="bg-surface rounded-[24px] shadow-soft border border-line">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-line">
             <h3 className="font-bold text-ink text-lg">Detalle del mes</h3>
-            <select
-              value={mesActual ?? ''}
-              onChange={(e) => setMesSel(e.target.value)}
-              className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
-            >
-              {meses.map((m) => (
-                <option key={m} value={m}>
-                  {fmtMes(m)}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-full border border-line p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={irAMesEnCurso}
+                  className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    enMesEnCurso ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+                  }`}
+                >
+                  Mes en curso
+                </button>
+                <button
+                  type="button"
+                  onClick={irAMesVencido}
+                  title="Último mes ya cerrado, con unos días de margen para que todos terminen de fichar el mes anterior"
+                  className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    enMesVencido ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+                  }`}
+                >
+                  Mes vencido
+                </button>
+              </div>
+              <select
+                value={mesActual ?? ''}
+                onChange={(e) => setMesSel(e.target.value)}
+                className="h-9 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none focus:border-accent-500"
+              >
+                {meses.map((m) => (
+                  <option key={m} value={m}>
+                    {fmtMes(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           {filtroEstadoOcupacion && (
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-line bg-surface-muted/60 text-xs">

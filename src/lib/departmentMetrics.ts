@@ -82,6 +82,27 @@ export function ultimoMesConDatos(modulo: DepartmentModule): string | null {
   return meses.length > 0 ? meses[meses.length - 1] : null
 }
 
+/** Dias de margen tras acabar un mes antes de darlo por "cerrado": la gente
+ * suele terminar de fichar el mes anterior en los primeros dias del nuevo. */
+const GRACIA_DIAS_CIERRE_MES = 5
+
+/**
+ * Ultimo mes ya cerrado (nunca el mes en curso), con un margen de gracia de
+ * unos dias para que la gente termine de fichar el mes anterior antes de
+ * darlo por definitivo (si no, los primeros dias de fichaje del mes nuevo
+ * distorsionarian el numero al tratarlo como cerrado demasiado pronto).
+ */
+export function mesVencido(meses: string[]): string | null {
+  if (meses.length === 0) return null
+  const hoy = new Date()
+  const mesesAtras = hoy.getDate() <= GRACIA_DIAS_CIERRE_MES ? 2 : 1
+  const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, 1)
+  const candidato = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
+  const disponibles = [...meses].sort()
+  const conDatos = disponibles.filter((m) => m <= candidato)
+  return conDatos.length > 0 ? conDatos[conDatos.length - 1] : disponibles[0]
+}
+
 function capacidadPersona(mes: string, jornadaPct: number | undefined): number {
   return horasJornadaMes(mes) * ((jornadaPct ?? 100) / 100)
 }
