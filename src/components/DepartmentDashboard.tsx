@@ -73,6 +73,36 @@ function truncarEtiqueta(value: string, max = 26): string {
   return value.length > max ? `${value.slice(0, max - 1)}\u2026` : value
 }
 
+function ToggleMesHistorico({
+  modo,
+  onChange,
+}: {
+  modo: 'curso' | 'vencido'
+  onChange: (modo: 'curso' | 'vencido') => void
+}) {
+  return (
+    <div className="flex rounded-full border border-line p-0.5 text-xs">
+      <button
+        onClick={() => onChange('curso')}
+        className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+          modo === 'curso' ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+        }`}
+      >
+        Mes en curso
+      </button>
+      <button
+        onClick={() => onChange('vencido')}
+        title="No incluye el mes en curso, y da unos d\u00edas de margen tras acabar el mes anterior antes de darlo por cerrado"
+        className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+          modo === 'vencido' ? 'bg-accent-500 text-primary-950' : 'text-ink-soft hover:bg-surface-muted'
+        }`}
+      >
+        Mes vencido
+      </button>
+    </div>
+  )
+}
+
 export function DepartmentDashboard({
   departamento,
   modulo,
@@ -102,7 +132,7 @@ export function DepartmentDashboard({
   const [filtroEstadoOcupacion, setFiltroEstadoOcupacion] = useState<'baja' | 'sobre' | null>(null)
   const [personaDetalleDedicacion, setPersonaDetalleDedicacion] = useState<string | null>(null)
   const [proyectoFiltroDedicacion, setProyectoFiltroDedicacion] = useState<string | null>(null)
-  const [modoComparativa, setModoComparativa] = useState<'curso' | 'vencido'>('curso')
+  const [modoHistorico, setModoHistorico] = useState<'curso' | 'vencido'>('curso')
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -146,9 +176,13 @@ export function DepartmentDashboard({
   )
   const personaVista =
     personaSel && equipoFiltrado.includes(personaSel) ? personaSel : (equipoFiltrado[0] ?? null)
+  const hastaMesHistorico = modoHistorico === 'vencido' ? (mesVencidoCalc ?? undefined) : undefined
   const evolucionPersona = useMemo(
-    () => (modulo && personaVista ? evolucionFacturabilidadPersona(modulo, personaVista) : []),
-    [modulo, personaVista],
+    () =>
+      modulo && personaVista
+        ? evolucionFacturabilidadPersona(modulo, personaVista, undefined, hastaMesHistorico)
+        : [],
+    [modulo, personaVista, hastaMesHistorico],
   )
   const distProyecto = useMemo(
     () => (modulo && mesActual ? distribucionPorProyecto(modulo, mesActual) : []),
@@ -159,19 +193,12 @@ export function DepartmentDashboard({
     [modulo, mesActual],
   )
   const evolucionEquipo = useMemo(
-    () => (modulo ? evolucionTemporalDepartamento(modulo) : []),
-    [modulo],
+    () => (modulo ? evolucionTemporalDepartamento(modulo, undefined, hastaMesHistorico) : []),
+    [modulo, hastaMesHistorico],
   )
   const comparativa = useMemo(
-    () =>
-      modulo
-        ? comparativaOcupacion(
-            modulo,
-            undefined,
-            modoComparativa === 'vencido' ? (mesVencidoCalc ?? undefined) : undefined,
-          )
-        : { meses: [], filas: [] },
-    [modulo, modoComparativa, mesVencidoCalc],
+    () => (modulo ? comparativaOcupacion(modulo, undefined, hastaMesHistorico) : { meses: [], filas: [] }),
+    [modulo, hastaMesHistorico],
   )
   const seleccionComparativa = useMemo(() => {
     if (personasComparativa) return personasComparativa
@@ -532,29 +559,7 @@ export function DepartmentDashboard({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex rounded-full border border-line p-0.5">
-                  <button
-                    onClick={() => setModoComparativa('curso')}
-                    className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                      modoComparativa === 'curso'
-                        ? 'bg-accent-500 text-primary-950'
-                        : 'text-ink-soft hover:bg-surface-muted'
-                    }`}
-                  >
-                    Mes en curso
-                  </button>
-                  <button
-                    onClick={() => setModoComparativa('vencido')}
-                    title="No incluye el mes en curso, y da unos días de margen tras acabar el mes anterior antes de darlo por cerrado"
-                    className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                      modoComparativa === 'vencido'
-                        ? 'bg-accent-500 text-primary-950'
-                        : 'text-ink-soft hover:bg-surface-muted'
-                    }`}
-                  >
-                    Mes vencido
-                  </button>
-                </div>
+                <ToggleMesHistorico modo={modoHistorico} onChange={setModoHistorico} />
                 <div className="flex rounded-full border border-line p-0.5">
                   {(
                     [
@@ -820,7 +825,10 @@ export function DepartmentDashboard({
 
       {tab === 'evolucion' && !sinDatos && (
         <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
-          <h3 className="font-bold text-ink text-lg mb-1">Evolución mensual del equipo</h3>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+            <h3 className="font-bold text-ink text-lg">Evolución mensual del equipo</h3>
+            <ToggleMesHistorico modo={modoHistorico} onChange={setModoHistorico} />
+          </div>
           <p className="text-xs text-ink-soft mb-4">
             Horas imputadas, horas facturables, % de facturabilidad y ocupación media, mes a mes,
             para detectar tendencias.
@@ -1029,6 +1037,7 @@ export function DepartmentDashboard({
           <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h3 className="font-bold text-ink text-lg">Evolución mensual por persona</h3>
             <div className="flex flex-wrap items-center gap-2">
+              <ToggleMesHistorico modo={modoHistorico} onChange={setModoHistorico} />
               <label className="relative w-full sm:w-56">
                 <span className="sr-only">Buscar persona</span>
                 <input
