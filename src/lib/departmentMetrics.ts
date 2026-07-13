@@ -404,8 +404,9 @@ export interface ComparativaOcupacion {
 export function comparativaOcupacion(
   modulo: DepartmentModule,
   overridesActividad?: Record<string, TipoActividad>,
+  hastaMes?: string,
 ): ComparativaOcupacion {
-  const meses = mesesDisponibles(modulo)
+  const meses = mesesDisponibles(modulo).filter((mes) => !hastaMes || mes <= hastaMes)
   const horas = horasDelDepartamento(modulo)
 
   const filas = personasActivas(modulo)

@@ -102,6 +102,7 @@ export function DepartmentDashboard({
   const [filtroEstadoOcupacion, setFiltroEstadoOcupacion] = useState<'baja' | 'sobre' | null>(null)
   const [personaDetalleDedicacion, setPersonaDetalleDedicacion] = useState<string | null>(null)
   const [proyectoFiltroDedicacion, setProyectoFiltroDedicacion] = useState<string | null>(null)
+  const [modoComparativa, setModoComparativa] = useState<'curso' | 'vencido'>('curso')
 
   const meses = useMemo(() => (modulo ? mesesDisponibles(modulo) : []), [modulo])
   const mesActual = mesSel ?? (modulo ? ultimoMesConDatos(modulo) : null)
@@ -162,8 +163,15 @@ export function DepartmentDashboard({
     [modulo],
   )
   const comparativa = useMemo(
-    () => (modulo ? comparativaOcupacion(modulo) : { meses: [], filas: [] }),
-    [modulo],
+    () =>
+      modulo
+        ? comparativaOcupacion(
+            modulo,
+            undefined,
+            modoComparativa === 'vencido' ? (mesVencidoCalc ?? undefined) : undefined,
+          )
+        : { meses: [], filas: [] },
+    [modulo, modoComparativa, mesVencidoCalc],
   )
   const seleccionComparativa = useMemo(() => {
     if (personasComparativa) return personasComparativa
@@ -524,6 +532,29 @@ export function DepartmentDashboard({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="flex rounded-full border border-line p-0.5">
+                  <button
+                    onClick={() => setModoComparativa('curso')}
+                    className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                      modoComparativa === 'curso'
+                        ? 'bg-accent-500 text-primary-950'
+                        : 'text-ink-soft hover:bg-surface-muted'
+                    }`}
+                  >
+                    Mes en curso
+                  </button>
+                  <button
+                    onClick={() => setModoComparativa('vencido')}
+                    title="No incluye el mes en curso, y da unos días de margen tras acabar el mes anterior antes de darlo por cerrado"
+                    className={`px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                      modoComparativa === 'vencido'
+                        ? 'bg-accent-500 text-primary-950'
+                        : 'text-ink-soft hover:bg-surface-muted'
+                    }`}
+                  >
+                    Mes vencido
+                  </button>
+                </div>
                 <div className="flex rounded-full border border-line p-0.5">
                   {(
                     [
