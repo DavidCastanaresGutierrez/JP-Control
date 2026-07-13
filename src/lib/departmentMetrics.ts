@@ -296,11 +296,12 @@ export function evolucionFacturabilidadPersona(
   modulo: DepartmentModule,
   persona: string,
   overridesActividad?: Record<string, TipoActividad>,
+  hastaMes?: string,
 ): MesFacturabilidad[] {
   const horas = horasDelDepartamento(modulo).filter((h) => h.persona === persona)
   if (horas.length === 0) return []
 
-  const meses = monthRange([...new Set(horas.map((h) => h.mes))])
+  const meses = monthRange([...new Set(horas.map((h) => h.mes))]).filter((mes) => !hastaMes || mes <= hastaMes)
   const jornadaPct = modulo.roster[persona]?.jornadaPct
 
   return meses.map((mes) => {
@@ -459,8 +460,11 @@ export interface MesDepartamento {
 export function evolucionTemporalDepartamento(
   modulo: DepartmentModule,
   overridesActividad?: Record<string, TipoActividad>,
+  hastaMes?: string,
 ): MesDepartamento[] {
-  return mesesDisponibles(modulo).map((mes) => {
+  return mesesDisponibles(modulo)
+    .filter((mes) => !hastaMes || mes <= hastaMes)
+    .map((mes) => {
     const d = dashboardDepartamento(modulo, mes, overridesActividad)
     return {
       mes,
