@@ -30,10 +30,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // El API (/api/*) nunca debe servirse desde cache: los datos de proyectos
-        // y roles tienen que venir siempre de red.
-        navigateFallbackDenylist: [/^\/api\//],
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // vite-plugin-pwa precarga index.html y lo sirve cache-first en cada
+        // navegacion por defecto (navigateFallback: 'index.html'). Con despliegues
+        // frecuentes eso deja pestañas sirviendo un HTML antiguo que apunta a
+        // JS/CSS con hash que Vercel ya ha borrado (404 en blanco). Se desactiva
+        // para que el documento HTML siempre se pida a red; los assets con hash
+        // (JS/CSS) se siguen precacheando y sirviendo desde cache sin riesgo,
+        // porque cada build genera un hash nuevo.
+        navigateFallback: undefined,
+        globPatterns: ['**/*.{js,css,svg,png,ico}'],
       },
     }),
   ],

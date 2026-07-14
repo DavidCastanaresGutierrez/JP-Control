@@ -5,5 +5,11 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/((?!api/|assets/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
   ]
 }
