@@ -360,7 +360,10 @@ export function Overview({
                 <div className="flex items-center justify-between gap-3">
                   <span>Importe de contrato:</span>
                   <span className="font-bold text-ink">
-                    {p.contractValue ?? p.budget ? fmtEur((p.contractValue ?? p.budget)!) : 'sin importe'}
+                    {(() => {
+                      const importe = p.contractValue ?? p.budget
+                      return importe !== undefined ? fmtEur(importe) : 'sin importe'
+                    })()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
