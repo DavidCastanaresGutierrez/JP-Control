@@ -251,7 +251,7 @@ export function setSsoCookies(
   res.setHeader('Set-Cookie', [
     serializeCookie(req, `typsa_refresh_token_${safeEmail}`, refreshToken, { httpOnly: true }),
     serializeCookie(req, `typsa_sub_${safeEmail}`, cognitoSub, { httpOnly: true }),
-    serializeCookie(req, `typsa_cognito_token_${safeEmail}`, idToken),
+    serializeCookie(req, `typsa_cognito_token_${safeEmail}`, idToken, { httpOnly: true }),
     serializeCookie(req, `${APP_PREFIX}_active_email`, email),
     serializeCookie(req, 'typsa_active_email', email),
   ])
@@ -321,13 +321,14 @@ async function refreshSsoSession(req: VercelRequest, res: VercelResponse): Promi
 export async function requireProjectAuth(req: VercelRequest, res: VercelResponse): Promise<JwtPayload | null> {
   if (process.env.JWT_SECRET) {
     const bearer = getBearerToken(req)
+    let payload: JwtPayload | null = null
     try {
-      return verifyAppJwt(bearer)
+      payload = verifyAppJwt(bearer)
     } catch {
       if (bearer) {
         try {
           const cognito = await getSsoIdentity(bearer)
-          return {
+          payload = {
             sub: String(cognito.sub ?? ''),
             email: String(cognito.email ?? ''),
             name: String(cognito.name ?? cognito.email ?? ''),
@@ -338,21 +339,29 @@ export async function requireProjectAuth(req: VercelRequest, res: VercelResponse
         }
       }
       // App JWT caducado o ausente: intentar renovacion silenciosa via Lambda SSO
-      const refreshed = await refreshSsoSession(req, res)
-      if (refreshed) return refreshed
+      if (!payload) payload = await refreshSsoSession(req, res)
+    }
+    // Sin email no se pueden aplicar los controles de rol: denegar en vez de
+    // devolver una identidad vacia que los endpoints tratarian como acceso total.
+    if (!payload || !String(payload.email ?? '').trim()) {
       clearSsoCookies(req, res)
       res.status(401).json({ error: 'Sesion SSO no valida.' })
       return null
     }
+    return payload
   }
 
   const token = process.env.APP_TOKEN
-  if (token) {
-    const auth = req.headers.authorization ?? ''
-    if (auth !== `Bearer ${token}`) {
-      res.status(401).json({ error: 'Codigo de acceso incorrecto.' })
-      return null
-    }
+  if (!token) {
+    // Fail-closed: sin JWT_SECRET ni APP_TOKEN la API no debe quedar abierta.
+    res.status(503).json({ error: 'Autenticacion no configurada: falta JWT_SECRET o APP_TOKEN en Vercel.' })
+    return null
   }
+  const auth = req.headers.authorization ?? ''
+  if (auth !== `Bearer ${token}`) {
+    res.status(401).json({ error: 'Codigo de acceso incorrecto.' })
+    return null
+  }
+  // Modo legacy con token compartido: identidad sin email (acceso completo).
   return {}
 }
