@@ -72,6 +72,27 @@ function truncarEtiqueta(value: string, max = 26): string {
   return value.length > max ? `${value.slice(0, max - 1)}\u2026` : value
 }
 
+/** Etiqueta del eje X angulada que muestra el nombre completo (via <title>, tooltip nativo del navegador) al pasar el raton, cuando esta cortada. */
+function EtiquetaProyectoEje({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
+  const nombre = payload?.value ?? ''
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={10}
+        textAnchor="end"
+        transform="rotate(-40)"
+        fontSize={11}
+        fill={CHART_AXIS.fill}
+      >
+        <title>{nombre}</title>
+        {truncarEtiqueta(nombre, 16)}
+      </text>
+    </g>
+  )
+}
+
 function ToggleMesHistorico({
   modo,
   onChange,
@@ -1005,11 +1026,8 @@ export function DepartmentDashboard({
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                         <XAxis
                           dataKey="proyecto"
-                          tick={{ ...CHART_AXIS, fontSize: 11 }}
-                          tickFormatter={(v) => truncarEtiqueta(String(v), 16)}
+                          tick={<EtiquetaProyectoEje />}
                           interval={0}
-                          angle={-40}
-                          textAnchor="end"
                           height={80}
                         />
                         <YAxis type="number" tick={CHART_AXIS} unit=" h" width={55} />
