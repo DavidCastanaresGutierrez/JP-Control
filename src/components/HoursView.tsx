@@ -35,6 +35,14 @@ const CHART_GRID = '#E2ECE9'
 const CHART_AXIS = { fontSize: 12, fill: '#8A9A9E' }
 const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }
 
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+    .toLowerCase()
+    .trim()
+}
+
 function fmtFechaProyeccion(mes: string): string {
   const match = mes.match(/^(\d{4})-(\d{2})-q([1-4])$/)
   if (!match) return fmtMes(mes)
@@ -118,6 +126,7 @@ export function HoursView({
   // Modo de medida de la grafica/tabla de participantes
   const [medida, setMedida] = useState<'horas' | 'ocupacion' | 'coste'>('horas')
   const [ordenMes, setOrdenMes] = useState<{ mes: string; dir: 'desc' | 'asc' } | null>(null)
+  const [busquedaPersona, setBusquedaPersona] = useState('')
 
   const todasPersonas = useMemo(() => matriz.filas.map((fila) => fila.persona), [matriz.filas])
   const personasFiltradas = useMemo(() => {
@@ -309,6 +318,12 @@ export function HoursView({
     if (!hayFiltrosActivos) return filasOrdenadas
     return filasOrdenadas.filter((f) => visibles.has(f.persona))
   }, [filasOrdenadas, hayFiltrosActivos, personasFiltradas])
+
+  const personasBuscadas = useMemo(() => {
+    const q = normalizarTexto(busquedaPersona)
+    if (!q) return personasVisibles
+    return personasVisibles.filter((f) => normalizarTexto(f.persona).includes(q))
+  }, [personasVisibles, busquedaPersona])
 
   const escenarioPrincipal = forecast?.escenarios.find((e) => e.id === 'r3')
   const marca80 = useMemo(() => {
@@ -562,6 +577,13 @@ export function HoursView({
                 )}
               </p>
               <div className="flex items-center gap-2 text-xs">
+                <input
+                  type="text"
+                  value={busquedaPersona}
+                  onChange={(e) => setBusquedaPersona(e.target.value)}
+                  placeholder="Buscar persona..."
+                  className="border border-line rounded-full px-3 py-1 text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+                />
                 <div className="flex rounded-full border border-line p-0.5">
                   {(['horas', 'ocupacion', 'coste'] as const).map((m) => (
                     <button
@@ -674,7 +696,17 @@ export function HoursView({
                   </tr>
                 </thead>
                 <tbody>
-                  {personasVisibles.map((f) => {
+                  {personasBuscadas.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={matrizParticipantes.meses.length + 2}
+                        className="px-3 py-6 text-center text-sm text-ink-soft"
+                      >
+                        Ninguna persona coincide con &quot;{busquedaPersona}&quot;.
+                      </td>
+                    </tr>
+                  )}
+                  {personasBuscadas.map((f) => {
                     const sel = seleccion.has(f.persona)
                     // Ocupacion media sobre los meses en los que ha imputado
                     let hAct = 0
