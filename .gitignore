@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.vite-cache/
 
 # Vercel y variables de entorno
 .vercel
