@@ -46,10 +46,13 @@ export interface Project {
   extDept?: Record<string, string>
   /** Corresponsabilidad: % del total asignado a cada departamento (departamento -> 0-100) */
   deptShare?: Record<string, number>
+  /** Emails (en minusculas) de usuarios que siguen el proyecto sin ser su JP */
+  watchers?: string[]
 }
 
 export interface DB {
   projects: Record<string, Project>
+  departamentos: Record<string, DepartmentModule>
 }
 
 export interface ParsedExplotacion {
@@ -63,4 +66,53 @@ export interface ParsedExplotacion {
   totalDebe?: number
   totalHaber?: number
   warnings: string[]
+}
+
+/** Departamentos reales del organigrama (con su Director de Departamento) */
+export const DEPARTAMENTOS_REALES = [
+  'Administración',
+  'Calidad de producto y soporte',
+  'Desarrollo de negocio',
+  'Desarrollo de software',
+  'IA y Big data',
+  'Ingeniería y arquitectura digital',
+  'Servicios especializados',
+] as const
+
+/** Un apunte de horas de la importación "toda la produccion" (todas las personas, todos los proyectos) */
+export interface HoraProduccion {
+  persona: string
+  /** Proyecto o actividad interna tal cual aparece en Concost, p.ej. "DSES.DE3423ESP.TYES - ATLAS Plataforma BIM-GIS" */
+  proyecto: string
+  fecha: string // ISO yyyy-mm-dd
+  mes: string // yyyy-mm
+  horas: number
+  coste: number
+  descripcion?: string
+  tarea?: string
+}
+
+export type TipoActividad = 'facturable' | 'innovacion' | 'soporte' | 'formacion' | 'gestion' | 'vacaciones'
+
+export interface RosterPersona {
+  activo: boolean
+  /** % de jornada de la persona (100 = jornada completa); por defecto 100 */
+  jornadaPct?: number
+  /** Mes yyyy-mm desde el que la persona ya no cuenta (baja de la empresa). Sus meses anteriores se mantienen en el historico. */
+  fechaBaja?: string
+}
+
+export interface DepartmentModule {
+  departamento: string
+  /** Personas del departamento (nombre -> estado); se eligen de las vistas en la importación */
+  roster: Record<string, RosterPersona>
+  horas: HoraProduccion[]
+  /** Reclasificacion manual de un proyecto/actividad (por defecto se infiere por palabras clave) */
+  tipoActividad?: Record<string, TipoActividad>
+  /** % de facturabilidad objetivo del departamento, para comparar con el real */
+  objetivoFacturablePct?: number
+  /** Mes yyyy-mm a partir del cual se analizan las horas (descarta historico anterior) */
+  mesInicio?: string
+  lastImport?: string
+  fileName?: string
 }

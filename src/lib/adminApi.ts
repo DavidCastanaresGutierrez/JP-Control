@@ -1,40 +1,46 @@
 import { apiFetch } from './http'
 
-export type Role = 'lectura' | 'edicion' | 'administracion'
+export type Role = 'lectura' | 'edicion' | 'director_departamento' | 'contrato' | 'administracion'
+export type NivelContrato = 'lectura' | 'edicion'
 
 export interface AppUser {
   email: string
   name: string
   role: Role
-  lastLoginAt: string | null
+  /** Departamento que dirige (solo rol director_departamento). */
+  departamento: string | null
+  /** Contrato al que tiene acceso en exclusiva (solo rol contrato). */
+  proyectoAsignado: string | null
+  /** Nivel de acceso a ese contrato (solo rol contrato). */
+  nivelContrato: NivelContrato | null
+  lastLoginAt: string
 }
 
-type PutUserResult = { ok: true; user: AppUser } | { ok: false; error?: string }
+export type Me = Pick<AppUser, 'email' | 'role' | 'departamento' | 'proyectoAsignado' | 'nivelContrato'>
 
-async function putUser(body: { email: string; role: Role; name?: string }): Promise<PutUserResult> {
-  const res = await apiFetch('/api/users', { method: 'PUT', body: JSON.stringify(body) })
-  if (!res) return { ok: false }
-  const data = (await res.json().catch(() => ({}))) as { user?: AppUser; error?: string }
-  if (!res.ok || !data.user) return { ok: false, error: data.error }
-  return { ok: true, user: data.user }
-}
-
-export type UsersResult =
-  | { estado: 'ok'; me: { email: string; role: Role }; users?: AppUser[] }
-  | { estado: 'no-disponible' }
+export type UsersResult = { estado: 'ok'; me: Me; users?: AppUser[] } | { estado: 'no-disponible' }
 
 export async function fetchUsers(): Promise<UsersResult> {
   const res = await apiFetch('/api/users')
   if (!res || !res.ok) return { estado: 'no-disponible' }
-  const body = (await res.json().catch(() => ({}))) as {
-    me?: { email: string; role: Role }
-    users?: AppUser[]
-  }
+  const body = (await res.json().catch(() => ({}))) as { me?: Me; users?: AppUser[] }
   if (!body.me) return { estado: 'no-disponible' }
   return { estado: 'ok', me: body.me, users: body.users }
 }
 
-/** Anade un usuario nuevo con ese rol, o cambia el rol de uno existente: el backend hace upsert. */
-export async function saveUserRole(email: string, role: Role): Promise<PutUserResult> {
-  return putUser({ email, role })
+export async function updateUserRole(
+  email: string,
+  role: Role,
+  opts?: { departamento?: string | null; proyectoAsignado?: string | null; nivelContrato?: NivelContrato | null },
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const res = await apiFetch('/api/users', {
+    method: 'PUT',
+    body: JSON.stringify({ email, role, ...opts }),
+  })
+  if (!res) return { ok: false }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    return { ok: false, error: body.error }
+  }
+  return { ok: true }
 }

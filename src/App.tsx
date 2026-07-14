@@ -1,26 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, Project } from './types'
+import type { DB, DepartmentModule, Project } from './types'
 import {
   deleteProject,
   loadDB,
   mergeHours,
   saveDB,
+  setHorasProduccion,
+  updateDepartamento,
   updateProject,
   upsertExplotacion,
 } from './lib/store'
-import { deleteRemoteProject, fetchRemoteProjects, pushProject } from './lib/api'
-import { fetchUsers, saveUserRole } from './lib/adminApi'
-import type { AppUser, Role } from './lib/adminApi'
+import {
+  deleteRemoteDepartment,
+  deleteRemoteProject,
+  fetchRemoteDepartments,
+  fetchRemoteProjects,
+  pushDepartment,
+  pushProject,
+} from './lib/api'
+import { fetchUsers, updateUserRole } from './lib/adminApi'
+import type { AppUser, NivelContrato, Role } from './lib/adminApi'
 import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { EmojiIcon, emoji } from './lib/emoji'
 import { parseExplotacion } from './lib/parseExplotacion'
 import { parseHoras } from './lib/parseHoras'
+import { parseHorasProduccion } from './lib/parseHorasProduccion'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { ProjectDashboard } from './components/ProjectDashboard'
 import { AdminPanel } from './components/AdminPanel'
+import { DepartmentDashboard } from './components/DepartmentDashboard'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
 
@@ -37,6 +48,15 @@ type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
+const MI_DEPARTAMENTO_KEY = 'jp-control-mi-departamento-v1'
+
+function loadMiDepartamento(): string | null {
+  try {
+    return localStorage.getItem(MI_DEPARTAMENTO_KEY)
+  } catch {
+    return null
+  }
+}
 
 function normalizarTexto(value: string): string {
   return repairMojibake(value)
@@ -66,6 +86,13 @@ function esJpDelUsuario(project: Project, userName?: string, userEmail?: string)
   // Red de seguridad: emails tipo "dcastanares" contienen el apellido del JP.
   const emailLocal = normalizarTexto((userEmail ?? '').split('@')[0]).replace(/[^a-z0-9]+/g, '')
   return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
+}
+
+/** El usuario ha marcado el proyecto para seguirlo sin ser su JP. */
+function esSeguidoPorUsuario(project: Project, userEmail?: string): boolean {
+  const email = (userEmail ?? '').trim().toLowerCase()
+  if (!email) return false
+  return (project.watchers ?? []).includes(email)
 }
 
 function loadProjectOrder(): string[] {
@@ -106,9 +133,17 @@ export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
   const [myRole, setMyRole] = useState<Role | null>(null)
+  const [myDepartamento, setMyDepartamento] = useState<string | null>(null)
+  const [myProyectoAsignado, setMyProyectoAsignado] = useState<string | null>(null)
+  const [myNivelContrato, setMyNivelContrato] = useState<NivelContrato | null>(null)
   const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
   const [adminView, setAdminView] = useState(false)
+  const [deptView, setDeptView] = useState(false)
+  const [miDepartamento, setMiDepartamento] = useState<string | null>(() => loadMiDepartamento())
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const lastSynced = useRef<Map<string, string>>(new Map())
+  const lastSyncedDept = useRef<Map<string, string>>(new Map())
+  const dbQuotaWarned = useRef(false)
 
   const conectar = useCallback(async () => {
     if (isSsoEnabled && !getAuthSession()) {
@@ -131,7 +166,19 @@ export default function App() {
     lastSynced.current = new Map(
       Object.entries(remoto.projects).map(([code, p]) => [code, JSON.stringify(p)]),
     )
-    setDb((local) => ({ projects: { ...local.projects, ...remoto.projects } }))
+    const remotoDept = await fetchRemoteDepartments()
+    if (remotoDept.estado === 'ok') {
+      lastSyncedDept.current = new Map(
+        Object.entries(remotoDept.departamentos).map(([nombre, d]) => [nombre, JSON.stringify(d)]),
+      )
+    }
+    setDb((local) => ({
+      projects: { ...local.projects, ...remoto.projects },
+      departamentos: {
+        ...local.departamentos,
+        ...(remotoDept.estado === 'ok' ? remotoDept.departamentos : {}),
+      },
+    }))
     setSyncEstado('nube')
   }, [])
 
@@ -142,26 +189,60 @@ export default function App() {
   useEffect(() => {
     if (isSsoEnabled && !authSession) {
       setMyRole(null)
+      setMyDepartamento(null)
+      setMyProyectoAsignado(null)
+      setMyNivelContrato(null)
       setAdminUsers(null)
       return
     }
     fetchUsers().then((result) => {
       if (result.estado !== 'ok') {
         setMyRole(null)
+        setMyDepartamento(null)
+        setMyProyectoAsignado(null)
+        setMyNivelContrato(null)
         setAdminUsers(null)
         return
       }
       setMyRole(result.me.role)
+      setMyDepartamento(result.me.departamento)
+      setMyProyectoAsignado(result.me.proyectoAsignado)
+      setMyNivelContrato(result.me.nivelContrato)
       setAdminUsers(result.users ?? null)
     })
   }, [authSession])
 
   useEffect(() => {
-    localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
+    if (isSsoEnabled && deptView && myRole !== 'administracion' && myRole !== 'director_departamento') {
+      setDeptView(false)
+    }
+  }, [deptView, myRole])
+
+  useEffect(() => {
+    if (isSsoEnabled && myRole === 'director_departamento' && myDepartamento && miDepartamento !== myDepartamento) {
+      setMiDepartamento(myDepartamento)
+    }
+  }, [myRole, myDepartamento, miDepartamento])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
+    } catch {
+      // sin espacio en localStorage: el orden de proyectos no es critico, se ignora
+    }
   }, [projectOrder])
 
   useEffect(() => {
-    saveDB(db)
+    if (!saveDB(db) && !dbQuotaWarned.current) {
+      dbQuotaWarned.current = true
+      toast(
+        'warn',
+        'El navegador no tiene espacio para guardar todos los datos localmente (probablemente por un import grande de horas de departamento). ' +
+          (syncEstado === 'nube'
+            ? 'Se seguira sincronizando con la nube con normalidad.'
+            : 'Activa la sincronizacion con la nube para no perder datos al recargar.'),
+      )
+    }
     if (syncEstado !== 'nube') return
     const timer = setTimeout(async () => {
       for (const [code, project] of Object.entries(db.projects)) {
@@ -181,9 +262,35 @@ export default function App() {
           return
         }
       }
+      for (const [nombre, modulo] of Object.entries(db.departamentos)) {
+        const snapshot = JSON.stringify(modulo)
+        if (lastSyncedDept.current.get(nombre) === snapshot) continue
+        if (await pushDepartment(modulo)) lastSyncedDept.current.set(nombre, snapshot)
+        else {
+          setSyncEstado('error')
+          return
+        }
+      }
+      for (const nombre of [...lastSyncedDept.current.keys()]) {
+        if (db.departamentos[nombre]) continue
+        if (await deleteRemoteDepartment(nombre)) lastSyncedDept.current.delete(nombre)
+        else {
+          setSyncEstado('error')
+          return
+        }
+      }
     }, 1000)
     return () => clearTimeout(timer)
   }, [db, syncEstado])
+
+  useEffect(() => {
+    try {
+      if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
+      else localStorage.removeItem(MI_DEPARTAMENTO_KEY)
+    } catch {
+      // sin espacio en localStorage: no es critico, se ignora
+    }
+  }, [miDepartamento])
 
   const toast = (kind: Toast['kind'], text: string) => {
     const id = ++toastId
@@ -280,10 +387,16 @@ export default function App() {
     setDb(next)
   }
 
-  const allProjects = orderProjects(db.projects, projectOrder)
+  const allProjects = orderProjects(db.projects, projectOrder).filter(
+    (p) => myRole !== 'contrato' || p.code === myProyectoAsignado,
+  )
   const scopedProjects =
     scope === 'mine'
-      ? allProjects.filter((p) => esJpDelUsuario(p, authSession?.username, authSession?.email))
+      ? allProjects.filter(
+          (p) =>
+            esJpDelUsuario(p, authSession?.username, authSession?.email) ||
+            esSeguidoPorUsuario(p, authSession?.email),
+        )
       : allProjects
   const projects = scopedProjects.filter((project) => {
     if (archiveFilter === 'all') return true
@@ -291,6 +404,7 @@ export default function App() {
     return archiveFilter === 'archived' ? archived : !archived
   })
   const project = selected ? db.projects[selected] : undefined
+  const siguiendoProyecto = project ? esSeguidoPorUsuario(project, authSession?.email) : false
 
   const handleReorderProjects = (draggedCode: string, targetCode: string) => {
     setProjectOrder((current) => {
@@ -301,6 +415,59 @@ export default function App() {
       }
       return moveCode(base, draggedCode, targetCode)
     })
+  }
+
+  const handleToggleWatch = (code: string) => {
+    const email = authSession?.email?.trim().toLowerCase()
+    if (!email) {
+      toast('warn', 'Inicia sesion para poder marcar proyectos a seguir.')
+      return
+    }
+    setDb((d) => {
+      const p = d.projects[code]
+      if (!p) return d
+      const watchers = new Set(p.watchers ?? [])
+      if (watchers.has(email)) watchers.delete(email)
+      else watchers.add(email)
+      return updateProject(d, code, { watchers: [...watchers] })
+    })
+  }
+
+  const departamentoModulo: DepartmentModule | undefined = miDepartamento
+    ? db.departamentos[miDepartamento]
+    : undefined
+  const puedeAccederDepartamento =
+    !isSsoEnabled || myRole === 'administracion' || myRole === 'director_departamento'
+  const puedeVerTodosDepartamentos = !isSsoEnabled || myRole === 'administracion'
+
+  const handleImportHorasProduccion = async (file: File) => {
+    if (!miDepartamento) return
+    try {
+      const parsed = parseHorasProduccion(await file.arrayBuffer())
+      setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
+      toast(
+        'ok',
+        `${file.name}: ${parsed.horas.length.toLocaleString('es-ES')} apuntes de ${parsed.personas.length} personas importados.`,
+      )
+      parsed.warnings.forEach((w) => toast('warn', w))
+    } catch (err) {
+      toast('error', `${file.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
+    }
+  }
+
+  const handleUpdateRoster = (roster: DepartmentModule['roster']) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { roster }))
+  }
+
+  const handleSetObjetivo = (pct: number | undefined) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { objetivoFacturablePct: pct }))
+  }
+
+  const handleSetMesInicio = (mes: string | undefined) => {
+    if (!miDepartamento) return
+    setDb((d) => updateDepartamento(d, miDepartamento, { mesInicio: mes }))
   }
 
   const handleLoginSuccess = useCallback(
@@ -319,24 +486,31 @@ export default function App() {
     setSyncEstado('auth')
   }, [])
 
-  const handleChangeRole = async (email: string, role: Role) => {
+  const handleChangeRole = async (
+    email: string,
+    role: Role,
+    opts?: { departamento?: string | null; proyectoAsignado?: string | null; nivelContrato?: NivelContrato | null },
+  ) => {
     const prev = adminUsers
-    setAdminUsers((list) => list?.map((u) => (u.email === email ? { ...u, role } : u)) ?? list)
-    const result = await saveUserRole(email, role)
+    setAdminUsers(
+      (list) =>
+        list?.map((u) =>
+          u.email === email
+            ? {
+                ...u,
+                role,
+                departamento: opts?.departamento ?? null,
+                proyectoAsignado: opts?.proyectoAsignado ?? null,
+                nivelContrato: opts?.nivelContrato ?? null,
+              }
+            : u,
+        ) ?? list,
+    )
+    const result = await updateUserRole(email, role, opts)
     if (!result.ok) {
       setAdminUsers(prev)
       toast('error', result.error ?? `No se ha podido actualizar el rol de ${email}.`)
     }
-  }
-
-  const handleAddUser = async (email: string, role: Role) => {
-    const result = await saveUserRole(email, role)
-    if (!result.ok) {
-      toast('error', result.error ?? `No se ha podido anadir a ${email}.`)
-      return
-    }
-    setAdminUsers((list) => [...(list ?? []).filter((u) => u.email !== result.user.email), result.user])
-    toast('ok', `${result.user.email} anadido con rol ${role}.`)
   }
 
   const hasSsoCallbackData = (() => {
@@ -356,18 +530,32 @@ export default function App() {
 
   return (
     <div className="flex h-full">
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-primary-950/50 lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <Sidebar
         projects={scopedProjects}
         selected={selected}
+        mobileOpen={mobileNavOpen}
+        onRequestClose={() => setMobileNavOpen(false)}
         onSelect={(code) => {
           setAdminView(false)
+          setDeptView(false)
           setSelected(code)
+          setMobileNavOpen(false)
         }}
         onImportConcost={handleConcostFiles}
         scope={scope}
         onScopeChange={(s) => {
           setAdminView(false)
+          setDeptView(false)
           setScope(s)
+          setMobileNavOpen(false)
         }}
         archiveFilter={archiveFilter}
         onArchiveFilterChange={setArchiveFilter}
@@ -379,48 +567,97 @@ export default function App() {
         adminActive={adminView}
         onOpenAdmin={() => {
           setSelected(null)
+          setDeptView(false)
           setAdminView(true)
+          setMobileNavOpen(false)
+        }}
+        showDept={puedeAccederDepartamento}
+        departamentoActive={deptView}
+        onOpenDepartamento={() => {
+          setSelected(null)
+          setAdminView(false)
+          setDeptView(true)
+          setMobileNavOpen(false)
         }}
       />
 
-      <main className="flex-1 overflow-y-auto">
-        {adminView ? (
-          <AdminPanel
-            meEmail={authSession?.email ?? ''}
-            users={adminUsers ?? []}
-            onChangeRole={handleChangeRole}
-            onAddUser={handleAddUser}
-          />
-        ) : project ? (
-          <ProjectDashboard
-            key={project.code}
-            project={project}
-            onUpdate={(patch) => setDb((d) => updateProject(d, project.code, patch))}
-            onArchiveToggle={() =>
-              setDb((d) =>
-                updateProject(d, project.code, {
-                  archivedAt: project.archivedAt ? undefined : new Date().toISOString(),
-                }),
-              )
-            }
-            onDelete={() => {
-              setDb((d) => deleteProject(d, project.code))
-              setSelected(null)
-            }}
-          />
-        ) : (
-          <Overview
-            projects={projects}
-            scope={scope}
-            onSelect={setSelected}
-            onReorder={handleReorderProjects}
-            onFiles={handleExplotacionFiles}
-            onHoursFiles={handleOverviewHoursFiles}
-          />
-        )}
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Abrir menu"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-ink-soft"
+          >
+            <span className="flex flex-col items-center justify-center gap-[3px]">
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+              <span className="block h-[2px] w-4 rounded-full bg-current" />
+            </span>
+          </button>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent-500 text-xs font-black text-primary-950">
+            JP
+          </div>
+          <div className="truncate font-display text-base font-extrabold tracking-tight text-ink">
+            JP Control
+          </div>
+        </header>
 
-      <div className="fixed bottom-4 right-4 z-50 max-w-md space-y-2">
+        <main className="flex-1 overflow-y-auto">
+          {adminView ? (
+            <AdminPanel
+              meEmail={authSession?.email ?? ''}
+              users={adminUsers ?? []}
+              projects={allProjects}
+              onChangeRole={handleChangeRole}
+            />
+          ) : deptView && puedeAccederDepartamento ? (
+            <DepartmentDashboard
+              departamento={miDepartamento}
+              modulo={departamentoModulo}
+              puedeVerTodosDepartamentos={puedeVerTodosDepartamentos}
+              onChooseDepartamento={setMiDepartamento}
+              onImportFile={handleImportHorasProduccion}
+              onUpdateRoster={handleUpdateRoster}
+              onSetObjetivo={handleSetObjetivo}
+              onSetMesInicio={handleSetMesInicio}
+            />
+          ) : project ? (
+            <ProjectDashboard
+              key={project.code}
+              project={project}
+              onUpdate={(patch) => setDb((d) => updateProject(d, project.code, patch))}
+              onArchiveToggle={() =>
+                setDb((d) =>
+                  updateProject(d, project.code, {
+                    archivedAt: project.archivedAt ? undefined : new Date().toISOString(),
+                  }),
+                )
+              }
+              onDelete={() => {
+                setDb((d) => deleteProject(d, project.code))
+                setSelected(null)
+              }}
+              isWatching={siguiendoProyecto}
+              onToggleWatch={() => handleToggleWatch(project.code)}
+              soloLectura={myRole === 'lectura' || (myRole === 'contrato' && myNivelContrato !== 'edicion')}
+            />
+          ) : (
+            <Overview
+              projects={projects}
+              scope={scope}
+              onSelect={setSelected}
+              onReorder={handleReorderProjects}
+              onFiles={handleExplotacionFiles}
+              onHoursFiles={handleOverviewHoursFiles}
+              userEmail={authSession?.email}
+              onToggleWatch={handleToggleWatch}
+            />
+          )}
+        </main>
+      </div>
+
+      <div className="fixed inset-x-4 bottom-4 z-50 space-y-2 sm:inset-x-auto sm:right-4 sm:max-w-md">
         {toasts.map((t) => (
           <div
             key={t.id}

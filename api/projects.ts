@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireProjectAuth } from './_sso.js'
-import { ensureUsersTable, getUserRole } from './_roles.js'
+import { ensureUsersTable, getUserInfo } from './_roles.js'
 
 const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
 
@@ -25,19 +25,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       )`
     await initPromise
 
+    const email = String(auth.email ?? '').trim().toLowerCase()
+    let me: Awaited<ReturnType<typeof getUserInfo>> | null = null
+    if (email) {
+      await ensureUsersTable(sql)
+      me = await getUserInfo(sql, email)
+    }
+
     if (req.method === 'GET') {
       const rows = await sql`SELECT code, data FROM jp_projects`
       const projects: Record<string, unknown> = {}
-      for (const r of rows) projects[r.code as string] = r.data
+      for (const r of rows) {
+        const code = r.code as string
+        if (!me || me.role !== 'contrato' || me.proyectoAsignado === code) {
+          projects[code] = r.data
+        }
+      }
       return res.status(200).json({ projects })
     }
 
-    const email = String(auth.email ?? '').trim().toLowerCase()
-    if ((req.method === 'PUT' || req.method === 'DELETE') && email) {
-      await ensureUsersTable(sql)
-      const myRole = await getUserRole(sql, email)
-      if (myRole === 'lectura') {
-        return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar proyectos.' })
+    if (req.method === 'PUT' || req.method === 'DELETE') {
+      const targetCode =
+        req.method === 'PUT'
+          ? String((req.body as { code?: string } | undefined)?.code ?? '')
+          : typeof req.query.code === 'string'
+            ? req.query.code
+            : ''
+      if (me) {
+        if (me.role === 'lectura') {
+          return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar proyectos.' })
+        }
+        if (me.role === 'contrato') {
+          if (me.proyectoAsignado !== targetCode) {
+            return res.status(403).json({ error: 'Solo tienes acceso al contrato asignado.' })
+          }
+          if (me.nivelContrato !== 'edicion') {
+            return res.status(403).json({ error: 'Tu acceso a este contrato es de solo lectura.' })
+          }
+        }
       }
     }
 
@@ -67,4 +92,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: err instanceof Error ? err.message : 'Error de base de datos.' })
   }
 }
-

@@ -59,6 +59,8 @@ export function Overview({
   onReorder,
   onFiles,
   onHoursFiles,
+  userEmail,
+  onToggleWatch,
 }: {
   projects: Project[]
   scope: 'mine' | 'all'
@@ -66,6 +68,8 @@ export function Overview({
   onReorder: (draggedCode: string, targetCode: string) => void
   onFiles: (files: File[]) => void
   onHoursFiles: (files: File[]) => void
+  userEmail?: string
+  onToggleWatch?: (code: string) => void
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -115,20 +119,20 @@ export function Overview({
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-[18rem] flex-1">
-          <h1 className="font-display text-[30px] font-extrabold leading-tight tracking-tight text-ink">
+        <div className="w-full sm:min-w-[18rem] sm:w-auto sm:flex-1">
+          <h1 className="font-display text-[26px] font-extrabold leading-tight tracking-tight text-ink sm:text-[30px]">
             {scope === 'mine' ? 'Mi cartera de proyectos' : 'Todos los proyectos'}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             {scope === 'mine'
-              ? 'Proyectos en los que figuras como jefe de proyecto (JP).'
+              ? 'Proyectos en los que figuras como jefe de proyecto (JP) o que sigues.'
               : 'Cartera de proyectos: facturacion frente a avance, con el gasto como referencia.'}
           </p>
         </div>
-        <div className="flex min-w-[18rem] flex-1 flex-wrap items-center justify-end gap-3">
-          <label className="relative min-w-[20rem] max-w-xl flex-1">
+        <div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto sm:min-w-[18rem] sm:flex-1">
+          <label className="relative min-w-0 max-w-xl flex-1 sm:min-w-[20rem]">
             <span className="sr-only">Buscar proyecto</span>
             <input
               value={busqueda}
@@ -208,6 +212,9 @@ export function Overview({
           const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > 30
           const isDragging = draggingCode === p.code
           const isDropTarget = dragOverCode === p.code && draggingCode !== p.code
+          const estaSeguido = Boolean(
+            userEmail && (p.watchers ?? []).includes(userEmail.trim().toLowerCase()),
+          )
 
           return (
             <div
@@ -262,7 +269,7 @@ export function Overview({
                 endDrag()
               }}
               onDragEnd={endDrag}
-              className={`rounded-lg border bg-surface p-5 text-left shadow-soft transition-all hover:border-accent-300 hover:shadow-hover ${
+              className={`min-w-0 rounded-lg border bg-surface p-5 text-left shadow-soft transition-all hover:border-accent-300 hover:shadow-hover ${
                 isDropTarget ? 'translate-y-0.5 border-accent-500 ring-2 ring-accent-300/70' : 'border-line'
               } ${isDragging ? 'scale-[0.99] opacity-60' : ''} cursor-grab active:cursor-grabbing`}
               title="Arrastra para ordenar o haz clic para abrir"
@@ -272,19 +279,44 @@ export function Overview({
                   <div className="truncate font-bold text-ink">{p.name}</div>
                   <div className="text-xs text-ink-muted">{p.code}</div>
                 </div>
-                {necesitaActualizacion ? (
-                  <span className="shrink-0 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-[#8A5A00]">
-                    Actualizar Concost {fmtDias(diasActualizacion)}
-                  </span>
-                ) : alerta ? (
-                  <span className="shrink-0 rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
-                    <EmojiIcon>{emoji.alert}</EmojiIcon> Sin facturar {fmtPct(-k.desvioFacturacion!)}
-                  </span>
-                ) : (
-                  <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
-                    <EmojiIcon>{emoji.check}</EmojiIcon> OK
-                  </span>
-                )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {onToggleWatch && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleWatch(p.code)
+                      }}
+                      onDragStart={(event) => event.preventDefault()}
+                      aria-pressed={estaSeguido}
+                      title={
+                        estaSeguido
+                          ? 'Dejar de seguir este proyecto en Mi cartera'
+                          : 'Seguir este proyecto en Mi cartera'
+                      }
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-base transition-colors ${
+                        estaSeguido
+                          ? 'border-warning/40 bg-warning/15 text-warning'
+                          : 'border-line bg-surface-muted text-ink-muted hover:border-warning/40 hover:text-warning'
+                      }`}
+                    >
+                      <EmojiIcon>{estaSeguido ? emoji.star : emoji.starOutline}</EmojiIcon>
+                    </button>
+                  )}
+                  {necesitaActualizacion ? (
+                    <span className="shrink-0 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-[#8A5A00]">
+                      Actualizar Concost {fmtDias(diasActualizacion)}
+                    </span>
+                  ) : alerta ? (
+                    <span className="shrink-0 rounded-md bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger">
+                      <EmojiIcon>{emoji.alert}</EmojiIcon> Sin facturar {fmtPct(-k.desvioFacturacion!)}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-bold text-success">
+                      <EmojiIcon>{emoji.check}</EmojiIcon> OK
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -318,20 +350,31 @@ export function Overview({
 
               <div className="mt-3 space-y-0.5 text-[11px] text-ink-muted">
                 {p.jp && (
-                  <div className="flex items-center justify-between gap-3 truncate" title={p.jp}>
-                    <span>JP:</span>
-                    <span className="truncate font-semibold text-ink-soft">{p.jp}</span>
+                  <div className="flex items-center justify-between gap-3" title={p.jp}>
+                    <span className="shrink-0">JP:</span>
+                    <span className="min-w-0 flex-1 truncate text-right font-semibold text-ink-soft">
+                      {p.jp}
+                    </span>
                   </div>
                 )}
+                <div className="flex items-center justify-between gap-3">
+                  <span>Importe de contrato:</span>
+                  <span className="font-bold text-ink">
+                    {(() => {
+                      const importe = p.contractValue ?? p.budget
+                      return importe !== undefined ? fmtEur(importe) : 'sin importe'
+                    })()}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between gap-3">
                   <span>Actualizacion Concost:</span>
                   <span className="font-bold text-ink">
                     {p.lastImport ? fmtFechaImportacion(p.lastImport) : 'sin fecha'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 truncate" title={p.concostFileName}>
-                  <span>Archivo Explotacion:</span>
-                  <span className="truncate font-semibold text-ink-soft">
+                <div className="flex items-center justify-between gap-3" title={p.concostFileName}>
+                  <span className="shrink-0">Archivo Explotacion:</span>
+                  <span className="min-w-0 flex-1 truncate text-right font-semibold text-ink-soft">
                     {p.concostFileName ?? 'no registrado'}
                   </span>
                 </div>
@@ -348,10 +391,10 @@ export function Overview({
           <div className="rounded-lg border border-line bg-surface p-8 text-center md:col-span-2 xl:col-span-3">
             {scope === 'mine' ? (
               <>
-                <div className="text-lg font-extrabold text-ink">No tienes proyectos como JP</div>
+                <div className="text-lg font-extrabold text-ink">No tienes proyectos en tu cartera</div>
                 <p className="mt-1 text-sm text-ink-soft">
-                  Asigna el JP en la Configuracion de cada proyecto para que aparezca aqui, o consulta
-                  "Todos los proyectos".
+                  Asigna el JP en la Configuracion de cada proyecto, o marca la estrella de un
+                  proyecto en "Todos los proyectos" para seguirlo sin ser su JP.
                 </p>
               </>
             ) : (

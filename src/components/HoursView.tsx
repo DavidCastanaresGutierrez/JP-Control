@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { RefObject } from 'react'
 import {
   Bar,
   BarChart,
@@ -66,10 +67,13 @@ export function HoursView({
   project,
   onUpdate,
   onSelectPersons,
+  initialDeptFocus,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
   onSelectPersons?: (personas: string[]) => void
+  /** Departamento a preseleccionar al abrir esta pestana (clic desde el Panel), consumido una sola vez. */
+  initialDeptFocus?: RefObject<string | null>
 }) {
   const coste = useMemo(() => costeHorasMensual(project.entries), [project.entries])
   const matriz = useMemo(() => matrizHoras(project.hours), [project.hours])
@@ -105,7 +109,11 @@ export function HoursView({
     if (conAnomalias.length) return new Set(conAnomalias)
     return new Set(matriz.filas.slice(0, 1).map((f) => f.persona))
   })
-  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(null)
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string | null>(() => {
+    const dept = initialDeptFocus?.current ?? null
+    if (initialDeptFocus) initialDeptFocus.current = null
+    return dept
+  })
   const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null)
   const [personaSeleccionada, setPersonaSeleccionada] = useState<string | null>(null)
 
@@ -350,7 +358,7 @@ export function HoursView({
   return (
     <div className="space-y-6">
       {/* Prediccion de agotamiento de presupuesto */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg">
           Prediccion: cuando se agota el presupuesto?
         </h3>
@@ -511,7 +519,7 @@ export function HoursView({
       </div>
 
       {/* Coste mensual de horas (cuenta 9101 de la explotacion) */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
         <h3 className="font-bold text-ink text-lg">Coste mensual de horas de oficina (9101)</h3>
         <p className="text-xs text-ink-soft mb-4">
           Del detalle de explotacion. Un salto brusco de un mes a otro suele indicar cambios de
@@ -533,7 +541,7 @@ export function HoursView({
       </div>
 
       {/* Horas por participante */}
-      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
+      <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-bold text-ink text-lg">Horas por participante</h3>
@@ -634,7 +642,6 @@ export function HoursView({
                     }
                     contentStyle={TOOLTIP_STYLE}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   {personasSel.map((f) => (
                     <Line
                       key={f.persona}
@@ -809,7 +816,7 @@ export function HoursView({
       {/* Control por departamento + tareas del contrato */}
       {(
         <div className="grid xl:grid-cols-2 gap-5">
-          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-5">
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-5">
           <div>
             <h3 className="font-bold text-ink text-lg">Control por departamento</h3>
             <p className="text-xs text-ink-soft">
@@ -1026,7 +1033,7 @@ export function HoursView({
             La asignacion de personas y facturas a departamentos se hace en la pestana Configuracion.
           </p>
         </div>
-          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-6 space-y-4">
+          <div className="bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6 space-y-4">
             <div>
               <h3 className="font-bold text-ink text-lg">Tareas del contrato</h3>
               <p className="text-xs text-ink-soft">
