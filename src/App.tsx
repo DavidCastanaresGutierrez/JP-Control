@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DB, DepartmentModule, Project } from './types'
 import {
+  deleteDepartamento,
   deleteProject,
   loadDB,
   mergeHours,
@@ -470,6 +471,12 @@ export default function App() {
     setDb((d) => updateDepartamento(d, miDepartamento, { mesInicio: mes }))
   }
 
+  const handleDeleteDepartamentoData = () => {
+    if (!miDepartamento) return
+    setDb((d) => deleteDepartamento(d, miDepartamento))
+    toast('ok', `Datos de "${miDepartamento}" eliminados.`)
+  }
+
   const handleLoginSuccess = useCallback(
     (session: AuthSession) => {
       setAuthSession(session)
@@ -621,6 +628,7 @@ export default function App() {
               onUpdateRoster={handleUpdateRoster}
               onSetObjetivo={handleSetObjetivo}
               onSetMesInicio={handleSetMesInicio}
+              onDeleteData={handleDeleteDepartamentoData}
             />
           ) : project ? (
             <ProjectDashboard

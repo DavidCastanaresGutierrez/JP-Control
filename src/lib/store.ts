@@ -186,3 +186,10 @@ export function setHorasProduccion(
 ): DB {
   return updateDepartamento(db, nombre, { horas, lastImport: new Date().toISOString(), fileName })
 }
+
+/** Borra todos los datos importados de un departamento (horas, equipo, configuracion). */
+export function deleteDepartamento(db: DB, nombre: string): DB {
+  const departamentos = { ...db.departamentos }
+  delete departamentos[nombre]
+  return { ...db, departamentos }
+}

@@ -132,6 +132,7 @@ export function DepartmentDashboard({
   onUpdateRoster,
   onSetObjetivo,
   onSetMesInicio,
+  onDeleteData,
 }: {
   departamento: string | null
   modulo: DepartmentModule | undefined
@@ -142,6 +143,7 @@ export function DepartmentDashboard({
   onUpdateRoster: (roster: DepartmentModule['roster']) => void
   onSetObjetivo: (pct: number | undefined) => void
   onSetMesInicio: (mes: string | undefined) => void
+  onDeleteData: () => void
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const [mesSel, setMesSel] = useState<string | null>(null)
@@ -1168,6 +1170,7 @@ export function DepartmentDashboard({
           onUpdateRoster={onUpdateRoster}
           onSetObjetivo={onSetObjetivo}
           onSetMesInicio={onSetMesInicio}
+          onDeleteData={onDeleteData}
         />
       )}
     </div>
@@ -1175,12 +1178,14 @@ export function DepartmentDashboard({
 }
 
 function DepartmentConfig({
+  departamento,
   modulo,
   todasPersonasImportadas,
   onImportFile,
   onUpdateRoster,
   onSetObjetivo,
   onSetMesInicio,
+  onDeleteData,
 }: {
   departamento: string
   modulo: DepartmentModule | undefined
@@ -1189,10 +1194,12 @@ function DepartmentConfig({
   onUpdateRoster: (roster: DepartmentModule['roster']) => void
   onSetObjetivo: (pct: number | undefined) => void
   onSetMesInicio: (mes: string | undefined) => void
+  onDeleteData: () => void
 }) {
   const roster = modulo?.roster ?? {}
   const seleccionadas = new Set(Object.keys(roster).filter((p) => roster[p].activo))
   const avisosBaja = useMemo(() => (modulo ? posiblesBajas(modulo) : []), [modulo])
+  const [confirmEliminar, setConfirmEliminar] = useState(false)
 
   const toggle = (persona: string) => {
     const next = { ...roster }
@@ -1353,6 +1360,57 @@ function DepartmentConfig({
           )}
         </div>
       </div>
+
+      {modulo && (modulo.horas.length > 0 || Object.keys(modulo.roster).length > 0) && (
+        <>
+          {confirmEliminar ? (
+            <div className="bg-danger/8 border border-danger/25 rounded-[20px] p-4">
+              <p className="text-sm text-danger font-semibold">
+                Seguro que quieres eliminar los datos de "{departamento}"?
+              </p>
+              <p className="text-xs text-danger/75 mt-0.5 mb-3">
+                Se borraran las horas importadas, el equipo y la configuración de este departamento
+                (también en la nube, si está sincronizado). No se puede deshacer.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    onDeleteData()
+                    setConfirmEliminar(false)
+                  }}
+                  className="text-sm font-bold bg-danger text-white rounded-full px-4 h-10 hover:opacity-90 transition-opacity"
+                >
+                  Si, eliminar
+                </button>
+                <button
+                  onClick={() => setConfirmEliminar(false)}
+                  className="text-sm font-semibold border border-line bg-surface text-ink-soft rounded-full px-4 h-10 hover:bg-surface-muted transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[20px] border border-line bg-surface p-4 shadow-soft sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-ink">Eliminar datos del departamento</h3>
+                  <p className="mt-0.5 text-xs text-ink-soft">
+                    Borra las horas importadas, el equipo y la configuración de este departamento. No
+                    se puede deshacer.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConfirmEliminar(true)}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-danger px-4 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                >
+                  Eliminar datos
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
