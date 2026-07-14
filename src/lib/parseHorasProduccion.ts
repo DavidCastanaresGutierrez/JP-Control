@@ -55,6 +55,7 @@ export function parseHorasProduccion(data: ArrayBuffer): ParsedHorasProduccion {
     const r = rows[i] ?? []
     const c0 = r[0]
     const c1 = r[1]
+    const c2 = r[2]
     if (typeof c0 !== 'string' || !c0.trim()) continue
     if (/^total\b/i.test(c0.trim())) continue
 
@@ -78,8 +79,11 @@ export function parseHorasProduccion(data: ArrayBuffer): ParsedHorasProduccion {
       continue
     }
 
-    if (typeof c1 === 'number') {
-      // Fila de cabecera/subtotal de una nueva persona
+    // Fila de cabecera/subtotal de una nueva persona: sin fecha (columna B).
+    // Segun la exportacion, las horas totales caen en la columna B (formato
+    // "toda la produccion") o, si Concost deja la columna Fecha vacia (p.ej.
+    // exportaciones filtradas por departamento), en la columna C.
+    if (typeof c1 === 'number' || (c1 == null && typeof c2 === 'number')) {
       personaActual = limpiarPersona(c0)
       personas.add(personaActual)
     }
