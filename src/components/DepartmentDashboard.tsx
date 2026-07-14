@@ -18,7 +18,6 @@ import {
 import type { DepartmentModule } from '../types'
 import { DEPARTAMENTOS_REALES } from '../types'
 import {
-  clasificarActividad,
   comparativaOcupacion,
   dashboardDepartamento,
   dedicacionPorPersona,
@@ -969,7 +968,7 @@ export function DepartmentDashboard({
                 </div>
                 <div className="space-y-2">
                   {d.reparto.slice(0, 8).map((r) => {
-                    const tipo = clasificarActividad(r.proyecto)
+                    const tipo = r.tipo
                     return (
                       <div key={r.proyecto}>
                         <div className="flex items-center justify-between gap-3 text-xs mb-1">
@@ -1022,7 +1021,7 @@ export function DepartmentDashboard({
                           {reparteGrafico.map((r) => (
                             <Cell
                               key={r.proyecto}
-                              fill={clasificarActividad(r.proyecto) === 'facturable' ? '#7CE7C8' : '#3A8DFF'}
+                              fill={r.tipo === 'facturable' ? '#7CE7C8' : '#3A8DFF'}
                               cursor="pointer"
                               onClick={(e) => {
                                 e?.stopPropagation?.()
