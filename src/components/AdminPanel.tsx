@@ -38,6 +38,69 @@ function normalizarBusqueda(value: string): string {
     .trim()
 }
 
+/** Buscador con desplegable para elegir un contrato entre muchos, en vez de un select gigante. */
+function ContratoPicker({
+  projects,
+  value,
+  onSelect,
+}: {
+  projects: Project[]
+  value: string | null
+  onSelect: (code: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const seleccionado = projects.find((p) => p.code === value)
+  const q = normalizarBusqueda(query)
+  const filtrados = q
+    ? projects.filter(
+        (p) => normalizarBusqueda(p.code).includes(q) || normalizarBusqueda(p.name).includes(q),
+      )
+    : projects
+
+  return (
+    <div className="relative">
+      <input
+        value={open ? query : seleccionado ? `${seleccionado.code} - ${seleccionado.name}` : ''}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setOpen(true)
+        }}
+        onFocus={() => {
+          setQuery('')
+          setOpen(true)
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Buscar contrato por codigo o nombre"
+        className="w-full border border-line rounded-[10px] px-3 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
+      />
+      {open && (
+        <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-[10px] border border-line bg-surface shadow-soft">
+          {filtrados.length === 0 && <div className="px-3 py-2 text-xs text-ink-muted">Sin resultados</div>}
+          {filtrados.slice(0, 50).map((p) => (
+            <button
+              key={p.code}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onSelect(p.code)
+                setQuery('')
+                setOpen(false)
+              }}
+              className={`block w-full truncate px-3 py-2 text-left text-sm hover:bg-surface-muted ${
+                p.code === value ? 'font-bold text-ink' : 'text-ink-soft'
+              }`}
+              title={`${p.code} - ${p.name}`}
+            >
+              {p.code} - {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AdminPanel({
   meEmail,
   users,
@@ -126,7 +189,7 @@ export function AdminPanel({
                         onChangeRole(user.email, role, { departamento: DEPARTAMENTOS_REALES[0] })
                       } else if (role === 'contrato') {
                         onChangeRole(user.email, role, {
-                          proyectoAsignado: projects[0]?.code ?? null,
+                          proyectoAsignado: null,
                           nivelContrato: 'lectura',
                         })
                       } else {
@@ -162,23 +225,16 @@ export function AdminPanel({
                   )}
                   {user.role === 'contrato' && (
                     <div className="flex flex-col gap-1.5">
-                      <select
-                        value={user.proyectoAsignado ?? ''}
-                        onChange={(e) =>
+                      <ContratoPicker
+                        projects={projects}
+                        value={user.proyectoAsignado}
+                        onSelect={(code) =>
                           onChangeRole(user.email, user.role, {
-                            proyectoAsignado: e.target.value,
+                            proyectoAsignado: code,
                             nivelContrato: user.nivelContrato ?? 'lectura',
                           })
                         }
-                        className="w-full border border-line rounded-[10px] px-3 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500 outline-none"
-                      >
-                        <option value="">Elige un contrato</option>
-                        {projects.map((p) => (
-                          <option key={p.code} value={p.code}>
-                            {p.code} - {p.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <div className="flex rounded-full border border-line p-0.5 text-xs w-fit">
                         {(['lectura', 'edicion'] as const).map((nivel) => (
                           <button
