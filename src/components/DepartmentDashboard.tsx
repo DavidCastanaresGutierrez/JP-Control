@@ -106,6 +106,7 @@ function ToggleMesHistorico({
 export function DepartmentDashboard({
   departamento,
   modulo,
+  puedeVerTodosDepartamentos,
   onChooseDepartamento,
   onImportFile,
   onUpdateRoster,
@@ -114,7 +115,9 @@ export function DepartmentDashboard({
 }: {
   departamento: string | null
   modulo: DepartmentModule | undefined
-  onChooseDepartamento: (nombre: string) => void
+  /** Si puede volver a elegir cualquier otro departamento (hoy, cualquiera con acceso al módulo). */
+  puedeVerTodosDepartamentos: boolean
+  onChooseDepartamento: (nombre: string | null) => void
   onImportFile: (file: File) => void
   onUpdateRoster: (roster: DepartmentModule['roster']) => void
   onSetObjetivo: (pct: number | undefined) => void
@@ -282,6 +285,15 @@ export function DepartmentDashboard({
     <div className="p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
+          {puedeVerTodosDepartamentos && (
+            <button
+              type="button"
+              onClick={() => onChooseDepartamento(null)}
+              className="mb-1 text-xs font-semibold text-ink-soft hover:text-ink hover:underline"
+            >
+              ← Cambiar departamento
+            </button>
+          )}
           <h1 className="font-display text-[22px] sm:text-[28px] font-extrabold text-ink tracking-tight truncate">
             {departamento}
           </h1>
