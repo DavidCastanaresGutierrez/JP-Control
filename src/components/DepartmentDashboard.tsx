@@ -242,6 +242,19 @@ export function DepartmentDashboard({
   const objetivoPct = modulo?.objetivoFacturablePct
 
   if (!departamento) {
+    if (!puedeVerTodosDepartamentos) {
+      return (
+        <div className="p-4 sm:p-6 max-w-xl">
+          <h1 className="font-display text-[26px] font-extrabold text-ink tracking-tight sm:text-[30px]">
+            Control por Departamento
+          </h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            Todavía no tienes un departamento asignado. Pide a un administrador que te lo asigne en la
+            pestaña Administración.
+          </p>
+        </div>
+      )
+    }
     return (
       <div className="p-4 sm:p-6 max-w-xl">
         <h1 className="font-display text-[26px] font-extrabold text-ink tracking-tight sm:text-[30px]">

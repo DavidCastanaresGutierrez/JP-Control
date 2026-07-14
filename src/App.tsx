@@ -19,7 +19,7 @@ import {
   pushProject,
 } from './lib/api'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
-import type { AppUser, Role } from './lib/adminApi'
+import type { AppUser, NivelContrato, Role } from './lib/adminApi'
 import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
@@ -133,6 +133,9 @@ export default function App() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
   const [myRole, setMyRole] = useState<Role | null>(null)
+  const [myDepartamento, setMyDepartamento] = useState<string | null>(null)
+  const [myProyectoAsignado, setMyProyectoAsignado] = useState<string | null>(null)
+  const [myNivelContrato, setMyNivelContrato] = useState<NivelContrato | null>(null)
   const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
   const [adminView, setAdminView] = useState(false)
   const [deptView, setDeptView] = useState(false)
@@ -186,16 +189,25 @@ export default function App() {
   useEffect(() => {
     if (isSsoEnabled && !authSession) {
       setMyRole(null)
+      setMyDepartamento(null)
+      setMyProyectoAsignado(null)
+      setMyNivelContrato(null)
       setAdminUsers(null)
       return
     }
     fetchUsers().then((result) => {
       if (result.estado !== 'ok') {
         setMyRole(null)
+        setMyDepartamento(null)
+        setMyProyectoAsignado(null)
+        setMyNivelContrato(null)
         setAdminUsers(null)
         return
       }
       setMyRole(result.me.role)
+      setMyDepartamento(result.me.departamento)
+      setMyProyectoAsignado(result.me.proyectoAsignado)
+      setMyNivelContrato(result.me.nivelContrato)
       setAdminUsers(result.users ?? null)
     })
   }, [authSession])
@@ -205,6 +217,12 @@ export default function App() {
       setDeptView(false)
     }
   }, [deptView, myRole])
+
+  useEffect(() => {
+    if (isSsoEnabled && myRole === 'director_departamento' && myDepartamento && miDepartamento !== myDepartamento) {
+      setMiDepartamento(myDepartamento)
+    }
+  }, [myRole, myDepartamento, miDepartamento])
 
   useEffect(() => {
     try {
@@ -369,7 +387,9 @@ export default function App() {
     setDb(next)
   }
 
-  const allProjects = orderProjects(db.projects, projectOrder)
+  const allProjects = orderProjects(db.projects, projectOrder).filter(
+    (p) => myRole !== 'contrato' || p.code === myProyectoAsignado,
+  )
   const scopedProjects =
     scope === 'mine'
       ? allProjects.filter(
@@ -418,6 +438,7 @@ export default function App() {
     : undefined
   const puedeAccederDepartamento =
     !isSsoEnabled || myRole === 'administracion' || myRole === 'director_departamento'
+  const puedeVerTodosDepartamentos = !isSsoEnabled || myRole === 'administracion'
 
   const handleImportHorasProduccion = async (file: File) => {
     if (!miDepartamento) return
@@ -465,10 +486,27 @@ export default function App() {
     setSyncEstado('auth')
   }, [])
 
-  const handleChangeRole = async (email: string, role: Role) => {
+  const handleChangeRole = async (
+    email: string,
+    role: Role,
+    opts?: { departamento?: string | null; proyectoAsignado?: string | null; nivelContrato?: NivelContrato | null },
+  ) => {
     const prev = adminUsers
-    setAdminUsers((list) => list?.map((u) => (u.email === email ? { ...u, role } : u)) ?? list)
-    const result = await updateUserRole(email, role)
+    setAdminUsers(
+      (list) =>
+        list?.map((u) =>
+          u.email === email
+            ? {
+                ...u,
+                role,
+                departamento: opts?.departamento ?? null,
+                proyectoAsignado: opts?.proyectoAsignado ?? null,
+                nivelContrato: opts?.nivelContrato ?? null,
+              }
+            : u,
+        ) ?? list,
+    )
+    const result = await updateUserRole(email, role, opts)
     if (!result.ok) {
       setAdminUsers(prev)
       toast('error', result.error ?? `No se ha podido actualizar el rol de ${email}.`)
@@ -570,13 +608,14 @@ export default function App() {
             <AdminPanel
               meEmail={authSession?.email ?? ''}
               users={adminUsers ?? []}
+              projects={allProjects}
               onChangeRole={handleChangeRole}
             />
           ) : deptView && puedeAccederDepartamento ? (
             <DepartmentDashboard
               departamento={miDepartamento}
               modulo={departamentoModulo}
-              puedeVerTodosDepartamentos={puedeAccederDepartamento}
+              puedeVerTodosDepartamentos={puedeVerTodosDepartamentos}
               onChooseDepartamento={setMiDepartamento}
               onImportFile={handleImportHorasProduccion}
               onUpdateRoster={handleUpdateRoster}
@@ -601,6 +640,7 @@ export default function App() {
               }}
               isWatching={siguiendoProyecto}
               onToggleWatch={() => handleToggleWatch(project.code)}
+              soloLectura={myRole === 'lectura' || (myRole === 'contrato' && myNivelContrato !== 'edicion')}
             />
           ) : (
             <Overview
