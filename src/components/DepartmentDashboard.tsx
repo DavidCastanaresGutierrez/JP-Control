@@ -1000,24 +1000,26 @@ export function DepartmentDashboard({
                     className="mt-4 pt-4 border-t border-line overflow-x-hidden"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <ResponsiveContainer width="100%" height={Math.max(160, reparteGrafico.length * 32)}>
-                      <BarChart data={reparteGrafico} layout="vertical" margin={{ left: 4, right: 16 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
-                        <XAxis type="number" tick={CHART_AXIS} unit=" h" />
-                        <YAxis
-                          type="category"
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={reparteGrafico} margin={{ top: 8, left: 4, right: 16, bottom: 64 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                        <XAxis
                           dataKey="proyecto"
                           tick={{ ...CHART_AXIS, fontSize: 11 }}
-                          tickFormatter={(v) => truncarEtiqueta(String(v))}
-                          width={190}
+                          tickFormatter={(v) => truncarEtiqueta(String(v), 16)}
+                          interval={0}
+                          angle={-40}
+                          textAnchor="end"
+                          height={80}
                         />
+                        <YAxis type="number" tick={CHART_AXIS} unit=" h" width={55} />
                         <Tooltip
                           formatter={(v) => `${fmtNum(Number(v))} h`}
                           labelFormatter={(label) => truncarEtiqueta(String(label), 30)}
                           contentStyle={{ ...TOOLTIP_STYLE, maxWidth: 200 }}
                           allowEscapeViewBox={{ x: false, y: true }}
                         />
-                        <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
+                        <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
                           {reparteGrafico.map((r) => (
                             <Cell
                               key={r.proyecto}
