@@ -1186,15 +1186,38 @@ function DepartmentConfig({
         </p>
         {avisosBaja.length > 0 && (
           <div className="mb-3 rounded-[14px] border border-warning/40 bg-warning/10 px-4 py-3 text-xs text-[#8A5A00]">
-            <p className="font-bold mb-1">
+            <p className="font-bold mb-2">
               {avisosBaja.length === 1
                 ? '1 persona sin actividad reciente'
                 : `${avisosBaja.length} personas sin actividad reciente`}
             </p>
-            <p>
-              Revisa si siguen en el equipo y, si no, ponles la fecha de baja abajo:{' '}
-              {avisosBaja.map((a) => a.persona).join(', ')}.
+            <p className="mb-2">
+              Puede que se hayan ido de la empresa. Se estima la fecha de baja a partir de su último
+              mes con actividad real; confírmala si es correcta o corrígela abajo en su fila.
             </p>
+            <div className="space-y-1.5">
+              {avisosBaja.map((a) => (
+                <div key={a.persona} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <span className="font-semibold">{a.persona}</span>
+                    {a.ultimoMesConActividad ? (
+                      <> · última actividad real: {fmtMes(a.ultimoMesConActividad)}</>
+                    ) : (
+                      <> · sin actividad real registrada</>
+                    )}
+                    {' · baja sugerida: '}
+                    <span className="font-semibold">{fmtMes(a.fechaBajaSugerida)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFechaBaja(a.persona, a.fechaBajaSugerida)}
+                    className="shrink-0 rounded-full bg-warning/25 px-2.5 py-1 font-bold text-[#8A5A00] hover:bg-warning/35 transition-colors"
+                  >
+                    Confirmar baja
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {todasPersonasImportadas.length === 0 ? (
