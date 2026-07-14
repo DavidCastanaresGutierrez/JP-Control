@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireProjectAuth } from './_sso.js'
-import { ensureUsersTable, getUserRole, puedeAccederDepartamento } from './_roles.js'
+import { ensureUsersTable, getUserInfo, puedeAccederDepartamentoConcreto } from './_roles.js'
 
 const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
 
@@ -26,10 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await initPromise
 
     const email = String(auth.email ?? '').trim().toLowerCase()
+    let me: Awaited<ReturnType<typeof getUserInfo>> | null = null
     if (email) {
       await ensureUsersTable(sql)
-      const myRole = await getUserRole(sql, email)
-      if (!puedeAccederDepartamento(myRole)) {
+      me = await getUserInfo(sql, email)
+      if (me.role !== 'administracion' && me.role !== 'director_departamento') {
         return res.status(403).json({ error: 'No tienes acceso al modulo de Control por Departamento.' })
       }
     }
@@ -37,7 +38,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       const rows = await sql`SELECT nombre, data FROM jp_departments`
       const departamentos: Record<string, unknown> = {}
-      for (const r of rows) departamentos[r.nombre as string] = r.data
+      for (const r of rows) {
+        const nombre = r.nombre as string
+        if (!me || puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
+          departamentos[nombre] = r.data
+        }
+      }
       return res.status(200).json({ departamentos })
     }
 
@@ -45,6 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { nombre, data } = (req.body ?? {}) as { nombre?: string; data?: unknown }
       if (!nombre || typeof nombre !== 'string' || !data) {
         return res.status(400).json({ error: 'Faltan nombre o data en el cuerpo.' })
+      }
+      if (me && !puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
+        return res.status(403).json({ error: 'No tienes acceso a este departamento.' })
       }
       await sql`
         INSERT INTO jp_departments (nombre, data, updated_at)
@@ -56,6 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'DELETE') {
       const nombre = typeof req.query.nombre === 'string' ? req.query.nombre : ''
       if (!nombre) return res.status(400).json({ error: 'Falta el parametro nombre.' })
+      if (me && !puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
+        return res.status(403).json({ error: 'No tienes acceso a este departamento.' })
+      }
       await sql`DELETE FROM jp_departments WHERE nombre = ${nombre}`
       return res.status(200).json({ ok: true })
     }

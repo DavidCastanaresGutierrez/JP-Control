@@ -36,6 +36,7 @@ export function ProjectDashboard({
   onDelete,
   isWatching,
   onToggleWatch,
+  soloLectura,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
@@ -43,6 +44,7 @@ export function ProjectDashboard({
   onDelete: () => void
   isWatching?: boolean
   onToggleWatch?: () => void
+  soloLectura?: boolean
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const k = useMemo(() => kpis(project), [project])
@@ -89,6 +91,11 @@ export function ProjectDashboard({
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
+      {soloLectura && (
+        <div className="rounded-[14px] border border-line-strong bg-surface-muted px-4 py-2.5 text-xs font-semibold text-ink-soft">
+          Tu acceso a este contrato es de solo lectura: los cambios no se guardaran.
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 min-w-0">
