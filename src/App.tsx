@@ -266,12 +266,11 @@ export default function App() {
   }, [db, syncEstado])
 
   useEffect(() => {
-    if (miDepartamento) {
-      try {
-        localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
-      } catch {
-        // sin espacio en localStorage: no es critico, se ignora
-      }
+    try {
+      if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
+      else localStorage.removeItem(MI_DEPARTAMENTO_KEY)
+    } catch {
+      // sin espacio en localStorage: no es critico, se ignora
     }
   }, [miDepartamento])
 
@@ -577,6 +576,7 @@ export default function App() {
             <DepartmentDashboard
               departamento={miDepartamento}
               modulo={departamentoModulo}
+              puedeVerTodosDepartamentos={puedeAccederDepartamento}
               onChooseDepartamento={setMiDepartamento}
               onImportFile={handleImportHorasProduccion}
               onUpdateRoster={handleUpdateRoster}

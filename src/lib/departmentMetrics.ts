@@ -483,15 +483,26 @@ export function evolucionTemporalDepartamento(
 
 const MESES_SIN_ACTIVIDAD_AVISO = 2
 
+/** Mes yyyy-mm siguiente al indicado. */
+function mesSiguiente(mes: string): string {
+  const [y, m] = mes.split('-').map(Number)
+  const fecha = new Date(y, m, 1)
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
+}
+
 export interface PosibleBaja {
   persona: string
   ultimoMesConActividad: string | null
+  /** Mes yyyy-mm sugerido para la fecha de baja: el siguiente al ultimo con actividad real. */
+  fechaBajaSugerida: string
 }
 
 /**
  * Personas del roster (sin fecha de baja ya puesta) sin horas reales (fuera de
  * vacaciones) en los ultimos meses disponibles del departamento: probable
- * indicio de que se han ido y falta marcarles la fecha de baja.
+ * indicio de que se han ido de la empresa. Se estima tambien la fecha de baja
+ * (el mes siguiente al ultimo en el que consta actividad real), para poder
+ * confirmarla con un clic en vez de teclearla a mano.
  */
 export function posiblesBajas(
   modulo: DepartmentModule,
@@ -512,9 +523,13 @@ export function posiblesBajas(
           mesesRecientes.has(h.mes) && clasificarActividad(h.proyecto, overridesActividad) !== 'vacaciones',
       )
       if (actividadReciente) return null
+      const horasReales = horasPersona.filter(
+        (h) => clasificarActividad(h.proyecto, overridesActividad) !== 'vacaciones',
+      )
       const ultimoMesConActividad: string | null =
-        [...horasPersona].sort((a, b) => b.mes.localeCompare(a.mes))[0]?.mes ?? null
-      return { persona, ultimoMesConActividad }
+        [...horasReales].sort((a, b) => b.mes.localeCompare(a.mes))[0]?.mes ?? null
+      const fechaBajaSugerida = ultimoMesConActividad ? mesSiguiente(ultimoMesConActividad) : meses[0]
+      return { persona, ultimoMesConActividad, fechaBajaSugerida }
     })
     .filter((p): p is PosibleBaja => p !== null)
 }
