@@ -358,6 +358,15 @@ export function Overview({
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-3">
+                  <span>Importe de contrato:</span>
+                  <span className="font-bold text-ink">
+                    {(() => {
+                      const importe = p.contractValue ?? p.budget
+                      return importe !== undefined ? fmtEur(importe) : 'sin importe'
+                    })()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
                   <span>Actualizacion Concost:</span>
                   <span className="font-bold text-ink">
                     {p.lastImport ? fmtFechaImportacion(p.lastImport) : 'sin fecha'}

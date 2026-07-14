@@ -12,19 +12,28 @@ const RE_VACACIONES = /vacaciones|permiso retribuido/i
  * Clasifica un proyecto/actividad por palabras clave de su nombre en Concost.
  * Los codigos internos (sin cliente) empiezan por "DS." en vez de "DSES.".
  * `overrides` permite reclasificar a mano un proyecto concreto.
+ * `extra` son otros campos del apunte (descripcion, tarea) donde tambien puede
+ * aparecer la palabra clave cuando el codigo de proyecto es opaco (p.ej. "AV0000").
  */
 export function clasificarActividad(
   proyecto: string,
   overrides?: Record<string, TipoActividad>,
+  extra?: string,
 ): TipoActividad {
   if (overrides?.[proyecto]) return overrides[proyecto]
-  if (RE_VACACIONES.test(proyecto)) return 'vacaciones'
-  if (RE_INNOVACION.test(proyecto)) return 'innovacion'
-  if (RE_SOPORTE.test(proyecto)) return 'soporte'
-  if (RE_FORMACION.test(proyecto)) return 'formacion'
-  if (RE_GESTION.test(proyecto)) return 'gestion'
+  const texto = extra ? `${proyecto} ${extra}` : proyecto
+  if (RE_VACACIONES.test(texto)) return 'vacaciones'
+  if (RE_INNOVACION.test(texto)) return 'innovacion'
+  if (RE_SOPORTE.test(texto)) return 'soporte'
+  if (RE_FORMACION.test(texto)) return 'formacion'
+  if (RE_GESTION.test(texto)) return 'gestion'
   if (proyecto.startsWith('DS.')) return 'gestion'
   return 'facturable'
+}
+
+/** Descripcion y tarea de un apunte concatenadas, para clasificar cuando el codigo de proyecto no es descriptivo. */
+function extraTexto(h: { descripcion?: string; tarea?: string }): string {
+  return [h.descripcion, h.tarea].filter(Boolean).join(' ')
 }
 
 export const TIPO_ACTIVIDAD_LABEL: Record<TipoActividad, string> = {
@@ -140,7 +149,7 @@ export function tablaOcupacion(
       const horasImputadas = Math.round(registros.reduce((s, h) => s + h.horas, 0) * 100) / 100
       const horasFacturables = Math.round(
         registros
-          .filter((h) => clasificarActividad(h.proyecto, overridesActividad) === 'facturable')
+          .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
           .reduce((s, h) => s + h.horas, 0) * 100,
       ) / 100
       const horasDisponibles = Math.round(capacidadPersona(mes, modulo.roster[persona]?.jornadaPct) * 100) / 100
@@ -220,7 +229,7 @@ export function dashboardDepartamento(
 
   const porTipo = new Map<TipoActividad, number>()
   for (const h of horasMes) {
-    const tipo = clasificarActividad(h.proyecto, overridesActividad)
+    const tipo = clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))
     porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + h.horas)
   }
 
@@ -253,28 +262,32 @@ export function dashboardDepartamento(
 export interface DedicacionPersona {
   persona: string
   totalHoras: number
-  reparto: Array<{ proyecto: string; horas: number; pct: number }>
+  reparto: Array<{ proyecto: string; horas: number; pct: number; tipo: TipoActividad }>
 }
 
 /** En que proyectos se reparten las horas de cada persona (todo el periodo importado). */
 export function dedicacionPorPersona(modulo: DepartmentModule): DedicacionPersona[] {
   const horas = horasDelDepartamento(modulo)
-  const porPersona = new Map<string, Map<string, number>>()
+  const porPersona = new Map<string, Map<string, { horas: number; extra: string }>>()
   for (const h of horas) {
     if (!porPersona.has(h.persona)) porPersona.set(h.persona, new Map())
     const m = porPersona.get(h.persona)!
-    m.set(h.proyecto, (m.get(h.proyecto) ?? 0) + h.horas)
+    const acc = m.get(h.proyecto) ?? { horas: 0, extra: '' }
+    acc.horas += h.horas
+    if (!acc.extra) acc.extra = extraTexto(h)
+    m.set(h.proyecto, acc)
   }
 
   return personasActivas(modulo)
     .map((persona) => {
-      const porProyecto = porPersona.get(persona) ?? new Map<string, number>()
-      const totalHoras = [...porProyecto.values()].reduce((s, v) => s + v, 0)
+      const porProyecto = porPersona.get(persona) ?? new Map<string, { horas: number; extra: string }>()
+      const totalHoras = [...porProyecto.values()].reduce((s, v) => s + v.horas, 0)
       const reparto = [...porProyecto.entries()]
-        .map(([proyecto, horas]) => ({
+        .map(([proyecto, { horas, extra }]) => ({
           proyecto,
           horas: Math.round(horas * 100) / 100,
           pct: totalHoras > 0 ? (horas / totalHoras) * 100 : 0,
+          tipo: clasificarActividad(proyecto, undefined, extra),
         }))
         .sort((a, b) => b.horas - a.horas)
       return { persona, totalHoras: Math.round(totalHoras * 100) / 100, reparto }
@@ -309,7 +322,7 @@ export function evolucionFacturabilidadPersona(
     const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
     const horasFacturables = Math.round(
       delMes
-        .filter((h) => clasificarActividad(h.proyecto, overridesActividad) === 'facturable')
+        .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
         .reduce((s, h) => s + h.horas, 0) * 100,
     ) / 100
     const horasDisponibles = capacidadPersona(mes, jornadaPct)
@@ -344,14 +357,19 @@ export function distribucionPorProyecto(
 ): DistribucionItem[] {
   const horas = horasActivosMes(modulo, mes)
   const total = horas.reduce((s, h) => s + h.horas, 0)
-  const porProyecto = new Map<string, number>()
-  for (const h of horas) porProyecto.set(h.proyecto, (porProyecto.get(h.proyecto) ?? 0) + h.horas)
+  const porProyecto = new Map<string, { horas: number; extra: string }>()
+  for (const h of horas) {
+    const acc = porProyecto.get(h.proyecto) ?? { horas: 0, extra: '' }
+    acc.horas += h.horas
+    if (!acc.extra) acc.extra = extraTexto(h)
+    porProyecto.set(h.proyecto, acc)
+  }
   return [...porProyecto.entries()]
-    .map(([proyecto, hrs]) => ({
+    .map(([proyecto, { horas: hrs, extra }]) => ({
       clave: proyecto,
       horas: Math.round(hrs * 100) / 100,
       pct: total > 0 ? (hrs / total) * 100 : 0,
-      tipo: clasificarActividad(proyecto, overridesActividad),
+      tipo: clasificarActividad(proyecto, overridesActividad, extra),
     }))
     .sort((a, b) => b.horas - a.horas)
 }
@@ -366,7 +384,7 @@ export function distribucionPorTipoActividad(
   const total = horas.reduce((s, h) => s + h.horas, 0)
   const porTipo = new Map<TipoActividad, number>()
   for (const h of horas) {
-    const tipo = clasificarActividad(h.proyecto, overridesActividad)
+    const tipo = clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))
     porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + h.horas)
   }
   return [...porTipo.entries()]
@@ -419,7 +437,7 @@ export function comparativaOcupacion(
         const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
         const horasFacturables = Math.round(
           delMes
-            .filter((h) => clasificarActividad(h.proyecto, overridesActividad) === 'facturable')
+            .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
             .reduce((s, h) => s + h.horas, 0) * 100,
         ) / 100
         const horasDisponibles = capacidadPersona(mes, jornadaPct)
@@ -520,11 +538,11 @@ export function posiblesBajas(
       const horasPersona = horas.filter((h) => h.persona === persona && h.horas > 0)
       const actividadReciente = horasPersona.some(
         (h) =>
-          mesesRecientes.has(h.mes) && clasificarActividad(h.proyecto, overridesActividad) !== 'vacaciones',
+          mesesRecientes.has(h.mes) && clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) !== 'vacaciones',
       )
       if (actividadReciente) return null
       const horasReales = horasPersona.filter(
-        (h) => clasificarActividad(h.proyecto, overridesActividad) !== 'vacaciones',
+        (h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) !== 'vacaciones',
       )
       const ultimoMesConActividad: string | null =
         [...horasReales].sort((a, b) => b.mes.localeCompare(a.mes))[0]?.mes ?? null
