@@ -6,7 +6,7 @@
     "types": ["node"],
     "skipLibCheck": true,
 
-    /* Los tests corren con `node --test` (type stripping), sin bundler */
+    /* Los tests corren con vitest (npm test / npm run test:watch) */
     "module": "nodenext",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,

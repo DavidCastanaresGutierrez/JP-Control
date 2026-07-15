@@ -1,5 +1,4 @@
-import { beforeEach, test } from 'node:test'
-import assert from 'node:assert/strict'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { DB, Project } from '../types.ts'
 import {
   loadMiDepartamento,
@@ -10,7 +9,7 @@ import {
   persistProjectOrder,
 } from './prefs.ts'
 
-// Node no trae localStorage: un doble mínimo compartido por todos los tests
+// El entorno node de vitest no trae localStorage: un doble mínimo compartido
 const store = new Map<string, string>()
 ;(globalThis as { localStorage?: unknown }).localStorage = {
   getItem: (key: string) => store.get(key) ?? null,
@@ -28,45 +27,43 @@ const projects: DB['projects'] = {
   C: proyecto('C', 'Media'),
 }
 
-test('orderProjects: respeta el orden guardado y añade el resto por nombre', () => {
-  const result = orderProjects(projects, ['C'])
-  assert.deepEqual(
-    result.map((p) => p.code),
-    ['C', 'B', 'A'], // C fijado; Alfa (B) antes que Zeta (A)
-  )
+describe('orderProjects', () => {
+  it('respeta el orden guardado y añade el resto por nombre', () => {
+    expect(orderProjects(projects, ['C']).map((p) => p.code)).toEqual(['C', 'B', 'A']) // C fijado; Alfa (B) antes que Zeta (A)
+  })
+
+  it('ignora códigos guardados que ya no existen', () => {
+    expect(orderProjects(projects, ['X', 'A']).map((p) => p.code)).toEqual(['A', 'B', 'C'])
+  })
 })
 
-test('orderProjects: ignora códigos guardados que ya no existen', () => {
-  const result = orderProjects(projects, ['X', 'A'])
-  assert.deepEqual(
-    result.map((p) => p.code),
-    ['A', 'B', 'C'],
-  )
+describe('moveCode', () => {
+  it('mueve el código arrastrado a la posición del destino', () => {
+    expect(moveCode(['A', 'B', 'C'], 'C', 'A')).toEqual(['C', 'A', 'B'])
+    expect(moveCode(['A', 'B', 'C'], 'A', 'C')).toEqual(['B', 'C', 'A'])
+  })
+
+  it('devuelve la lista intacta si algún código no existe', () => {
+    const codes = ['A', 'B']
+    expect(moveCode(codes, 'X', 'A')).toBe(codes)
+    expect(moveCode(codes, 'A', 'A')).toBe(codes)
+  })
 })
 
-test('moveCode: mueve el código arrastrado a la posición del destino', () => {
-  assert.deepEqual(moveCode(['A', 'B', 'C'], 'C', 'A'), ['C', 'A', 'B'])
-  assert.deepEqual(moveCode(['A', 'B', 'C'], 'A', 'C'), ['B', 'C', 'A'])
-})
+describe('persistencia de preferencias', () => {
+  it('project order: persiste y recupera; JSON roto devuelve lista vacía', () => {
+    persistProjectOrder(['B', 'A'])
+    expect(loadProjectOrder()).toEqual(['B', 'A'])
 
-test('moveCode: devuelve la lista intacta si algún código no existe', () => {
-  const codes = ['A', 'B']
-  assert.equal(moveCode(codes, 'X', 'A'), codes)
-  assert.equal(moveCode(codes, 'A', 'A'), codes)
-})
+    store.set('jp-control-project-order-v1', 'no-es-json{')
+    expect(loadProjectOrder()).toEqual([])
+  })
 
-test('project order: persiste y recupera; JSON roto devuelve lista vacía', () => {
-  persistProjectOrder(['B', 'A'])
-  assert.deepEqual(loadProjectOrder(), ['B', 'A'])
+  it('mi departamento: persiste, recupera y se borra con null', () => {
+    persistMiDepartamento('Desarrollo de software')
+    expect(loadMiDepartamento()).toBe('Desarrollo de software')
 
-  store.set('jp-control-project-order-v1', 'no-es-json{')
-  assert.deepEqual(loadProjectOrder(), [])
-})
-
-test('mi departamento: persiste, recupera y se borra con null', () => {
-  persistMiDepartamento('Desarrollo de software')
-  assert.equal(loadMiDepartamento(), 'Desarrollo de software')
-
-  persistMiDepartamento(null)
-  assert.equal(loadMiDepartamento(), null)
+    persistMiDepartamento(null)
+    expect(loadMiDepartamento()).toBeNull()
+  })
 })
