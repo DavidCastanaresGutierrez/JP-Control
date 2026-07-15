@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Project } from '../types'
-import { EmojiIcon, emoji } from '../lib/emoji'
+import { emoji } from '../lib/emoji'
+import { EmojiIcon } from '../lib/EmojiIcon'
 import { repairMojibake } from '../lib/format'
 import { ConcostImportModal } from './ConcostImportModal'
 

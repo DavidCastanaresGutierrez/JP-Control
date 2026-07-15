@@ -25,7 +25,8 @@ import {
   tareasContrato,
 } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtMes, fmtNum, fmtPct } from '../lib/format'
-import { EmojiIcon, emoji } from '../lib/emoji'
+import { emoji } from '../lib/emoji'
+import { EmojiIcon } from '../lib/EmojiIcon'
 
 // Paleta cualitativa para hasta 10 participantes, derivada del sistema de diseno
 const LINE_COLORS = [

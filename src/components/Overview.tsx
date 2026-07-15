@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
 import { fmtEur, fmtFecha, fmtPct } from '../lib/format'
-import { EmojiIcon, emoji } from '../lib/emoji'
+import { emoji } from '../lib/emoji'
+import { EmojiIcon } from '../lib/EmojiIcon'
 import { ConcostImportModal } from './ConcostImportModal'
 import { KpiCard } from './KpiCard'
 
@@ -78,14 +79,25 @@ export function Overview({
   const draggedCodeRef = useRef<string | null>(null)
   const dragMovedRef = useRef(false)
   const query = normalizarBusqueda(busqueda)
-  const visibleProjects = projects.filter((project) => proyectoCoincide(project, query))
+  // kpis() recorre todos los apuntes de cada proyecto; se memoiza para no
+  // recalcularlo en cada pulsacion del buscador o evento de arrastre.
+  const projectStats = useMemo(
+    () =>
+      projects.map((project) => {
+        const k = kpis(project)
+        return { project, k, alerta: enAlerta(k), dias: diasDesdeConcost(project) }
+      }),
+    [projects],
+  )
+  const visibleStats = projectStats.filter(({ project }) => proyectoCoincide(project, query))
+  const visibleProjects = visibleStats.map(({ project }) => project)
   const buscando = query.length > 0
 
-  const proyectosDesactualizados = visibleProjects
-    .map((project) => ({ project, dias: diasDesdeConcost(project) }))
-    .filter((item): item is { project: Project; dias: number } => item.dias !== null && item.dias > 30)
-  const diasConcost = visibleProjects
-    .map((p) => diasDesdeConcost(p))
+  const proyectosDesactualizados = visibleStats.filter(
+    (item): item is typeof item & { dias: number } => item.dias !== null && item.dias > 30,
+  )
+  const diasConcost = visibleStats
+    .map(({ dias }) => dias)
     .filter((dias): dias is number => dias !== null)
   const diasConcostMax = diasConcost.length > 0 ? Math.max(...diasConcost) : null
   const proyectosDesactualizadosTexto = proyectosDesactualizados
@@ -96,18 +108,16 @@ export function Overview({
     proyectosDesactualizados.length > 2
       ? `${proyectosDesactualizadosTexto} y ${proyectosDesactualizados.length - 2} mas`
       : proyectosDesactualizadosTexto
-  const totales = visibleProjects.reduce(
-    (acc, p) => {
-      const k = kpis(p)
-      const necesitaActualizacion = (diasDesdeConcost(p) ?? 0) > 30
+  const totales = visibleStats.reduce(
+    (acc, { k, alerta, dias }) => {
       acc.gasto += k.gasto
       acc.facturacion += k.facturacion
-      acc.alertas += enAlerta(k) || necesitaActualizacion ? 1 : 0
+      acc.alertas += alerta || (dias ?? 0) > 30 ? 1 : 0
       return acc
     },
     { gasto: 0, facturacion: 0, alertas: 0 },
   )
-  const hayAlertaFacturacion = visibleProjects.some((p) => enAlerta(kpis(p)))
+  const hayAlertaFacturacion = visibleStats.some(({ alerta }) => alerta)
 
   const endDrag = () => {
     draggedCodeRef.current = null
@@ -205,10 +215,7 @@ export function Overview({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleProjects.map((p) => {
-          const k = kpis(p)
-          const alerta = enAlerta(k)
-          const diasActualizacion = diasDesdeConcost(p)
+        {visibleStats.map(({ project: p, k, alerta, dias: diasActualizacion }) => {
           const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > 30
           const isDragging = draggingCode === p.code
           const isDropTarget = dragOverCode === p.code && draggingCode !== p.code

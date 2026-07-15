@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, DepartmentModule, Project } from './types'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import type { DB, DepartmentModule } from './types'
 import {
   deleteDepartamento,
   deleteProject,
@@ -21,20 +21,44 @@ import {
 } from './lib/api'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
 import type { AppUser, NivelContrato, Role } from './lib/adminApi'
-import { repairMojibake } from './lib/format'
+import { esJpDelUsuario, esSeguidoPorUsuario } from './lib/projectAccess'
+import {
+  loadMiDepartamento,
+  loadProjectOrder,
+  moveCode,
+  orderProjects,
+  persistMiDepartamento,
+  persistProjectOrder,
+} from './lib/prefs'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
-import { EmojiIcon, emoji } from './lib/emoji'
-import { parseExplotacion } from './lib/parseExplotacion'
-import { parseHoras } from './lib/parseHoras'
-import { parseHorasProduccion } from './lib/parseHorasProduccion'
+import { emoji } from './lib/emoji'
+import { EmojiIcon } from './lib/EmojiIcon'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
-import { ProjectDashboard } from './components/ProjectDashboard'
-import { AdminPanel } from './components/AdminPanel'
-import { DepartmentDashboard } from './components/DepartmentDashboard'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
+
+// Las vistas pesadas (arrastran recharts y la mayor parte del codigo de la app)
+// se cargan bajo demanda para reducir el bundle inicial. Overview se mantiene
+// estatica por ser la vista de aterrizaje.
+const ProjectDashboard = lazy(() =>
+  import('./components/ProjectDashboard').then((m) => ({ default: m.ProjectDashboard })),
+)
+const DepartmentDashboard = lazy(() =>
+  import('./components/DepartmentDashboard').then((m) => ({ default: m.DepartmentDashboard })),
+)
+const AdminPanel = lazy(() =>
+  import('./components/AdminPanel').then((m) => ({ default: m.AdminPanel })),
+)
+
+function VistaCargando() {
+  return (
+    <div className="flex h-full items-center justify-center p-8 text-sm font-medium text-ink-soft">
+      Cargando…
+    </div>
+  )
+}
 
 interface Toast {
   id: number
@@ -47,82 +71,6 @@ let toastId = 0
 type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
 type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
-
-const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
-const MI_DEPARTAMENTO_KEY = 'jp-control-mi-departamento-v1'
-
-function loadMiDepartamento(): string | null {
-  try {
-    return localStorage.getItem(MI_DEPARTAMENTO_KEY)
-  } catch {
-    return null
-  }
-}
-
-function normalizarTexto(value: string): string {
-  return repairMojibake(value)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-}
-
-function tokensNombre(value: string): string[] {
-  return normalizarTexto(value)
-    .replace(/[^a-z0-9]+/g, ' ')
-    .split(' ')
-    .filter((token) => token.length > 1)
-}
-
-/** Determina si el usuario logueado figura como JP del proyecto, cotejando nombre y email. */
-function esJpDelUsuario(project: Project, userName?: string, userEmail?: string): boolean {
-  if (!project.jp) return false
-  const jp = new Set(tokensNombre(project.jp))
-  if (jp.size === 0) return false
-
-  const usuario = new Set(tokensNombre(userName ?? ''))
-  let comunes = 0
-  for (const token of jp) if (usuario.has(token)) comunes++
-  if (jp.size === 1 ? comunes >= 1 : comunes >= 2) return true
-
-  // Red de seguridad: emails tipo "dcastanares" contienen el apellido del JP.
-  const emailLocal = normalizarTexto((userEmail ?? '').split('@')[0]).replace(/[^a-z0-9]+/g, '')
-  return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
-}
-
-/** El usuario ha marcado el proyecto para seguirlo sin ser su JP. */
-function esSeguidoPorUsuario(project: Project, userEmail?: string): boolean {
-  const email = (userEmail ?? '').trim().toLowerCase()
-  if (!email) return false
-  return (project.watchers ?? []).includes(email)
-}
-
-function loadProjectOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(PROJECT_ORDER_KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
-  } catch {
-    return []
-  }
-}
-
-function orderProjects(projects: DB['projects'], order: string[]) {
-  const listed = new Set(order)
-  const ordered = order.map((code) => projects[code]).filter(Boolean)
-  const remaining = Object.values(projects)
-    .filter((project) => !listed.has(project.code))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  return [...ordered, ...remaining]
-}
-
-function moveCode(codes: string[], draggedCode: string, targetCode: string) {
-  const from = codes.indexOf(draggedCode)
-  const to = codes.indexOf(targetCode)
-  if (from < 0 || to < 0 || from === to) return codes
-  const next = [...codes]
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
-}
 
 export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
@@ -226,11 +174,7 @@ export default function App() {
   }, [myRole, myDepartamento, miDepartamento])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
-    } catch {
-      // sin espacio en localStorage: el orden de proyectos no es critico, se ignora
-    }
+    persistProjectOrder(projectOrder)
   }, [projectOrder])
 
   useEffect(() => {
@@ -285,12 +229,7 @@ export default function App() {
   }, [db, syncEstado])
 
   useEffect(() => {
-    try {
-      if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
-      else localStorage.removeItem(MI_DEPARTAMENTO_KEY)
-    } catch {
-      // sin espacio en localStorage: no es critico, se ignora
-    }
+    persistMiDepartamento(miDepartamento)
   }, [miDepartamento])
 
   const toast = (kind: Toast['kind'], text: string) => {
@@ -300,6 +239,9 @@ export default function App() {
   }
 
   const handleExplotacionFiles = async (files: File[]) => {
+    // Los parsers de Excel (y con ellos xlsx) se cargan bajo demanda para no
+    // engordar el bundle inicial: solo se descargan al importar un fichero.
+    const { parseExplotacion } = await import('./lib/parseExplotacion')
     let next = db
     let lastCode: string | null = null
     for (const f of files) {
@@ -325,6 +267,10 @@ export default function App() {
   const handleConcostFiles = async (files: File[]) => {
     if (!selected) return
 
+    const [{ parseExplotacion }, { parseHoras }] = await Promise.all([
+      import('./lib/parseExplotacion'),
+      import('./lib/parseHoras'),
+    ])
     let next = db
     for (const f of files) {
       const name = f.name.toLowerCase()
@@ -364,6 +310,7 @@ export default function App() {
   }
 
   const handleOverviewHoursFiles = async (files: File[]) => {
+    const { parseHoras } = await import('./lib/parseHoras')
     let next = db
     for (const f of files) {
       try {
@@ -444,6 +391,7 @@ export default function App() {
   const handleImportHorasProduccion = async (file: File) => {
     if (!miDepartamento) return
     try {
+      const { parseHorasProduccion } = await import('./lib/parseHorasProduccion')
       const parsed = parseHorasProduccion(await file.arrayBuffer())
       setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
       toast(
@@ -611,6 +559,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
+          <Suspense fallback={<VistaCargando />}>
           {adminView ? (
             <AdminPanel
               meEmail={authSession?.email ?? ''}
@@ -662,6 +611,7 @@ export default function App() {
               onToggleWatch={handleToggleWatch}
             />
           )}
+          </Suspense>
         </main>
       </div>
 
