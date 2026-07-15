@@ -35,7 +35,8 @@ import {
   ultimoMesConDatos,
 } from '../lib/departmentMetrics'
 import { fmtFecha, fmtMes, fmtNum, fmtPct } from '../lib/format'
-import { EmojiIcon, emoji } from '../lib/emoji'
+import { emoji } from '../lib/emoji'
+import { EmojiIcon } from '../lib/EmojiIcon'
 import { KpiCard } from './KpiCard'
 import { UploadZone } from './UploadZone'
 

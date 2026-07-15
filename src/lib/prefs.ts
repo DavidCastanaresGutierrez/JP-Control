@@ -1,4 +1,4 @@
-import type { DB } from '../types'
+import type { DB } from '../types.ts'
 
 const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
 const MI_DEPARTAMENTO_KEY = 'jp-control-mi-departamento-v1'

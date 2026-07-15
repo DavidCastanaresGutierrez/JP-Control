@@ -1,5 +1,5 @@
-import type { Project } from '../types'
-import { repairMojibake } from './format'
+import type { Project } from '../types.ts'
+import { repairMojibake } from './format.ts'
 
 function normalizarTexto(value: string): string {
   return repairMojibake(value)

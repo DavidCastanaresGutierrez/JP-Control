@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react'
-
 export const emoji = {
   admin: String.fromCodePoint(0x1f465),
   alert: String.fromCodePoint(0x26a0, 0xfe0f),
@@ -16,11 +14,3 @@ export const emoji = {
   starOutline: String.fromCodePoint(0x2606),
   trend: String.fromCodePoint(0x1f4c9),
 } as const
-
-export function EmojiIcon({ children }: { children: ReactNode }) {
-  return (
-    <span aria-hidden="true" className="inline-block leading-none">
-      {children}
-    </span>
-  )
-}
