@@ -1,9 +1,10 @@
 import * as XLSX from 'xlsx'
 import type { HoraProduccion } from '../types.ts'
 import { serialToISO } from './format.ts'
+import type { Row } from './parseUtils.ts'
 
-type Cell = string | number | null
-type Row = Cell[]
+
+
 
 export interface ParsedHorasProduccion {
   horas: HoraProduccion[]

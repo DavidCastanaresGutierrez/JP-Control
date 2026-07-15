@@ -1,12 +1,5 @@
 import type { Project } from '../types.ts'
-import { repairMojibake } from './format.ts'
-
-function normalizarTexto(value: string): string {
-  return repairMojibake(value)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-}
+import { normalizarTexto } from './format.ts'
 
 function tokensNombre(value: string): string[] {
   return normalizarTexto(value)

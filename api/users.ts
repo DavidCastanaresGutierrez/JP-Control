@@ -1,42 +1,20 @@
-import { neon } from '@neondatabase/serverless'
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireProjectAuth } from './_sso.js'
-import {
-  ROLES,
-  ensureUsersTable,
-  getUserInfo,
-  isBootstrapAdmin,
-  listUsers,
-  registerLogin,
-  setUserRole,
-  type NivelContrato,
-  type Role,
-} from './_roles.js'
+import { withDb } from './_db.js'
+import { ROLES, isBootstrapAdmin, listUsers, setUserRole } from './_roles.js'
+import type { NivelContrato, Role } from './_roles.js'
 
 function esEmailTypsaValido(email: string): boolean {
   return /^[^\s@]+@(typsa\.es|typsa\.com)$/i.test(email)
 }
 
-const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
 const NIVELES_CONTRATO: NivelContrato[] = ['lectura', 'edicion']
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!DB_URL) {
-    return res.status(503).json({ error: 'Base de datos no configurada: falta DATABASE_URL en Vercel.' })
-  }
-
-  const auth = await requireProjectAuth(req, res)
-  if (!auth) return
-  const email = String(auth.email ?? '').trim().toLowerCase()
-  if (!email) {
-    return res.status(403).json({ error: 'La gestion de usuarios requiere sesion SSO.' })
-  }
-
-  const sql = neon(DB_URL)
-  try {
-    await ensureUsersTable(sql)
-    await registerLogin(sql, email, String(auth.name ?? email))
-    const me = await getUserInfo(sql, email)
+export default withDb(
+  {
+    requireEmailError: 'La gestion de usuarios requiere sesion SSO.',
+    registerLogin: true,
+  },
+  async ({ req, res, sql, email, me }) => {
+    if (!me) return res.status(403).json({ error: 'La gestion de usuarios requiere sesion SSO.' })
 
     if (req.method === 'GET') {
       if (me.role !== 'administracion') {
@@ -101,7 +79,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Allow', 'GET, PUT')
     return res.status(405).json({ error: 'Metodo no permitido.' })
-  } catch (err) {
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Error de base de datos.' })
-  }
-}
+  },
+)

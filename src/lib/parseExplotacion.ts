@@ -1,9 +1,10 @@
 import * as XLSX from 'xlsx'
 import type { Entry, ParsedExplotacion } from '../types.ts'
 import { parseFechaES, serialToISO } from './format.ts'
+import type { Row } from './parseUtils.ts'
 
-type Cell = string | number | null
-type Row = Cell[]
+
+
 
 /**
  * Parsea la hoja "Detalle de Explotación" exportada del ERP.

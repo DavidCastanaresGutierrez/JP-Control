@@ -13,7 +13,8 @@ import {
 import type { DepartmentModule } from '../../types'
 import { evolucionFacturabilidadPersona, personasActivas } from '../../lib/departmentMetrics'
 import { fmtMes, fmtNum } from '../../lib/format'
-import { CHART_AXIS, CHART_GRID, TOOLTIP_STYLE, normalizarBusqueda } from './theme'
+import { CHART_AXIS, CHART_GRID, TOOLTIP_STYLE } from './theme'
+import { normalizarTexto } from '../../lib/format'
 import { ToggleMesHistorico } from './ToggleMesHistorico'
 
 export function PersonaTab({
@@ -36,11 +37,11 @@ export function PersonaTab({
   onPersonaSel: (persona: string) => void
 }) {
   const equipoActivo = useMemo(() => personasActivas(modulo), [modulo])
-  const queryPersona = normalizarBusqueda(buscadorPersona)
+  const queryPersona = normalizarTexto(buscadorPersona)
   const equipoFiltrado = useMemo(
     () =>
       queryPersona
-        ? equipoActivo.filter((p) => normalizarBusqueda(p).includes(queryPersona))
+        ? equipoActivo.filter((p) => normalizarTexto(p).includes(queryPersona))
         : equipoActivo,
     [equipoActivo, queryPersona],
   )

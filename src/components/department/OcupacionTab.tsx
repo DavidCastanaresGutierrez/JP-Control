@@ -11,7 +11,7 @@ import {
 import type { DepartmentModule } from '../../types'
 import { comparativaOcupacion, tablaOcupacion } from '../../lib/departmentMetrics'
 import { fmtMes, fmtNum, fmtPct } from '../../lib/format'
-import { CHART_AXIS, CHART_GRID, ESTADO_COLOR, ESTADO_LABEL, PIE_COLORS, TOOLTIP_STYLE } from './theme'
+import { CHART_AXIS, CHART_GRID, ESTADO_COLOR, ESTADO_LABEL, CHART_COLORS, TOOLTIP_STYLE } from './theme'
 import { SelectorMes } from './SelectorMes'
 import { ToggleMesHistorico } from './ToggleMesHistorico'
 
@@ -76,7 +76,7 @@ export function OcupacionTab({
   }, [personasComparativa, ocupacion, comparativa])
   const colorPersonaComparativa = (persona: string) => {
     const idx = comparativa.filas.findIndex((f) => f.persona === persona)
-    return PIE_COLORS[(idx < 0 ? 0 : idx) % PIE_COLORS.length]
+    return CHART_COLORS[(idx < 0 ? 0 : idx) % CHART_COLORS.length]
   }
   const toggleComparativa = (persona: string) => {
     onPersonasComparativa((prev) => {

@@ -1,38 +1,19 @@
-import { neon } from '@neondatabase/serverless'
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireProjectAuth } from './_sso.js'
-import { ensureUsersTable, getUserInfo, puedeAccederDepartamentoConcreto } from './_roles.js'
+import { withDb } from './_db.js'
+import type { Sql } from './_db.js'
+import { puedeAccederDepartamentoConcreto } from './_roles.js'
 
-const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
-
-let initPromise: Promise<unknown> | null = null
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!DB_URL) {
-    return res.status(503).json({ error: 'Base de datos no configurada: falta DATABASE_URL en Vercel.' })
-  }
-
-  const auth = await requireProjectAuth(req, res)
-  if (!auth) return
-
-  const sql = neon(DB_URL)
-  try {
-    initPromise ??= sql`
+export default withDb(
+  {
+    init: (sql: Sql) => sql`
       CREATE TABLE IF NOT EXISTS jp_departments (
         nombre text PRIMARY KEY,
         data jsonb NOT NULL,
         updated_at timestamptz NOT NULL DEFAULT now()
-      )`
-    await initPromise
-
-    const email = String(auth.email ?? '').trim().toLowerCase()
-    let me: Awaited<ReturnType<typeof getUserInfo>> | null = null
-    if (email) {
-      await ensureUsersTable(sql)
-      me = await getUserInfo(sql, email)
-      if (me.role !== 'administracion' && me.role !== 'director_departamento') {
-        return res.status(403).json({ error: 'No tienes acceso al modulo de Control por Departamento.' })
-      }
+      )`,
+  },
+  async ({ req, res, sql, me }) => {
+    if (me && me.role !== 'administracion' && me.role !== 'director_departamento') {
+      return res.status(403).json({ error: 'No tienes acceso al modulo de Control por Departamento.' })
     }
 
     if (req.method === 'GET') {
@@ -74,8 +55,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Allow', 'GET, PUT, DELETE')
     return res.status(405).json({ error: 'Metodo no permitido.' })
-  } catch (err) {
-    initPromise = null
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Error de base de datos.' })
-  }
-}
+  },
+)

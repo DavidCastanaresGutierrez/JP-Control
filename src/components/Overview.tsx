@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { Project } from '../types'
 import { enAlerta, kpis } from '../lib/metrics'
-import { fmtEur, fmtFecha, fmtPct } from '../lib/format'
+import { fmtEur, fmtFecha, fmtPct, normalizarTexto } from '../lib/format'
 import { emoji } from '../lib/emoji'
 import { EmojiIcon } from '../lib/EmojiIcon'
 import { ConcostImportModal } from './ConcostImportModal'
@@ -39,18 +39,10 @@ function diasDesdeConcost(p: Project): number | null {
 const fmtDias = (dias: number) => `${dias} ${dias === 1 ? 'dia' : 'dias'}`
 const fmtFechaImportacion = (iso: string) => fmtFecha(iso.slice(0, 10))
 
-function normalizarBusqueda(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-}
-
 function proyectoCoincide(project: Project, query: string) {
   if (!query) return true
   const campos = [project.name, project.code, project.director ?? '', project.jp ?? '']
-  return campos.some((campo) => normalizarBusqueda(campo).includes(query))
+  return campos.some((campo) => normalizarTexto(campo).includes(query))
 }
 
 export function Overview({
@@ -78,7 +70,7 @@ export function Overview({
   const [dragOverCode, setDragOverCode] = useState<string | null>(null)
   const draggedCodeRef = useRef<string | null>(null)
   const dragMovedRef = useRef(false)
-  const query = normalizarBusqueda(busqueda)
+  const query = normalizarTexto(busqueda)
   // kpis() recorre todos los apuntes de cada proyecto; se memoiza para no
   // recalcularlo en cada pulsacion del buscador o evento de arrastre.
   const projectStats = useMemo(

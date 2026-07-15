@@ -1,37 +1,16 @@
-import { neon } from '@neondatabase/serverless'
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireProjectAuth } from './_sso.js'
-import { ensureUsersTable, getUserInfo } from './_roles.js'
+import { withDb } from './_db.js'
+import type { Sql } from './_db.js'
 
-const DB_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? ''
-
-let initPromise: Promise<unknown> | null = null
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!DB_URL) {
-    return res.status(503).json({ error: 'Base de datos no configurada: falta DATABASE_URL en Vercel.' })
-  }
-
-  const auth = await requireProjectAuth(req, res)
-  if (!auth) return
-
-  const sql = neon(DB_URL)
-  try {
-    initPromise ??= sql`
+export default withDb(
+  {
+    init: (sql: Sql) => sql`
       CREATE TABLE IF NOT EXISTS jp_projects (
         code text PRIMARY KEY,
         data jsonb NOT NULL,
         updated_at timestamptz NOT NULL DEFAULT now()
-      )`
-    await initPromise
-
-    const email = String(auth.email ?? '').trim().toLowerCase()
-    let me: Awaited<ReturnType<typeof getUserInfo>> | null = null
-    if (email) {
-      await ensureUsersTable(sql)
-      me = await getUserInfo(sql, email)
-    }
-
+      )`,
+  },
+  async ({ req, res, sql, me }) => {
     if (req.method === 'GET') {
       const rows = await sql`SELECT code, data FROM jp_projects`
       const projects: Record<string, unknown> = {}
@@ -87,8 +66,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Allow', 'GET, PUT, DELETE')
     return res.status(405).json({ error: 'Metodo no permitido.' })
-  } catch (err) {
-    initPromise = null
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Error de base de datos.' })
-  }
-}
+  },
+)

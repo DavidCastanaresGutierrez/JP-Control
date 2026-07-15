@@ -3,7 +3,8 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import type { DepartmentModule } from '../../types'
 import { TIPO_ACTIVIDAD_LABEL, dedicacionPorPersona, esActividadFacturable } from '../../lib/departmentMetrics'
 import { fmtNum, fmtPct } from '../../lib/format'
-import { CHART_AXIS, CHART_GRID, TOOLTIP_STYLE, normalizarBusqueda, truncarEtiqueta } from './theme'
+import { CHART_AXIS, CHART_GRID, TOOLTIP_STYLE, truncarEtiqueta } from './theme'
+import { normalizarTexto } from '../../lib/format'
 import { EtiquetaProyectoEje } from './EtiquetaProyectoEje'
 
 export function DedicacionTab({
@@ -24,11 +25,11 @@ export function DedicacionTab({
   onProyectoFiltroDedicacion: (update: (prev: string | null) => string | null) => void
 }) {
   const dedicacion = useMemo(() => dedicacionPorPersona(modulo), [modulo])
-  const queryDedicacion = normalizarBusqueda(buscadorDedicacion)
+  const queryDedicacion = normalizarTexto(buscadorDedicacion)
   const dedicacionFiltrada = useMemo(
     () =>
       dedicacion
-        .filter((d) => (queryDedicacion ? normalizarBusqueda(d.persona).includes(queryDedicacion) : true))
+        .filter((d) => (queryDedicacion ? normalizarTexto(d.persona).includes(queryDedicacion) : true))
         .filter((d) =>
           proyectoFiltroDedicacion ? d.reparto.some((r) => r.proyecto === proyectoFiltroDedicacion) : true,
         ),

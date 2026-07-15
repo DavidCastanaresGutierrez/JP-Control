@@ -3,9 +3,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Entry } from '../types'
 import { fmtEur2, fmtFecha, fmtPct } from '../lib/format'
-
-const PIE_COLORS = ['#7CE7C8', '#143A45', '#3A8DFF', '#F2B84B', '#E05A47', '#1B4A55', '#5C6F75']
-const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }
+import { CHART_COLORS, TOOLTIP_STYLE } from '../lib/chartTheme'
 
 type SortState = { key: 'fecha' | 'cuenta'; dir: 'asc' | 'desc' }
 
@@ -144,7 +142,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                       {chartData.map((d, i) => (
                         <Cell
                           key={d.cuenta}
-                          fill={PIE_COLORS[i % PIE_COLORS.length]}
+                          fill={CHART_COLORS[i % CHART_COLORS.length]}
                           stroke={selectedCuenta === d.cuenta ? '#143A45' : 'transparent'}
                           strokeWidth={selectedCuenta === d.cuenta ? 2 : 0}
                         />
@@ -178,7 +176,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                       >
                         <span
                           className="w-3 h-3 rounded-sm shrink-0"
-                          style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                          style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
                         />
                         <span className="flex-1 min-w-0">
                           <span className="block truncate text-sm font-medium text-ink">

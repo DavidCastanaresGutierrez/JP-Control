@@ -23,10 +23,7 @@ import { EntriesTable } from './EntriesTable'
 import { HoursView } from './HoursView'
 import { Ajustes } from './Ajustes'
 
-// Paleta de graficos derivada del sistema de diseno (mint + petroleo + estados)
-const PIE_COLORS = ['#7CE7C8', '#143A45', '#3A8DFF', '#F2B84B', '#E05A47', '#1B4A55', '#5C6F75']
-const CHART_GRID = '#E2ECE9'
-const CHART_AXIS = { fontSize: 12, fill: '#8A9A9E' }
+import { CHART_AXIS, CHART_COLORS, CHART_GRID } from '../lib/chartTheme'
 
 type Tab = 'panel' | 'horas' | 'movimientos' | 'ajustes'
 
@@ -345,7 +342,7 @@ export function ProjectDashboard({
                         {gastoPorDept.map((_, i) => (
                           <Cell
                             key={i}
-                            fill={PIE_COLORS[i % PIE_COLORS.length]}
+                            fill={CHART_COLORS[i % CHART_COLORS.length]}
                             style={{ cursor: 'pointer' }}
                           />
                         ))}
@@ -369,7 +366,7 @@ export function ProjectDashboard({
                         >
                           <span
                             className="w-3 h-3 rounded-sm shrink-0"
-                            style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                            style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
                           />
                           <span className="flex-1 truncate text-ink-soft">{d.name}</span>
                           <span className="text-ink-muted text-xs tabular-nums">

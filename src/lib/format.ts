@@ -47,6 +47,18 @@ export function repairMojibake(value?: string): string {
   }
 }
 
+/**
+ * Normaliza texto para busquedas y comparaciones: repara mojibake, pasa a
+ * minusculas y quita acentos/diacriticos. Unica definicion para toda la app.
+ */
+export function normalizarTexto(value: string): string {
+  return repairMojibake(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+}
+
 /** Serial de fecha Excel (sistema 1900) a ISO yyyy-mm-dd */
 export function serialToISO(n: number): string {
   return new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString().slice(0, 10)

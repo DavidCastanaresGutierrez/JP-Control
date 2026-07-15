@@ -1,9 +1,8 @@
 import * as XLSX from 'xlsx'
 import type { HoursRecord } from '../types.ts'
 import { serialToISO } from './format.ts'
-
-type Cell = string | number | null
-type Row = Cell[]
+import { extraerCodigoProyecto } from './parseUtils.ts'
+import type { Cell, Row } from './parseUtils.ts'
 
 const SEP = '\u001f'
 
@@ -79,6 +78,39 @@ const addAcc = (acc: Acc, persona: string, mes: string, horas: number, tarea?: s
   acc.set(key, (acc.get(key) ?? 0) + horas)
 }
 
+/**
+ * Cierre comun de los dos formatos del ERP: convierte los acumuladores en
+ * registros con coste y comprueba que las horas y el coste leidos cuadran con
+ * los totales que declara el propio fichero.
+ */
+function construirResultado(
+  acc: Acc,
+  costeAcc: Acc,
+  totalFichero: number | undefined,
+  totalCosteFichero: number | undefined,
+  code: string | undefined,
+  areaPorPersona: Record<string, string>,
+): ParsedHoras {
+  const warnings: string[] = []
+  const records = accToRecords(acc).map((rec) => ({
+    ...rec,
+    coste: Math.round((costeAcc.get(keyOf(rec.persona, rec.mes, rec.tarea)) ?? 0) * 100) / 100,
+  }))
+  const suma = records.reduce((s, r) => s + r.horas, 0)
+  if (totalFichero !== undefined && Math.abs(suma - totalFichero) > 0.01) {
+    warnings.push(
+      `Las horas leidas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
+    )
+  }
+  const sumaCoste = records.reduce((s, r) => s + (r.coste ?? 0), 0)
+  if (totalCosteFichero !== undefined && Math.abs(sumaCoste - totalCosteFichero) > 0.5) {
+    warnings.push(
+      `El coste leido (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
+    )
+  }
+  return { records, code, areaPorPersona, warnings }
+}
+
 const accToRecords = (acc: Acc): HoursRecord[] =>
   [...acc.entries()]
     .map(([key, horas]) => {
@@ -109,21 +141,12 @@ function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
   )
   if (headerIdx < 0) return null
 
-  const warnings: string[] = []
-  let code: string | undefined
+  const code = extraerCodigoProyecto(rows)
   let totalFichero: number | undefined
   let totalCosteFichero: number | undefined
   const acc: Acc = new Map()
   const costeAcc: Acc = new Map()
   const areaPorPersona: Record<string, string> = {}
-
-  for (const r of rows) {
-    const c0 = r?.[0]
-    if (typeof c0 === 'string' && c0.startsWith('Proyecto:')) {
-      const m = c0.match(/Proyecto:\s*(\S+)/)
-      if (m) code = m[1]
-    }
-  }
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const r = rows[i] ?? []
@@ -149,23 +172,7 @@ function parseDetalleEmpleado(rows: Row[]): ParsedHoras | null {
 
   if (acc.size === 0) return null
 
-  const records = accToRecords(acc).map((rec) => ({
-    ...rec,
-    coste: Math.round((costeAcc.get(keyOf(rec.persona, rec.mes, rec.tarea)) ?? 0) * 100) / 100,
-  }))
-  const suma = records.reduce((s, r) => s + r.horas, 0)
-  if (totalFichero !== undefined && Math.abs(suma - totalFichero) > 0.01) {
-    warnings.push(
-      `Las horas leidas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
-    )
-  }
-  const sumaCoste = records.reduce((s, r) => s + (r.coste ?? 0), 0)
-  if (totalCosteFichero !== undefined && Math.abs(sumaCoste - totalCosteFichero) > 0.5) {
-    warnings.push(
-      `El coste leido (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
-    )
-  }
-  return { records, code, areaPorPersona, warnings }
+  return construirResultado(acc, costeAcc, totalFichero, totalCosteFichero, code, areaPorPersona)
 }
 
 /**
@@ -187,8 +194,7 @@ function parseDetalleTareas(rows: Row[]): ParsedHoras | null {
   })
   if (headerIdx < 0) return null
 
-  const warnings: string[] = []
-  let code: string | undefined
+  const code = extraerCodigoProyecto(rows)
   let totalFichero: number | undefined
   let totalCosteFichero: number | undefined
   const acc: Acc = new Map()
@@ -197,14 +203,6 @@ function parseDetalleTareas(rows: Row[]): ParsedHoras | null {
   let currentArea = ''
   let currentPersona = ''
   let currentTask = ''
-
-  for (const r of rows) {
-    const c0 = r?.[0]
-    if (typeof c0 === 'string' && c0.startsWith('Proyecto:')) {
-      const m = c0.match(/Proyecto:\s*(\S+)/)
-      if (m) code = m[1]
-    }
-  }
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const r = rows[i] ?? []
@@ -262,23 +260,7 @@ function parseDetalleTareas(rows: Row[]): ParsedHoras | null {
 
   if (acc.size === 0) return null
 
-  const records = accToRecords(acc).map((rec) => ({
-    ...rec,
-    coste: Math.round((costeAcc.get(keyOf(rec.persona, rec.mes, rec.tarea)) ?? 0) * 100) / 100,
-  }))
-  const suma = records.reduce((s, r) => s + r.horas, 0)
-  if (totalFichero !== undefined && Math.abs(suma - totalFichero) > 0.01) {
-    warnings.push(
-      `Las horas leidas (${suma.toFixed(1)}) no cuadran con el total del fichero (${totalFichero.toFixed(1)}).`,
-    )
-  }
-  const sumaCoste = records.reduce((s, r) => s + (r.coste ?? 0), 0)
-  if (totalCosteFichero !== undefined && Math.abs(sumaCoste - totalCosteFichero) > 0.5) {
-    warnings.push(
-      `El coste leido (${sumaCoste.toFixed(0)} €) no cuadra con el total del fichero (${totalCosteFichero.toFixed(0)} €).`,
-    )
-  }
-  return { records, code, areaPorPersona, warnings }
+  return construirResultado(acc, costeAcc, totalFichero, totalCosteFichero, code, areaPorPersona)
 }
 
 /** Formato generico largo: columnas [persona, mes/fecha, horas] */

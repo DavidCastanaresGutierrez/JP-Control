@@ -3,7 +3,8 @@ import type { RefObject } from 'react'
 import type { Project } from '../types'
 import { controlDepartamentos, horasJornadaMes, matrizHoras, tareasContrato } from '../lib/metrics'
 import { fmtMes } from '../lib/format'
-import { LINE_COLORS, normalizarTexto } from './hours/theme'
+import { CHART_COLORS } from './hours/theme'
+import { normalizarTexto } from '../lib/format'
 import { ForecastCard } from './hours/ForecastCard'
 import { CosteMensualCard } from './hours/CosteMensualCard'
 import { ParticipantesCard } from './hours/ParticipantesCard'
@@ -39,7 +40,7 @@ export function HoursView({
   // Color estable por persona (segun su orden en la tabla, ordenada por total)
   const colorFor = (persona: string) => {
     const idx = matriz.filas.findIndex((f) => f.persona === persona)
-    return LINE_COLORS[(idx < 0 ? 0 : idx) % LINE_COLORS.length]
+    return CHART_COLORS[(idx < 0 ? 0 : idx) % CHART_COLORS.length]
   }
 
   // Seleccion para la grafica: por defecto, quien tenga anomalias (o el que mas

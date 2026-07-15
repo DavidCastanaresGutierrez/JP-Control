@@ -11,7 +11,7 @@ import { fmtNum, fmtPct } from '../../lib/format'
 import { emoji } from '../../lib/emoji'
 import { EmojiIcon } from '../../lib/EmojiIcon'
 import { KpiCard } from '../KpiCard'
-import { PIE_COLORS, TIPO_ACTIVIDAD_COLOR, TOOLTIP_STYLE } from './theme'
+import { CHART_COLORS, TIPO_ACTIVIDAD_COLOR, TOOLTIP_STYLE } from './theme'
 import { SelectorMes } from './SelectorMes'
 
 export function PanelTab({
@@ -177,7 +177,7 @@ export function PanelTab({
                     paddingAngle={2}
                   >
                     {distProyecto.slice(0, 8).map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v) => `${fmtNum(Number(v))} h`} contentStyle={TOOLTIP_STYLE} />
@@ -188,7 +188,7 @@ export function PanelTab({
                   <div key={d.clave} className="flex items-center gap-2 text-sm">
                     <span
                       className="w-3 h-3 rounded-sm shrink-0"
-                      style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                      style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
                     />
                     <span className="flex-1 min-w-0 truncate text-ink-soft" title={d.clave}>
                       {d.clave}

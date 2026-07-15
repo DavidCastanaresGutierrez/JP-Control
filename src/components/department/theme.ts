@@ -1,9 +1,7 @@
 import type { TipoActividad } from '../../types'
 
-export const CHART_GRID = '#E2ECE9'
-export const CHART_AXIS = { fontSize: 12, fill: '#8A9A9E' }
-export const TOOLTIP_STYLE = { borderRadius: 12, border: '1px solid #DDE7E4', fontSize: 12 }
-export const PIE_COLORS = ['#7CE7C8', '#143A45', '#3A8DFF', '#F2B84B', '#E05A47', '#1B4A55', '#5C6F75', '#9AF2D6']
+// Tema base de graficos compartido por toda la app
+export { CHART_AXIS, CHART_COLORS, CHART_GRID, TOOLTIP_STYLE } from '../../lib/chartTheme'
 
 /**
  * Color fijo por tipo de actividad, para que cada categoría conserve su color
@@ -31,14 +29,6 @@ export const ESTADO_LABEL: Record<string, string> = {
   baja: 'Baja ocupación',
   sobre: 'Sobreocupación',
   'sin-datos': 'Sin datos',
-}
-
-export function normalizarBusqueda(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
 }
 
 export function truncarEtiqueta(value: string, max = 26): string {

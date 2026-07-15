@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AppUser, NivelContrato, Role } from '../lib/adminApi'
 import type { Project } from '../types'
 import { DEPARTAMENTOS_REALES } from '../types'
-import { repairMojibake } from '../lib/format'
+import { normalizarTexto, repairMojibake } from '../lib/format'
 
 const ROLE_LABELS: Record<Role, string> = {
   lectura: 'Lectura',
@@ -31,14 +31,6 @@ function formatFecha(iso: string | null): string {
   }
 }
 
-function normalizarBusqueda(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-}
-
 /** Buscador con desplegable para elegir un contrato entre muchos, en vez de un select gigante. */
 function ContratoPicker({
   projects,
@@ -52,10 +44,10 @@ function ContratoPicker({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const seleccionado = projects.find((p) => p.code === value)
-  const q = normalizarBusqueda(query)
+  const q = normalizarTexto(query)
   const filtrados = q
     ? projects.filter(
-        (p) => normalizarBusqueda(p.code).includes(q) || normalizarBusqueda(p.name).includes(q),
+        (p) => normalizarTexto(p.code).includes(q) || normalizarTexto(p.name).includes(q),
       )
     : projects
 
@@ -118,11 +110,11 @@ export function AdminPanel({
   ) => void
 }) {
   const [busqueda, setBusqueda] = useState('')
-  const query = normalizarBusqueda(busqueda)
+  const query = normalizarTexto(busqueda)
   const usuariosFiltrados = users.filter((u) => {
     if (!query) return true
     return (
-      normalizarBusqueda(repairMojibake(u.name)).includes(query) || normalizarBusqueda(u.email).includes(query)
+      normalizarTexto(u.name).includes(query) || normalizarTexto(u.email).includes(query)
     )
   })
 
