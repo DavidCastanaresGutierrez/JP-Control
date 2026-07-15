@@ -2,6 +2,8 @@ import type { Entry, HoursRecord, Project } from '../types.ts'
 import { monthRange } from './format.ts'
 
 export const CUENTA_FACTURACION = '9990'
+/** Cuenta contable del coste de horas del personal propio de oficina */
+export const CUENTA_PERSONAL = '9101'
 
 /** Horas de jornada completa de un mes: días laborables (L-V) x 8 h */
 export function horasJornadaMes(mes: string): number {
@@ -113,7 +115,7 @@ export function gastoPorArea(entries: Entry[]): Array<{ area: string; total: num
     if (!esGasto(e)) continue
     // En el export del ERP el coste de personal (9101) no lleva área técnica;
     // lo etiquetamos como tal en vez de dejarlo en el cajón "Sin área".
-    const area = e.area ?? (e.cuentaCodigo === '9101' ? 'Horas de personal' : 'Sin área')
+    const area = e.area ?? (e.cuentaCodigo === CUENTA_PERSONAL ? 'Horas de personal' : 'Sin área')
     map.set(area, (map.get(area) ?? 0) + e.debe - e.haber)
   }
   return [...map.entries()]
@@ -417,7 +419,7 @@ export interface PartidaExterna {
 export function partidasExternas(entries: Entry[]): PartidaExterna[] {
   const map = new Map<string, PartidaExterna>()
   for (const e of entries) {
-    if (!esGasto(e) || e.cuentaCodigo === '9101') continue
+    if (!esGasto(e) || e.cuentaCodigo === CUENTA_PERSONAL) continue
     const concepto = e.concepto || e.cuenta
     const id = `${e.cuentaCodigo}|${concepto}`
     const cur =
@@ -500,7 +502,7 @@ export function controlDepartamentos(
 
   // Coste de personal total del proyecto según la explotación (cuenta 9101)
   const costePersonal9101 = project.entries.reduce(
-    (s, e) => (e.cuentaCodigo === '9101' ? s + e.debe - e.haber : s),
+    (s, e) => (e.cuentaCodigo === CUENTA_PERSONAL ? s + e.debe - e.haber : s),
     0,
   )
 
@@ -606,7 +608,7 @@ export function controlDepartamentos(
 export function costeHorasMensual(entries: Entry[]): Array<{ mes: string; coste: number }> {
   const map = new Map<string, number>()
   for (const e of entries) {
-    if (e.cuentaCodigo !== '9101') continue
+    if (e.cuentaCodigo !== CUENTA_PERSONAL) continue
     map.set(e.mes, (map.get(e.mes) ?? 0) + e.debe - e.haber)
   }
   return monthRange([...map.keys()]).map((mes) => ({

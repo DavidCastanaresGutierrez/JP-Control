@@ -20,6 +20,9 @@ function Barra({ pct, color }: { pct: number | null; color: string }) {
 
 const MS_DIA = 24 * 60 * 60 * 1000
 
+/** Dias sin reimportar de Concost a partir de los cuales un proyecto se marca como desactualizado */
+const DIAS_AVISO_CONCOST = 30
+
 function diasDesdeConcost(p: Project): number | null {
   if (!p.lastImport) return null
 
@@ -86,7 +89,7 @@ export function Overview({
   const buscando = query.length > 0
 
   const proyectosDesactualizados = visibleStats.filter(
-    (item): item is typeof item & { dias: number } => item.dias !== null && item.dias > 30,
+    (item): item is typeof item & { dias: number } => item.dias !== null && item.dias > DIAS_AVISO_CONCOST,
   )
   const diasConcost = visibleStats
     .map(({ dias }) => dias)
@@ -104,7 +107,7 @@ export function Overview({
     (acc, { k, alerta, dias }) => {
       acc.gasto += k.gasto
       acc.facturacion += k.facturacion
-      acc.alertas += alerta || (dias ?? 0) > 30 ? 1 : 0
+      acc.alertas += alerta || (dias ?? 0) > DIAS_AVISO_CONCOST ? 1 : 0
       return acc
     },
     { gasto: 0, facturacion: 0, alertas: 0 },
@@ -208,7 +211,7 @@ export function Overview({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visibleStats.map(({ project: p, k, alerta, dias: diasActualizacion }) => {
-          const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > 30
+          const necesitaActualizacion = diasActualizacion !== null && diasActualizacion > DIAS_AVISO_CONCOST
           const isDragging = draggingCode === p.code
           const isDropTarget = dragOverCode === p.code && draggingCode !== p.code
           const estaSeguido = Boolean(

@@ -7,6 +7,8 @@ import {
   loadDBAsync,
   mergeHours,
   persistDB,
+  sanearDepartamentos,
+  sanearProjects,
   setHorasProduccion,
   updateDepartamento,
   updateProject,
@@ -38,6 +40,7 @@ import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib
 import { emoji } from './lib/emoji'
 import { EmojiIcon } from './lib/EmojiIcon'
 import { parseExplotacionAsync, parseHorasAsync, parseHorasProduccionAsync } from './lib/parseInWorker'
+import type { ParsedHoras } from './lib/parseHoras'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { LoginCallback } from './components/LoginCallback'
@@ -128,17 +131,19 @@ export default function App() {
       setSyncEstado('local')
       return
     }
-    syncProyectos.current = crearMapaSync(remoto.projects, remoto.versions)
+    // El JSON remoto se sanea antes de entrar en la app: un proyecto corrupto
+    // o de un esquema antiguo no debe reventar las vistas ni el sync.
+    const projectsRemotos = sanearProjects(remoto.projects)
+    syncProyectos.current = crearMapaSync(projectsRemotos, remoto.versions)
     const remotoDept = await fetchRemoteDepartments()
+    const departamentosRemotos =
+      remotoDept.estado === 'ok' ? sanearDepartamentos(remotoDept.departamentos) : {}
     if (remotoDept.estado === 'ok') {
-      syncDepartamentos.current = crearMapaSync(remotoDept.departamentos, remotoDept.versions)
+      syncDepartamentos.current = crearMapaSync(departamentosRemotos, remotoDept.versions)
     }
     setDb((local) => ({
-      projects: { ...local.projects, ...remoto.projects },
-      departamentos: {
-        ...local.departamentos,
-        ...(remotoDept.estado === 'ok' ? remotoDept.departamentos : {}),
-      },
+      projects: { ...local.projects, ...projectsRemotos },
+      departamentos: { ...local.departamentos, ...departamentosRemotos },
     }))
     setSyncEstado('nube')
   }, [])
@@ -285,6 +290,16 @@ export default function App() {
     if (lastCode) setSelected(lastCode)
   }
 
+  /** Incorpora unas horas parseadas al proyecto `code` y emite el resumen/avisos. */
+  const aplicarHorasImportadas = (base: DB, code: string, f: File, parsed: ParsedHoras): DB => {
+    const next = mergeHours(base, code, parsed.records, parsed.areaPorPersona)
+    const personas = new Set(parsed.records.map((r) => r.persona)).size
+    const total = parsed.records.reduce((s, r) => s + r.horas, 0)
+    toast('ok', `${f.name}: ${total.toLocaleString('es-ES')} h de ${personas} participantes importadas.`)
+    parsed.warnings.forEach((w) => toast('warn', `${f.name}: ${w}`))
+    return next
+  }
+
   const handleConcostFiles = async (files: File[]) => {
     if (!selected) return
 
@@ -314,11 +329,7 @@ export default function App() {
           toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
           continue
         }
-        next = mergeHours(next, selected, parsed.records, parsed.areaPorPersona)
-        const personas = new Set(parsed.records.map((r) => r.persona)).size
-        const total = parsed.records.reduce((s, r) => s + r.horas, 0)
-        toast('ok', `${f.name}: ${total.toLocaleString('es-ES')} h de ${personas} participantes importadas.`)
-        parsed.warnings.forEach((w) => toast('warn', `${f.name}: ${w}`))
+        next = aplicarHorasImportadas(next, selected, f, parsed)
       } catch (err) {
         toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
       }
@@ -339,11 +350,7 @@ export default function App() {
           toast('error', `${f.name}: primero importa Explotacion para crear el proyecto ${parsed.code}.`)
           continue
         }
-        next = mergeHours(next, parsed.code, parsed.records, parsed.areaPorPersona)
-        const personas = new Set(parsed.records.map((r) => r.persona)).size
-        const total = parsed.records.reduce((s, r) => s + r.horas, 0)
-        toast('ok', `${f.name}: ${total.toLocaleString('es-ES')} h de ${personas} participantes importadas.`)
-        parsed.warnings.forEach((w) => toast('warn', `${f.name}: ${w}`))
+        next = aplicarHorasImportadas(next, parsed.code, f, parsed)
       } catch (err) {
         toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
       }

@@ -41,12 +41,49 @@ function loadDBLegacy(): DB {
   return { projects: {}, departamentos: {} }
 }
 
+/**
+ * Saneado de fronteras: los datos que llegan de IndexedDB, de la copia legacy
+ * de localStorage o de la API se castean sin validacion runtime; un esquema
+ * viejo o una fila corrupta reventaria lejos del origen (p.ej. en metrics).
+ * Se garantizan los campos minimos con defaults en vez de confiar en el cast.
+ */
+export function sanearProject(code: string, valor: unknown): Project {
+  const raw = (valor && typeof valor === 'object' ? valor : {}) as Partial<Project>
+  return migrateProjectDepartments({
+    ...raw,
+    code: typeof raw.code === 'string' && raw.code ? raw.code : code,
+    name: typeof raw.name === 'string' && raw.name ? raw.name : code,
+    entries: Array.isArray(raw.entries) ? raw.entries : [],
+    hours: Array.isArray(raw.hours) ? raw.hours : [],
+  })
+}
+
+export function sanearDepartamento(nombre: string, valor: unknown): DepartmentModule {
+  const raw = (valor && typeof valor === 'object' ? valor : {}) as Partial<DepartmentModule>
+  return {
+    ...raw,
+    departamento: typeof raw.departamento === 'string' && raw.departamento ? raw.departamento : nombre,
+    roster: raw.roster && typeof raw.roster === 'object' ? raw.roster : {},
+    horas: Array.isArray(raw.horas) ? raw.horas : [],
+  }
+}
+
+export function sanearProjects(projects: Record<string, unknown>): Record<string, Project> {
+  return Object.fromEntries(Object.entries(projects).map(([code, p]) => [code, sanearProject(code, p)]))
+}
+
+export function sanearDepartamentos(
+  departamentos: Record<string, unknown>,
+): Record<string, DepartmentModule> {
+  return Object.fromEntries(
+    Object.entries(departamentos).map(([nombre, m]) => [nombre, sanearDepartamento(nombre, m)]),
+  )
+}
+
 function aplicarMigraciones(db: DB): DB {
   return {
-    projects: Object.fromEntries(
-      Object.entries(db.projects).map(([code, project]) => [code, migrateProjectDepartments(project)]),
-    ),
-    departamentos: db.departamentos,
+    projects: sanearProjects(db.projects),
+    departamentos: sanearDepartamentos(db.departamentos),
   }
 }
 
