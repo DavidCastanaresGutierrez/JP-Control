@@ -4,6 +4,7 @@ import type { DepartmentModule, HoraProduccion } from '../types.ts'
 import {
   clasificarActividad,
   dashboardDepartamento,
+  distribucionPorTipoActividad,
   esActividadFacturable,
   tablaOcupacion,
 } from './departmentMetrics.ts'
@@ -53,6 +54,22 @@ test('tablaOcupacion: las horas de innovación y soporte cuentan como facturable
   assert.equal(fila.horasImputadas, 180)
   assert.equal(fila.horasFacturables, 160) // 100 cliente + 40 innovación + 20 soporte
   assert.ok(Math.abs((fila.facturablePct ?? 0) - (160 / 180) * 100) < 0.01)
+})
+
+test('distribucionPorTipoActividad: siempre devuelve los seis tipos en orden fijo, con 0 h si no hay horas', () => {
+  const m = modulo([
+    hora('DSES.DE3423ESP.TYES - ATLAS Plataforma', 60),
+    hora('DS.FO0001 - Formación técnica', 40),
+  ])
+  const dist = distribucionPorTipoActividad(m, '2026-06')
+  assert.deepEqual(
+    dist.map((d) => d.tipo),
+    ['facturable', 'innovacion', 'soporte', 'formacion', 'gestion', 'vacaciones'],
+  )
+  assert.equal(dist[0].horas, 60) // facturable
+  assert.equal(dist[3].horas, 40) // formacion
+  assert.equal(dist[5].horas, 0) // vacaciones sin horas: presente, a cero
+  assert.equal(dist[0].pct, 60)
 })
 
 test('dashboardDepartamento: el % de facturabilidad incluye innovación y soporte', () => {
