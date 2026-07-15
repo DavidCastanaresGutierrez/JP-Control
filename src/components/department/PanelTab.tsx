@@ -122,7 +122,7 @@ export function PanelTab({
 
       <div>
         <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
-          Reparto de horas no facturables
+          Detalle por tipo de actividad
         </div>
         <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
           <KpiCard label="Horas internas / gestión" value={`${fmtNum(dashboard.horasInternas)} h`} accent="slate" />
@@ -206,7 +206,8 @@ export function PanelTab({
         <div className="min-w-0 bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
           <h3 className="font-bold text-ink text-lg mb-1">Distribución por tipo de actividad</h3>
           <p className="text-xs text-ink-soft mb-3">
-            Facturable frente a innovación, soporte, formación y gestión interna.
+            Innovación y soporte también cuentan como facturables; formación, gestión interna y
+            vacaciones no.
           </p>
           {distTipo.length > 0 ? (
             <div className="space-y-4">
