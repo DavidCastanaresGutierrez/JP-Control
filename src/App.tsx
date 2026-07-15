@@ -34,6 +34,7 @@ import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { emoji } from './lib/emoji'
 import { EmojiIcon } from './lib/EmojiIcon'
+import { parseExplotacionAsync, parseHorasAsync, parseHorasProduccionAsync } from './lib/parseInWorker'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { LoginCallback } from './components/LoginCallback'
@@ -239,14 +240,11 @@ export default function App() {
   }
 
   const handleExplotacionFiles = async (files: File[]) => {
-    // Los parsers de Excel (y con ellos xlsx) se cargan bajo demanda para no
-    // engordar el bundle inicial: solo se descargan al importar un fichero.
-    const { parseExplotacion } = await import('./lib/parseExplotacion')
     let next = db
     let lastCode: string | null = null
     for (const f of files) {
       try {
-        const parsed = parseExplotacion(await f.arrayBuffer(), f.name)
+        const parsed = await parseExplotacionAsync(f)
         const res = upsertExplotacion(next, parsed)
         if (res.skipped) {
           toast('warn', `${f.name}: ya hay datos mas recientes de ${parsed.code}; no se ha importado.`)
@@ -267,16 +265,12 @@ export default function App() {
   const handleConcostFiles = async (files: File[]) => {
     if (!selected) return
 
-    const [{ parseExplotacion }, { parseHoras }] = await Promise.all([
-      import('./lib/parseExplotacion'),
-      import('./lib/parseHoras'),
-    ])
     let next = db
     for (const f of files) {
       const name = f.name.toLowerCase()
       try {
         if (name.includes('explotacion')) {
-          const parsed = parseExplotacion(await f.arrayBuffer(), f.name)
+          const parsed = await parseExplotacionAsync(f)
           if (parsed.code !== selected) {
             toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
             continue
@@ -292,7 +286,7 @@ export default function App() {
           continue
         }
 
-        const parsed = parseHoras(await f.arrayBuffer())
+        const parsed = await parseHorasAsync(f)
         if (parsed.code && parsed.code !== selected) {
           toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
           continue
@@ -310,11 +304,10 @@ export default function App() {
   }
 
   const handleOverviewHoursFiles = async (files: File[]) => {
-    const { parseHoras } = await import('./lib/parseHoras')
     let next = db
     for (const f of files) {
       try {
-        const parsed = parseHoras(await f.arrayBuffer())
+        const parsed = await parseHorasAsync(f)
         if (!parsed.code) {
           toast('error', `${f.name}: no se ha podido identificar el proyecto. Sube primero el fichero de Explotacion.`)
           continue
@@ -391,8 +384,7 @@ export default function App() {
   const handleImportHorasProduccion = async (file: File) => {
     if (!miDepartamento) return
     try {
-      const { parseHorasProduccion } = await import('./lib/parseHorasProduccion')
-      const parsed = parseHorasProduccion(await file.arrayBuffer())
+      const parsed = await parseHorasProduccionAsync(file)
       setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
       toast(
         'ok',

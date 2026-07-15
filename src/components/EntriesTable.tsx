@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Entry } from '../types'
 import { fmtEur2, fmtFecha, fmtPct } from '../lib/format'
 
@@ -70,6 +71,20 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
     if (!selectedCuenta) return
     if (!chartData.some((c) => c.cuenta === selectedCuenta)) setSelectedCuenta(null)
   }, [chartData, selectedCuenta])
+
+  // Virtualizacion: con miles de apuntes solo se montan en el DOM las filas
+  // visibles (mas un margen), en vez de la tabla entera.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 41,
+    overscan: 12,
+  })
+  const virtualRows = virtualizer.getVirtualItems()
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0
+  const paddingBottom =
+    virtualRows.length > 0 ? virtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0
 
   const totalDistribuido = chartData.reduce((s, c) => s + c.value, 0)
   const totalVisibleDebe = rows.reduce((s, e) => s + e.debe, 0)
@@ -204,7 +219,7 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
+      <div ref={scrollRef} className="overflow-x-auto max-h-[32rem] overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-surface-muted text-[11px] text-ink-muted uppercase tracking-wide">
             <tr>
@@ -242,11 +257,19 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => {
+            {paddingTop > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={7} style={{ height: paddingTop, padding: 0, border: 0 }} />
+              </tr>
+            )}
+            {virtualRows.map((vi) => {
+              const e = rows[vi.index]
               const active = selectedCuenta === e.cuenta
               return (
                 <tr
                   key={e.id}
+                  ref={virtualizer.measureElement}
+                  data-index={vi.index}
                   className={`border-t border-line transition-colors ${
                     active ? 'bg-accent-300/25' : 'hover:bg-surface-muted'
                   }`}
@@ -277,6 +300,11 @@ export function EntriesTable({ entries }: { entries: Entry[] }) {
                 </tr>
               )
             })}
+            {paddingBottom > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={7} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+              </tr>
+            )}
           </tbody>
           <tfoot className="sticky bottom-0 bg-surface-muted font-bold">
             <tr className="border-t border-line-strong">
