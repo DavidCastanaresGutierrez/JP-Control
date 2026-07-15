@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import type { DB, DepartmentModule, Project } from './types'
 import {
   deleteDepartamento,
@@ -25,16 +25,31 @@ import { repairMojibake } from './lib/format'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { EmojiIcon, emoji } from './lib/emoji'
-import { parseExplotacion } from './lib/parseExplotacion'
-import { parseHoras } from './lib/parseHoras'
-import { parseHorasProduccion } from './lib/parseHorasProduccion'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
-import { ProjectDashboard } from './components/ProjectDashboard'
-import { AdminPanel } from './components/AdminPanel'
-import { DepartmentDashboard } from './components/DepartmentDashboard'
 import { LoginCallback } from './components/LoginCallback'
 import { LoginView } from './components/LoginView'
+
+// Las vistas pesadas (arrastran recharts y la mayor parte del codigo de la app)
+// se cargan bajo demanda para reducir el bundle inicial. Overview se mantiene
+// estatica por ser la vista de aterrizaje.
+const ProjectDashboard = lazy(() =>
+  import('./components/ProjectDashboard').then((m) => ({ default: m.ProjectDashboard })),
+)
+const DepartmentDashboard = lazy(() =>
+  import('./components/DepartmentDashboard').then((m) => ({ default: m.DepartmentDashboard })),
+)
+const AdminPanel = lazy(() =>
+  import('./components/AdminPanel').then((m) => ({ default: m.AdminPanel })),
+)
+
+function VistaCargando() {
+  return (
+    <div className="flex h-full items-center justify-center p-8 text-sm font-medium text-ink-soft">
+      Cargando…
+    </div>
+  )
+}
 
 interface Toast {
   id: number
@@ -300,6 +315,9 @@ export default function App() {
   }
 
   const handleExplotacionFiles = async (files: File[]) => {
+    // Los parsers de Excel (y con ellos xlsx) se cargan bajo demanda para no
+    // engordar el bundle inicial: solo se descargan al importar un fichero.
+    const { parseExplotacion } = await import('./lib/parseExplotacion')
     let next = db
     let lastCode: string | null = null
     for (const f of files) {
@@ -325,6 +343,10 @@ export default function App() {
   const handleConcostFiles = async (files: File[]) => {
     if (!selected) return
 
+    const [{ parseExplotacion }, { parseHoras }] = await Promise.all([
+      import('./lib/parseExplotacion'),
+      import('./lib/parseHoras'),
+    ])
     let next = db
     for (const f of files) {
       const name = f.name.toLowerCase()
@@ -364,6 +386,7 @@ export default function App() {
   }
 
   const handleOverviewHoursFiles = async (files: File[]) => {
+    const { parseHoras } = await import('./lib/parseHoras')
     let next = db
     for (const f of files) {
       try {
@@ -444,6 +467,7 @@ export default function App() {
   const handleImportHorasProduccion = async (file: File) => {
     if (!miDepartamento) return
     try {
+      const { parseHorasProduccion } = await import('./lib/parseHorasProduccion')
       const parsed = parseHorasProduccion(await file.arrayBuffer())
       setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
       toast(
@@ -611,6 +635,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
+          <Suspense fallback={<VistaCargando />}>
           {adminView ? (
             <AdminPanel
               meEmail={authSession?.email ?? ''}
@@ -662,6 +687,7 @@ export default function App() {
               onToggleWatch={handleToggleWatch}
             />
           )}
+          </Suspense>
         </main>
       </div>
 
