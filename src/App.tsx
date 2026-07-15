@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, DepartmentModule, Project } from './types'
+import type { DB, DepartmentModule } from './types'
 import {
   deleteDepartamento,
   deleteProject,
@@ -21,7 +21,15 @@ import {
 } from './lib/api'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
 import type { AppUser, NivelContrato, Role } from './lib/adminApi'
-import { repairMojibake } from './lib/format'
+import { esJpDelUsuario, esSeguidoPorUsuario } from './lib/projectAccess'
+import {
+  loadMiDepartamento,
+  loadProjectOrder,
+  moveCode,
+  orderProjects,
+  persistMiDepartamento,
+  persistProjectOrder,
+} from './lib/prefs'
 import type { AuthSession } from './lib/auth'
 import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
 import { EmojiIcon, emoji } from './lib/emoji'
@@ -62,82 +70,6 @@ let toastId = 0
 type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
 type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
-
-const PROJECT_ORDER_KEY = 'jp-control-project-order-v1'
-const MI_DEPARTAMENTO_KEY = 'jp-control-mi-departamento-v1'
-
-function loadMiDepartamento(): string | null {
-  try {
-    return localStorage.getItem(MI_DEPARTAMENTO_KEY)
-  } catch {
-    return null
-  }
-}
-
-function normalizarTexto(value: string): string {
-  return repairMojibake(value)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-}
-
-function tokensNombre(value: string): string[] {
-  return normalizarTexto(value)
-    .replace(/[^a-z0-9]+/g, ' ')
-    .split(' ')
-    .filter((token) => token.length > 1)
-}
-
-/** Determina si el usuario logueado figura como JP del proyecto, cotejando nombre y email. */
-function esJpDelUsuario(project: Project, userName?: string, userEmail?: string): boolean {
-  if (!project.jp) return false
-  const jp = new Set(tokensNombre(project.jp))
-  if (jp.size === 0) return false
-
-  const usuario = new Set(tokensNombre(userName ?? ''))
-  let comunes = 0
-  for (const token of jp) if (usuario.has(token)) comunes++
-  if (jp.size === 1 ? comunes >= 1 : comunes >= 2) return true
-
-  // Red de seguridad: emails tipo "dcastanares" contienen el apellido del JP.
-  const emailLocal = normalizarTexto((userEmail ?? '').split('@')[0]).replace(/[^a-z0-9]+/g, '')
-  return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
-}
-
-/** El usuario ha marcado el proyecto para seguirlo sin ser su JP. */
-function esSeguidoPorUsuario(project: Project, userEmail?: string): boolean {
-  const email = (userEmail ?? '').trim().toLowerCase()
-  if (!email) return false
-  return (project.watchers ?? []).includes(email)
-}
-
-function loadProjectOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(PROJECT_ORDER_KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
-  } catch {
-    return []
-  }
-}
-
-function orderProjects(projects: DB['projects'], order: string[]) {
-  const listed = new Set(order)
-  const ordered = order.map((code) => projects[code]).filter(Boolean)
-  const remaining = Object.values(projects)
-    .filter((project) => !listed.has(project.code))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  return [...ordered, ...remaining]
-}
-
-function moveCode(codes: string[], draggedCode: string, targetCode: string) {
-  const from = codes.indexOf(draggedCode)
-  const to = codes.indexOf(targetCode)
-  if (from < 0 || to < 0 || from === to) return codes
-  const next = [...codes]
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
-}
 
 export default function App() {
   const [db, setDb] = useState<DB>(() => loadDB())
@@ -241,11 +173,7 @@ export default function App() {
   }, [myRole, myDepartamento, miDepartamento])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(projectOrder))
-    } catch {
-      // sin espacio en localStorage: el orden de proyectos no es critico, se ignora
-    }
+    persistProjectOrder(projectOrder)
   }, [projectOrder])
 
   useEffect(() => {
@@ -300,12 +228,7 @@ export default function App() {
   }, [db, syncEstado])
 
   useEffect(() => {
-    try {
-      if (miDepartamento) localStorage.setItem(MI_DEPARTAMENTO_KEY, miDepartamento)
-      else localStorage.removeItem(MI_DEPARTAMENTO_KEY)
-    } catch {
-      // sin espacio en localStorage: no es critico, se ignora
-    }
+    persistMiDepartamento(miDepartamento)
   }, [miDepartamento])
 
   const toast = (kind: Toast['kind'], text: string) => {
