@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { DepartmentModule } from '../../types'
-import { TIPO_ACTIVIDAD_LABEL, dedicacionPorPersona } from '../../lib/departmentMetrics'
+import { TIPO_ACTIVIDAD_LABEL, dedicacionPorPersona, esActividadFacturable } from '../../lib/departmentMetrics'
 import { fmtNum, fmtPct } from '../../lib/format'
 import { CHART_AXIS, CHART_GRID, TOOLTIP_STYLE, normalizarBusqueda, truncarEtiqueta } from './theme'
 import { EtiquetaProyectoEje } from './EtiquetaProyectoEje'
@@ -115,7 +115,7 @@ export function DedicacionTab({
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
                       <div
-                        className={`h-full rounded-full ${tipo === 'facturable' ? 'bg-success' : 'bg-info'}`}
+                        className={`h-full rounded-full ${esActividadFacturable(tipo) ? 'bg-success' : 'bg-info'}`}
                         style={{ width: `${Math.min(100, r.pct)}%` }}
                       />
                     </div>
@@ -151,7 +151,7 @@ export function DedicacionTab({
                       {reparteGrafico.map((r) => (
                         <Cell
                           key={r.proyecto}
-                          fill={r.tipo === 'facturable' ? '#7CE7C8' : '#3A8DFF'}
+                          fill={esActividadFacturable(r.tipo) ? '#7CE7C8' : '#3A8DFF'}
                           cursor="pointer"
                           onClick={(e) => {
                             e?.stopPropagation?.()

@@ -36,6 +36,17 @@ function extraTexto(h: { descripcion?: string; tarea?: string }): string {
   return [h.descripcion, h.tarea].filter(Boolean).join(' ')
 }
 
+/**
+ * Tipos de actividad que cuentan como horas facturables: además del trabajo
+ * de cliente, la innovación y el soporte también se facturan. Formación,
+ * gestión interna y vacaciones no.
+ */
+const TIPOS_FACTURABLES: ReadonlySet<TipoActividad> = new Set(['facturable', 'innovacion', 'soporte'])
+
+export function esActividadFacturable(tipo: TipoActividad): boolean {
+  return TIPOS_FACTURABLES.has(tipo)
+}
+
 export const TIPO_ACTIVIDAD_LABEL: Record<TipoActividad, string> = {
   facturable: 'Facturable',
   innovacion: 'Innovación',
@@ -149,7 +160,7 @@ export function tablaOcupacion(
       const horasImputadas = Math.round(registros.reduce((s, h) => s + h.horas, 0) * 100) / 100
       const horasFacturables = Math.round(
         registros
-          .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
+          .filter((h) => esActividadFacturable(clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))))
           .reduce((s, h) => s + h.horas, 0) * 100,
       ) / 100
       const horasDisponibles = Math.round(capacidadPersona(mes, modulo.roster[persona]?.jornadaPct) * 100) / 100
@@ -322,7 +333,7 @@ export function evolucionFacturabilidadPersona(
     const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
     const horasFacturables = Math.round(
       delMes
-        .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
+        .filter((h) => esActividadFacturable(clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))))
         .reduce((s, h) => s + h.horas, 0) * 100,
     ) / 100
     const horasDisponibles = capacidadPersona(mes, jornadaPct)
@@ -437,7 +448,7 @@ export function comparativaOcupacion(
         const horasImputadas = Math.round(delMes.reduce((s, h) => s + h.horas, 0) * 100) / 100
         const horasFacturables = Math.round(
           delMes
-            .filter((h) => clasificarActividad(h.proyecto, overridesActividad, extraTexto(h)) === 'facturable')
+            .filter((h) => esActividadFacturable(clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))))
             .reduce((s, h) => s + h.horas, 0) * 100,
         ) / 100
         const horasDisponibles = capacidadPersona(mes, jornadaPct)
