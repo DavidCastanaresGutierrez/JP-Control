@@ -1,70 +1,122 @@
 import { withDb } from './_db.js'
 import type { Sql } from './_db.js'
 
-export default withDb(
-  {
-    init: (sql: Sql) => sql`
-      CREATE TABLE IF NOT EXISTS jp_projects (
-        code text PRIMARY KEY,
-        data jsonb NOT NULL,
-        updated_at timestamptz NOT NULL DEFAULT now()
-      )`,
-  },
-  async ({ req, res, sql, me }) => {
-    if (req.method === 'GET') {
-      const rows = await sql`SELECT code, data FROM jp_projects`
-      const projects: Record<string, unknown> = {}
-      for (const r of rows) {
-        const code = r.code as string
-        if (!me || me.role !== 'contrato' || me.proyectoAsignado === code) {
-          projects[code] = r.data
-        }
-      }
-      return res.status(200).json({ projects })
-    }
+/**
+ * Fila con version para el bloqueo optimista: el cliente guarda la version que
+ * conoce de cada proyecto y la manda en el PUT; si en la base de datos hay una
+ * version distinta (otro usuario guardo mientras tanto) se responde 409 con la
+ * version actual en vez de pisarla en silencio.
+ */
 
-    if (req.method === 'PUT' || req.method === 'DELETE') {
-      const targetCode =
-        req.method === 'PUT'
-          ? String((req.body as { code?: string } | undefined)?.code ?? '')
-          : typeof req.query.code === 'string'
-            ? req.query.code
-            : ''
-      if (me) {
-        if (me.role === 'lectura') {
-          return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar proyectos.' })
-        }
-        if (me.role === 'contrato') {
-          if (me.proyectoAsignado !== targetCode) {
-            return res.status(403).json({ error: 'Solo tienes acceso al contrato asignado.' })
-          }
-          if (me.nivelContrato !== 'edicion') {
-            return res.status(403).json({ error: 'Tu acceso a este contrato es de solo lectura.' })
-          }
-        }
+async function init(sql: Sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS jp_projects (
+      code text PRIMARY KEY,
+      data jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )`
+  await sql`ALTER TABLE jp_projects ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 1`
+}
+
+export default withDb({ init }, async ({ req, res, sql, me }) => {
+  if (req.method === 'GET') {
+    const rows = await sql`SELECT code, data, version FROM jp_projects`
+    const projects: Record<string, unknown> = {}
+    const versions: Record<string, number> = {}
+    for (const r of rows) {
+      const code = r.code as string
+      if (!me || me.role !== 'contrato' || me.proyectoAsignado === code) {
+        projects[code] = r.data
+        versions[code] = Number(r.version)
       }
     }
+    return res.status(200).json({ projects, versions })
+  }
 
-    if (req.method === 'PUT') {
-      const { code, data } = (req.body ?? {}) as { code?: string; data?: unknown }
-      if (!code || typeof code !== 'string' || !data) {
-        return res.status(400).json({ error: 'Faltan code o data en el cuerpo.' })
+  if (req.method === 'PUT' || req.method === 'DELETE') {
+    const targetCode =
+      req.method === 'PUT'
+        ? String((req.body as { code?: string } | undefined)?.code ?? '')
+        : typeof req.query.code === 'string'
+          ? req.query.code
+          : ''
+    if (me) {
+      if (me.role === 'lectura') {
+        return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar proyectos.' })
       }
-      await sql`
+      if (me.role === 'contrato') {
+        if (me.proyectoAsignado !== targetCode) {
+          return res.status(403).json({ error: 'Solo tienes acceso al contrato asignado.' })
+        }
+        if (me.nivelContrato !== 'edicion') {
+          return res.status(403).json({ error: 'Tu acceso a este contrato es de solo lectura.' })
+        }
+      }
+    }
+  }
+
+  if (req.method === 'PUT') {
+    const { code, data, baseVersion } = (req.body ?? {}) as {
+      code?: string
+      data?: unknown
+      baseVersion?: number | null
+    }
+    if (!code || typeof code !== 'string' || !data) {
+      return res.status(400).json({ error: 'Faltan code o data en el cuerpo.' })
+    }
+    const json = JSON.stringify(data)
+
+    // Cliente antiguo (sin baseVersion): upsert incondicional, como antes
+    if (baseVersion === undefined) {
+      const rows = await sql`
         INSERT INTO jp_projects (code, data, updated_at)
-        VALUES (${code}, ${JSON.stringify(data)}::jsonb, now())
-        ON CONFLICT (code) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`
-      return res.status(200).json({ ok: true })
+        VALUES (${code}, ${json}::jsonb, now())
+        ON CONFLICT (code) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), version = jp_projects.version + 1
+        RETURNING version`
+      return res.status(200).json({ ok: true, version: Number(rows[0].version) })
     }
 
-    if (req.method === 'DELETE') {
-      const code = typeof req.query.code === 'string' ? req.query.code : ''
-      if (!code) return res.status(400).json({ error: 'Falta el parametro code.' })
-      await sql`DELETE FROM jp_projects WHERE code = ${code}`
-      return res.status(200).json({ ok: true })
+    if (baseVersion === null) {
+      // El cliente cree que el proyecto es nuevo: solo insertar si no existe
+      const rows = await sql`
+        INSERT INTO jp_projects (code, data, updated_at)
+        VALUES (${code}, ${json}::jsonb, now())
+        ON CONFLICT (code) DO NOTHING
+        RETURNING version`
+      if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
+    } else {
+      // Actualizacion condicionada a la version que el cliente conoce
+      const rows = await sql`
+        UPDATE jp_projects
+        SET data = ${json}::jsonb, updated_at = now(), version = version + 1
+        WHERE code = ${code} AND version = ${baseVersion}
+        RETURNING version`
+      if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
+      // Sin fila: o la version no coincide, o el proyecto fue borrado (se recrea)
+      const recreated = await sql`
+        INSERT INTO jp_projects (code, data, updated_at)
+        VALUES (${code}, ${json}::jsonb, now())
+        ON CONFLICT (code) DO NOTHING
+        RETURNING version`
+      if (recreated.length > 0) return res.status(200).json({ ok: true, version: Number(recreated[0].version) })
     }
 
-    res.setHeader('Allow', 'GET, PUT, DELETE')
-    return res.status(405).json({ error: 'Metodo no permitido.' })
-  },
-)
+    // Conflicto: otro usuario guardo una version mas reciente
+    const current = await sql`SELECT data, version FROM jp_projects WHERE code = ${code}`
+    return res.status(409).json({
+      error: 'Otro usuario ha guardado una version mas reciente de este proyecto.',
+      data: current[0]?.data ?? null,
+      version: current[0] ? Number(current[0].version) : null,
+    })
+  }
+
+  if (req.method === 'DELETE') {
+    const code = typeof req.query.code === 'string' ? req.query.code : ''
+    if (!code) return res.status(400).json({ error: 'Falta el parametro code.' })
+    await sql`DELETE FROM jp_projects WHERE code = ${code}`
+    return res.status(200).json({ ok: true })
+  }
+
+  res.setHeader('Allow', 'GET, PUT, DELETE')
+  return res.status(405).json({ error: 'Metodo no permitido.' })
+})

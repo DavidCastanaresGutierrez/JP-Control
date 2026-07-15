@@ -1,4 +1,4 @@
-import { getAuthToken, updateAuthToken } from './auth'
+import { getAuthToken, updateAuthToken } from './auth.ts'
 
 /** Llama a la API con el token de sesion y recoge la renovacion silenciosa del JWT si el backend la envia. */
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response | null> {

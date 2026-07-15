@@ -1,4 +1,5 @@
-import type { DB, DepartmentModule, HoraProduccion, HoursRecord, ParsedExplotacion, Project } from '../types'
+import type { DB, DepartmentModule, HoraProduccion, HoursRecord, ParsedExplotacion, Project } from '../types.ts'
+import { idbAplicar, idbCargarStore, idbDisponible } from './idb.ts'
 
 const KEY = 'jp-control-db-v1'
 
@@ -23,18 +24,14 @@ function migrateProjectDepartments(project: Project): Project {
   }
 }
 
-export function loadDB(): DB {
+/** Carga la copia legacy de localStorage (versiones anteriores de la app). */
+function loadDBLegacy(): DB {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as DB
       return {
-        projects: Object.fromEntries(
-          Object.entries(parsed.projects ?? {}).map(([code, project]) => [
-            code,
-            migrateProjectDepartments(project),
-          ]),
-        ),
+        projects: parsed.projects ?? {},
         departamentos: parsed.departamentos ?? {},
       }
     }
@@ -44,16 +41,97 @@ export function loadDB(): DB {
   return { projects: {}, departamentos: {} }
 }
 
+function aplicarMigraciones(db: DB): DB {
+  return {
+    projects: Object.fromEntries(
+      Object.entries(db.projects).map(([code, project]) => [code, migrateProjectDepartments(project)]),
+    ),
+    departamentos: db.departamentos,
+  }
+}
+
 /**
- * Guarda en localStorage. El detalle de horas de producción de cada
- * departamento (miles de apuntes por import) no se guarda aquí: localStorage
- * es solo la cache local para arrancar rapido, y ese detalle facilmente supera
- * su cuota (unos pocos MB por origen). La base de datos (jp_departments, via
- * /api/departments) es la fuente de verdad para las horas; se recupera al
- * conectar con la nube. Devuelve false (sin lanzar) si aun asi se supera la
- * cuota, para no tumbar el render de toda la app.
+ * Carga la cache local desde IndexedDB. La primera vez migra la copia antigua
+ * de localStorage (y la elimina, liberando su cuota de ~5MB). Si el navegador
+ * no ofrece IndexedDB, cae a la copia de localStorage sin migrar.
  */
-export function saveDB(db: DB): boolean {
+export async function loadDBAsync(): Promise<DB> {
+  if (!idbDisponible()) return aplicarMigraciones(loadDBLegacy())
+  try {
+    const [projects, departamentos] = await Promise.all([
+      idbCargarStore<Project>('projects'),
+      idbCargarStore<DepartmentModule>('departamentos'),
+    ])
+    if (Object.keys(projects).length > 0 || Object.keys(departamentos).length > 0) {
+      return aplicarMigraciones({ projects, departamentos })
+    }
+    // IndexedDB vacio: migrar la copia legacy de localStorage si existe
+    const legacy = aplicarMigraciones(loadDBLegacy())
+    if (Object.keys(legacy.projects).length > 0 || Object.keys(legacy.departamentos).length > 0) {
+      await idbAplicar('projects', Object.entries(legacy.projects), [])
+      await idbAplicar('departamentos', Object.entries(legacy.departamentos), [])
+      try {
+        localStorage.removeItem(KEY)
+      } catch {
+        // sin permisos de localStorage: la copia legacy queda como esta
+      }
+    }
+    return legacy
+  } catch {
+    return aplicarMigraciones(loadDBLegacy())
+  }
+}
+
+/** Referencias de la ultima copia persistida, para escribir solo lo que cambia. */
+export interface PersistState {
+  projects: Map<string, Project>
+  departamentos: Map<string, DepartmentModule>
+}
+
+export function crearPersistState(db: DB): PersistState {
+  return {
+    projects: new Map(Object.entries(db.projects)),
+    departamentos: new Map(Object.entries(db.departamentos)),
+  }
+}
+
+function diff<T>(actuales: Record<string, T>, previos: Map<string, T>): {
+  puts: Array<[string, T]>
+  deletes: string[]
+} {
+  const puts: Array<[string, T]> = []
+  for (const [key, valor] of Object.entries(actuales)) {
+    if (previos.get(key) !== valor) puts.push([key, valor])
+  }
+  const deletes = [...previos.keys()].filter((key) => !(key in actuales))
+  return { puts, deletes }
+}
+
+/**
+ * Persiste en IndexedDB solo las entidades que han cambiado (por identidad de
+ * objeto: los mutadores crean objetos nuevos solo para lo que tocan). Devuelve
+ * false sin lanzar si la escritura falla, para no tumbar el render.
+ */
+export async function persistDB(db: DB, state: PersistState): Promise<boolean> {
+  if (!idbDisponible()) return saveDBLegacy(db)
+  const proyectos = diff(db.projects, state.projects)
+  const departamentos = diff(db.departamentos, state.departamentos)
+  try {
+    await idbAplicar('projects', proyectos.puts, proyectos.deletes)
+    await idbAplicar('departamentos', departamentos.puts, departamentos.deletes)
+  } catch {
+    return false
+  }
+  state.projects = new Map(Object.entries(db.projects))
+  state.departamentos = new Map(Object.entries(db.departamentos))
+  return true
+}
+
+/**
+ * Fallback sin IndexedDB: guarda en localStorage descartando el detalle de
+ * horas de departamento (miles de apuntes que superan la cuota de ~5MB).
+ */
+function saveDBLegacy(db: DB): boolean {
   try {
     const liviano: DB = {
       projects: db.projects,
@@ -146,30 +224,6 @@ export function deleteProject(db: DB, code: string): DB {
   const projects = { ...db.projects }
   delete projects[code]
   return { ...db, projects }
-}
-
-export function exportJSON(db: DB): string {
-  return JSON.stringify(db, null, 2)
-}
-
-export function importJSON(raw: string): DB {
-  const parsed = JSON.parse(raw) as DB
-  if (!parsed || typeof parsed.projects !== 'object') {
-    throw new Error('El fichero no es una copia de seguridad válida.')
-  }
-  return {
-    projects: Object.fromEntries(
-      Object.entries(parsed.projects ?? {}).map(([code, project]) => [code, migrateProjectDepartments(project)]),
-    ),
-    departamentos: parsed.departamentos ?? {},
-  }
-}
-
-/** Crea (si no existe) o devuelve el modulo de un departamento. */
-export function ensureDepartamento(db: DB, nombre: string): DB {
-  if (db.departamentos[nombre]) return db
-  const modulo: DepartmentModule = { departamento: nombre, roster: {}, horas: [] }
-  return { ...db, departamentos: { ...db.departamentos, [nombre]: modulo } }
 }
 
 export function updateDepartamento(db: DB, nombre: string, patch: Partial<DepartmentModule>): DB {

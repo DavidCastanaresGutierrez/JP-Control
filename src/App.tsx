@@ -1,16 +1,19 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, DepartmentModule } from './types'
+import type { DB, DepartmentModule, Project } from './types'
 import {
+  crearPersistState,
   deleteDepartamento,
   deleteProject,
-  loadDB,
+  loadDBAsync,
   mergeHours,
-  saveDB,
+  persistDB,
   setHorasProduccion,
   updateDepartamento,
   updateProject,
   upsertExplotacion,
 } from './lib/store'
+import { crearMapaSync, sincronizarEntidades } from './lib/cloudSync'
+import type { MapaSync } from './lib/cloudSync'
 import {
   deleteRemoteDepartment,
   deleteRemoteProject,
@@ -74,7 +77,10 @@ type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
 
 export default function App() {
-  const [db, setDb] = useState<DB>(() => loadDB())
+  // La cache local (IndexedDB) se carga de forma asincrona: hasta que no esta
+  // lista no se renderiza la app ni se arranca la sincronizacion con la nube.
+  const [db, setDb] = useState<DB>(() => ({ projects: {}, departamentos: {} }))
+  const [dbReady, setDbReady] = useState(false)
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
   const [scope, setScope] = useState<ProjectScope>('mine')
@@ -91,9 +97,18 @@ export default function App() {
   const [deptView, setDeptView] = useState(false)
   const [miDepartamento, setMiDepartamento] = useState<string | null>(() => loadMiDepartamento())
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const lastSynced = useRef<Map<string, string>>(new Map())
-  const lastSyncedDept = useRef<Map<string, string>>(new Map())
+  const syncProyectos = useRef<MapaSync<Project>>(new Map())
+  const syncDepartamentos = useRef<MapaSync<DepartmentModule>>(new Map())
+  const persistState = useRef(crearPersistState({ projects: {}, departamentos: {} }))
   const dbQuotaWarned = useRef(false)
+
+  useEffect(() => {
+    loadDBAsync().then((cargado) => {
+      persistState.current = crearPersistState(cargado)
+      setDb(cargado)
+      setDbReady(true)
+    })
+  }, [])
 
   const conectar = useCallback(async () => {
     if (isSsoEnabled && !getAuthSession()) {
@@ -113,14 +128,10 @@ export default function App() {
       setSyncEstado('local')
       return
     }
-    lastSynced.current = new Map(
-      Object.entries(remoto.projects).map(([code, p]) => [code, JSON.stringify(p)]),
-    )
+    syncProyectos.current = crearMapaSync(remoto.projects, remoto.versions)
     const remotoDept = await fetchRemoteDepartments()
     if (remotoDept.estado === 'ok') {
-      lastSyncedDept.current = new Map(
-        Object.entries(remotoDept.departamentos).map(([nombre, d]) => [nombre, JSON.stringify(d)]),
-      )
+      syncDepartamentos.current = crearMapaSync(remotoDept.departamentos, remotoDept.versions)
     }
     setDb((local) => ({
       projects: { ...local.projects, ...remoto.projects },
@@ -133,8 +144,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    conectar()
-  }, [conectar, authSession])
+    if (dbReady) conectar()
+  }, [conectar, authSession, dbReady])
 
   useEffect(() => {
     if (isSsoEnabled && !authSession) {
@@ -179,55 +190,67 @@ export default function App() {
   }, [projectOrder])
 
   useEffect(() => {
-    if (!saveDB(db) && !dbQuotaWarned.current) {
-      dbQuotaWarned.current = true
-      toast(
-        'warn',
-        'El navegador no tiene espacio para guardar todos los datos localmente (probablemente por un import grande de horas de departamento). ' +
-          (syncEstado === 'nube'
-            ? 'Se seguira sincronizando con la nube con normalidad.'
-            : 'Activa la sincronizacion con la nube para no perder datos al recargar.'),
-      )
-    }
+    if (!dbReady) return
+    // Persistencia local incremental: solo escribe las entidades cuya
+    // referencia ha cambiado (los mutadores del store no tocan el resto).
+    persistDB(db, persistState.current).then((ok) => {
+      if (!ok && !dbQuotaWarned.current) {
+        dbQuotaWarned.current = true
+        toast(
+          'warn',
+          'El navegador no ha podido guardar los datos localmente. ' +
+            (syncEstado === 'nube'
+              ? 'Se seguira sincronizando con la nube con normalidad.'
+              : 'Activa la sincronizacion con la nube para no perder datos al recargar.'),
+        )
+      }
+    })
+
     if (syncEstado !== 'nube') return
     const timer = setTimeout(async () => {
-      for (const [code, project] of Object.entries(db.projects)) {
-        const snapshot = JSON.stringify(project)
-        if (lastSynced.current.get(code) === snapshot) continue
-        if (await pushProject(project)) lastSynced.current.set(code, snapshot)
-        else {
-          setSyncEstado('error')
-          return
+      const proyectos = await sincronizarEntidades({
+        actuales: db.projects,
+        mapa: syncProyectos.current,
+        push: (_code, project, baseVersion) => pushProject(project, baseVersion),
+        remove: deleteRemoteProject,
+      })
+      const departamentos =
+        proyectos.estado === 'ok'
+          ? await sincronizarEntidades({
+              actuales: db.departamentos,
+              mapa: syncDepartamentos.current,
+              push: (_nombre, modulo, baseVersion) => pushDepartment(modulo, baseVersion),
+              remove: deleteRemoteDepartment,
+            })
+          : { estado: 'error' as const, conflictos: [] }
+
+      // En conflicto gana la version remota (ya persistida por el otro usuario);
+      // se adopta localmente y se avisa para que el cambio propio se pueda rehacer.
+      if (proyectos.conflictos.length > 0 || departamentos.conflictos.length > 0) {
+        setDb((d) => ({
+          projects: {
+            ...d.projects,
+            ...Object.fromEntries(proyectos.conflictos.map((c) => [c.key, c.remoto])),
+          },
+          departamentos: {
+            ...d.departamentos,
+            ...Object.fromEntries(departamentos.conflictos.map((c) => [c.key, c.remoto])),
+          },
+        }))
+        for (const c of proyectos.conflictos) {
+          toast('warn', `${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
+        }
+        for (const c of departamentos.conflictos) {
+          toast('warn', `Departamento ${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
         }
       }
-      for (const code of [...lastSynced.current.keys()]) {
-        if (db.projects[code]) continue
-        if (await deleteRemoteProject(code)) lastSynced.current.delete(code)
-        else {
-          setSyncEstado('error')
-          return
-        }
-      }
-      for (const [nombre, modulo] of Object.entries(db.departamentos)) {
-        const snapshot = JSON.stringify(modulo)
-        if (lastSyncedDept.current.get(nombre) === snapshot) continue
-        if (await pushDepartment(modulo)) lastSyncedDept.current.set(nombre, snapshot)
-        else {
-          setSyncEstado('error')
-          return
-        }
-      }
-      for (const nombre of [...lastSyncedDept.current.keys()]) {
-        if (db.departamentos[nombre]) continue
-        if (await deleteRemoteDepartment(nombre)) lastSyncedDept.current.delete(nombre)
-        else {
-          setSyncEstado('error')
-          return
-        }
+
+      if (proyectos.estado === 'error' || departamentos.estado === 'error') {
+        setSyncEstado('error')
       }
     }, 1000)
     return () => clearTimeout(timer)
-  }, [db, syncEstado])
+  }, [db, dbReady, syncEstado])
 
   useEffect(() => {
     persistMiDepartamento(miDepartamento)
@@ -473,6 +496,10 @@ export default function App() {
 
   if (isSsoEnabled && !authSession) {
     return <LoginView />
+  }
+
+  if (!dbReady) {
+    return <VistaCargando />
   }
 
   return (

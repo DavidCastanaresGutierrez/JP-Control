@@ -107,17 +107,6 @@ export function monthlySeries(entries: Entry[]): MonthPoint[] {
   })
 }
 
-export function gastoPorCuenta(entries: Entry[]): Array<{ cuenta: string; total: number }> {
-  const map = new Map<string, number>()
-  for (const e of entries) {
-    if (!esGasto(e)) continue
-    map.set(e.cuenta, (map.get(e.cuenta) ?? 0) + e.debe - e.haber)
-  }
-  return [...map.entries()]
-    .map(([cuenta, total]) => ({ cuenta, total: Math.round(total * 100) / 100 }))
-    .sort((a, b) => b.total - a.total)
-}
-
 export function gastoPorArea(entries: Entry[]): Array<{ area: string; total: number }> {
   const map = new Map<string, number>()
   for (const e of entries) {
