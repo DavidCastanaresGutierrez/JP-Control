@@ -5,12 +5,13 @@ import {
   dashboardDepartamento,
   distribucionPorProyecto,
   distribucionPorTipoActividad,
+  esActividadFacturable,
 } from '../../lib/departmentMetrics'
 import { fmtNum, fmtPct } from '../../lib/format'
 import { emoji } from '../../lib/emoji'
 import { EmojiIcon } from '../../lib/EmojiIcon'
 import { KpiCard } from '../KpiCard'
-import { PIE_COLORS, TOOLTIP_STYLE } from './theme'
+import { PIE_COLORS, TIPO_ACTIVIDAD_COLOR, TOOLTIP_STYLE } from './theme'
 import { SelectorMes } from './SelectorMes'
 
 export function PanelTab({
@@ -206,30 +207,39 @@ export function PanelTab({
         <div className="min-w-0 bg-surface rounded-[24px] shadow-soft border border-line p-4 sm:p-6">
           <h3 className="font-bold text-ink text-lg mb-1">Distribución por tipo de actividad</h3>
           <p className="text-xs text-ink-soft mb-3">
-            Innovación y soporte también cuentan como facturables; formación, gestión interna y
-            vacaciones no.
+            En verdes, los tipos que facturan (trabajo de cliente, innovación y soporte);
+            formación, gestión interna y vacaciones no facturan.
           </p>
-          {distTipo.length > 0 ? (
+          {distTipo.some((d) => d.horas > 0) ? (
             <div className="space-y-4">
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={distTipo} dataKey="horas" nameKey="clave" innerRadius={50} outerRadius={82} paddingAngle={2}>
-                    {distTipo.map((d, i) => (
-                      <Cell
-                        key={i}
-                        fill={d.tipo === 'facturable' ? '#7CE7C8' : PIE_COLORS[(i + 2) % PIE_COLORS.length]}
-                      />
-                    ))}
+                  <Pie
+                    data={distTipo.filter((d) => d.horas > 0)}
+                    dataKey="horas"
+                    nameKey="clave"
+                    innerRadius={50}
+                    outerRadius={82}
+                    paddingAngle={2}
+                  >
+                    {distTipo
+                      .filter((d) => d.horas > 0)
+                      .map((d) => (
+                        <Cell key={d.tipo} fill={TIPO_ACTIVIDAD_COLOR[d.tipo]} />
+                      ))}
                   </Pie>
                   <Tooltip formatter={(v) => `${fmtNum(Number(v))} h`} contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2">
-                {distTipo.map((d, i) => (
-                  <div key={d.clave} className="flex items-center gap-2 text-sm">
+                {distTipo.map((d) => (
+                  <div
+                    key={d.clave}
+                    className={`flex items-center gap-2 text-sm ${d.horas === 0 ? 'opacity-50' : ''}`}
+                  >
                     <span
                       className="w-3 h-3 rounded-sm shrink-0"
-                      style={{ backgroundColor: d.tipo === 'facturable' ? '#7CE7C8' : PIE_COLORS[(i + 2) % PIE_COLORS.length] }}
+                      style={{ backgroundColor: TIPO_ACTIVIDAD_COLOR[d.tipo] }}
                     />
                     <span className="flex-1 min-w-0 truncate text-ink-soft">{d.clave}</span>
                     <span className="shrink-0 text-ink-muted text-xs tabular-nums">{fmtPct(d.pct)}</span>
@@ -237,6 +247,28 @@ export function PanelTab({
                   </div>
                 ))}
               </div>
+              {(() => {
+                const total = distTipo.reduce((s, d) => s + d.horas, 0)
+                const facturableTotal = distTipo
+                  .filter((d) => esActividadFacturable(d.tipo))
+                  .reduce((s, d) => s + d.horas, 0)
+                return (
+                  <div className="flex items-center gap-2 border-t border-line pt-3 text-sm">
+                    <span className="flex-1 font-semibold text-ink">
+                      Facturable total
+                      <span className="ml-1.5 font-normal text-xs text-ink-muted">
+                        (incluye innovación y soporte)
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-ink-muted text-xs tabular-nums">
+                      {fmtPct(total > 0 ? (facturableTotal / total) * 100 : 0)}
+                    </span>
+                    <span className="shrink-0 font-bold text-ink tabular-nums">
+                      {fmtNum(facturableTotal)} h
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
           ) : (
             <p className="text-sm text-ink-soft">Sin datos para este mes.</p>

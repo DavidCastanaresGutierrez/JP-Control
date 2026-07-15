@@ -385,7 +385,15 @@ export function distribucionPorProyecto(
     .sort((a, b) => b.horas - a.horas)
 }
 
-/** Distribución del esfuerzo del equipo por tipo de actividad, para un mes. */
+/** Orden fijo de los tipos en la distribución: primero los que facturan. */
+const ORDEN_TIPOS: TipoActividad[] = ['facturable', 'innovacion', 'soporte', 'formacion', 'gestion', 'vacaciones']
+
+/**
+ * Distribución del esfuerzo del equipo por tipo de actividad, para un mes.
+ * Devuelve siempre los seis tipos en orden fijo (con 0 h si no hay horas de
+ * ese tipo en el mes), para que la leyenda no "pierda" categorías de un mes
+ * a otro.
+ */
 export function distribucionPorTipoActividad(
   modulo: DepartmentModule,
   mes: string,
@@ -398,14 +406,15 @@ export function distribucionPorTipoActividad(
     const tipo = clasificarActividad(h.proyecto, overridesActividad, extraTexto(h))
     porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + h.horas)
   }
-  return [...porTipo.entries()]
-    .map(([tipo, hrs]) => ({
+  return ORDEN_TIPOS.map((tipo) => {
+    const hrs = porTipo.get(tipo) ?? 0
+    return {
       clave: TIPO_ACTIVIDAD_LABEL[tipo],
       horas: Math.round(hrs * 100) / 100,
       pct: total > 0 ? (hrs / total) * 100 : 0,
       tipo,
-    }))
-    .sort((a, b) => b.horas - a.horas)
+    }
+  })
 }
 
 export interface CeldaComparativa {
