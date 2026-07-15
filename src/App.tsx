@@ -1,29 +1,6 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
-import type { DB, DepartmentModule, Project } from './types'
-import {
-  crearPersistState,
-  deleteDepartamento,
-  deleteProject,
-  loadDBAsync,
-  mergeHours,
-  persistDB,
-  sanearDepartamentos,
-  sanearProjects,
-  setHorasProduccion,
-  updateDepartamento,
-  updateProject,
-  upsertExplotacion,
-} from './lib/store'
-import { crearMapaSync, sincronizarEntidades } from './lib/cloudSync'
-import type { MapaSync } from './lib/cloudSync'
-import {
-  deleteRemoteDepartment,
-  deleteRemoteProject,
-  fetchRemoteDepartments,
-  fetchRemoteProjects,
-  pushDepartment,
-  pushProject,
-} from './lib/api'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import type { DepartmentModule } from './types'
+import { deleteDepartamento, deleteProject, updateDepartamento, updateProject } from './lib/store'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
 import type { AppUser, NivelContrato, Role } from './lib/adminApi'
 import { esJpDelUsuario, esSeguidoPorUsuario } from './lib/projectAccess'
@@ -36,11 +13,10 @@ import {
   persistProjectOrder,
 } from './lib/prefs'
 import type { AuthSession } from './lib/auth'
-import { clearAuthSession, getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
-import { emoji } from './lib/emoji'
-import { EmojiIcon } from './lib/EmojiIcon'
-import { parseExplotacionAsync, parseHorasAsync, parseHorasProduccionAsync } from './lib/parseInWorker'
-import type { ParsedHoras } from './lib/parseHoras'
+import { getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
+import { Toasts, useToasts } from './hooks/useToasts'
+import { useDbSync } from './hooks/useDbSync'
+import { useImportaciones } from './hooks/useImportaciones'
 import { Sidebar } from './components/Sidebar'
 import { Overview } from './components/Overview'
 import { LoginCallback } from './components/LoginCallback'
@@ -67,30 +43,21 @@ function VistaCargando() {
   )
 }
 
-interface Toast {
-  id: number
-  kind: 'ok' | 'error' | 'warn'
-  text: string
-}
-
-let toastId = 0
-
-type SyncEstado = 'cargando' | 'nube' | 'local' | 'auth' | 'error'
 type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
 
 export default function App() {
-  // La cache local (IndexedDB) se carga de forma asincrona: hasta que no esta
-  // lista no se renderiza la app ni se arranca la sincronizacion con la nube.
-  const [db, setDb] = useState<DB>(() => ({ projects: {}, departamentos: {} }))
-  const [dbReady, setDbReady] = useState(false)
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
   const [selected, setSelected] = useState<string | null>(null)
   const [scope, setScope] = useState<ProjectScope>('mine')
   const [archiveFilter, setArchiveFilter] = useState<ProjectArchiveFilter>('active')
-  const [toasts, setToasts] = useState<Toast[]>([])
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
-  const [syncEstado, setSyncEstado] = useState<SyncEstado>('cargando')
+  const { toasts, toast } = useToasts()
+  const { db, setDb, dbReady, setSyncEstado, conectar } = useDbSync({
+    authSession,
+    setAuthSession,
+    toast,
+  })
   const [myRole, setMyRole] = useState<Role | null>(null)
   const [myDepartamento, setMyDepartamento] = useState<string | null>(null)
   const [myProyectoAsignado, setMyProyectoAsignado] = useState<string | null>(null)
@@ -100,57 +67,6 @@ export default function App() {
   const [deptView, setDeptView] = useState(false)
   const [miDepartamento, setMiDepartamento] = useState<string | null>(() => loadMiDepartamento())
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const syncProyectos = useRef<MapaSync<Project>>(new Map())
-  const syncDepartamentos = useRef<MapaSync<DepartmentModule>>(new Map())
-  const persistState = useRef(crearPersistState({ projects: {}, departamentos: {} }))
-  const dbQuotaWarned = useRef(false)
-
-  useEffect(() => {
-    loadDBAsync().then((cargado) => {
-      persistState.current = crearPersistState(cargado)
-      setDb(cargado)
-      setDbReady(true)
-    })
-  }, [])
-
-  const conectar = useCallback(async () => {
-    if (isSsoEnabled && !getAuthSession()) {
-      setSyncEstado('auth')
-      return
-    }
-
-    setSyncEstado('cargando')
-    const remoto = await fetchRemoteProjects()
-    if (remoto.estado === 'auth') {
-      clearAuthSession()
-      setAuthSession(null)
-      setSyncEstado('auth')
-      return
-    }
-    if (remoto.estado === 'sin-nube') {
-      setSyncEstado('local')
-      return
-    }
-    // El JSON remoto se sanea antes de entrar en la app: un proyecto corrupto
-    // o de un esquema antiguo no debe reventar las vistas ni el sync.
-    const projectsRemotos = sanearProjects(remoto.projects)
-    syncProyectos.current = crearMapaSync(projectsRemotos, remoto.versions)
-    const remotoDept = await fetchRemoteDepartments()
-    const departamentosRemotos =
-      remotoDept.estado === 'ok' ? sanearDepartamentos(remotoDept.departamentos) : {}
-    if (remotoDept.estado === 'ok') {
-      syncDepartamentos.current = crearMapaSync(departamentosRemotos, remotoDept.versions)
-    }
-    setDb((local) => ({
-      projects: { ...local.projects, ...projectsRemotos },
-      departamentos: { ...local.departamentos, ...departamentosRemotos },
-    }))
-    setSyncEstado('nube')
-  }, [])
-
-  useEffect(() => {
-    if (dbReady) conectar()
-  }, [conectar, authSession, dbReady])
 
   useEffect(() => {
     if (isSsoEnabled && !authSession) {
@@ -195,168 +111,15 @@ export default function App() {
   }, [projectOrder])
 
   useEffect(() => {
-    if (!dbReady) return
-    // Persistencia local incremental: solo escribe las entidades cuya
-    // referencia ha cambiado (los mutadores del store no tocan el resto).
-    persistDB(db, persistState.current).then((ok) => {
-      if (!ok && !dbQuotaWarned.current) {
-        dbQuotaWarned.current = true
-        toast(
-          'warn',
-          'El navegador no ha podido guardar los datos localmente. ' +
-            (syncEstado === 'nube'
-              ? 'Se seguira sincronizando con la nube con normalidad.'
-              : 'Activa la sincronizacion con la nube para no perder datos al recargar.'),
-        )
-      }
-    })
-
-    if (syncEstado !== 'nube') return
-    const timer = setTimeout(async () => {
-      const proyectos = await sincronizarEntidades({
-        actuales: db.projects,
-        mapa: syncProyectos.current,
-        push: (_code, project, baseVersion) => pushProject(project, baseVersion),
-        remove: deleteRemoteProject,
-      })
-      const departamentos =
-        proyectos.estado === 'ok'
-          ? await sincronizarEntidades({
-              actuales: db.departamentos,
-              mapa: syncDepartamentos.current,
-              push: (_nombre, modulo, baseVersion) => pushDepartment(modulo, baseVersion),
-              remove: deleteRemoteDepartment,
-            })
-          : { estado: 'error' as const, conflictos: [] }
-
-      // En conflicto gana la version remota (ya persistida por el otro usuario);
-      // se adopta localmente y se avisa para que el cambio propio se pueda rehacer.
-      if (proyectos.conflictos.length > 0 || departamentos.conflictos.length > 0) {
-        setDb((d) => ({
-          projects: {
-            ...d.projects,
-            ...Object.fromEntries(proyectos.conflictos.map((c) => [c.key, c.remoto])),
-          },
-          departamentos: {
-            ...d.departamentos,
-            ...Object.fromEntries(departamentos.conflictos.map((c) => [c.key, c.remoto])),
-          },
-        }))
-        for (const c of proyectos.conflictos) {
-          toast('warn', `${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
-        }
-        for (const c of departamentos.conflictos) {
-          toast('warn', `Departamento ${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
-        }
-      }
-
-      if (proyectos.estado === 'error' || departamentos.estado === 'error') {
-        setSyncEstado('error')
-      }
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [db, dbReady, syncEstado])
-
-  useEffect(() => {
     persistMiDepartamento(miDepartamento)
   }, [miDepartamento])
 
-  const toast = (kind: Toast['kind'], text: string) => {
-    const id = ++toastId
-    setToasts((t) => [...t, { id, kind, text }])
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000)
-  }
-
-  const handleExplotacionFiles = async (files: File[]) => {
-    let next = db
-    let lastCode: string | null = null
-    for (const f of files) {
-      try {
-        const parsed = await parseExplotacionAsync(f)
-        const res = upsertExplotacion(next, parsed)
-        if (res.skipped) {
-          toast('warn', `${f.name}: ya hay datos mas recientes de ${parsed.code}; no se ha importado.`)
-          continue
-        }
-        next = res.db
-        lastCode = parsed.code
-        toast('ok', `${parsed.code}: ${parsed.entries.length} apuntes importados.`)
-        parsed.warnings.forEach((w) => toast('warn', `${parsed.code}: ${w}`))
-      } catch (err) {
-        toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
-      }
-    }
-    setDb(next)
-    if (lastCode) setSelected(lastCode)
-  }
-
-  /** Incorpora unas horas parseadas al proyecto `code` y emite el resumen/avisos. */
-  const aplicarHorasImportadas = (base: DB, code: string, f: File, parsed: ParsedHoras): DB => {
-    const next = mergeHours(base, code, parsed.records, parsed.areaPorPersona)
-    const personas = new Set(parsed.records.map((r) => r.persona)).size
-    const total = parsed.records.reduce((s, r) => s + r.horas, 0)
-    toast('ok', `${f.name}: ${total.toLocaleString('es-ES')} h de ${personas} participantes importadas.`)
-    parsed.warnings.forEach((w) => toast('warn', `${f.name}: ${w}`))
-    return next
-  }
-
-  const handleConcostFiles = async (files: File[]) => {
-    if (!selected) return
-
-    let next = db
-    for (const f of files) {
-      const name = f.name.toLowerCase()
-      try {
-        if (name.includes('explotacion')) {
-          const parsed = await parseExplotacionAsync(f)
-          if (parsed.code !== selected) {
-            toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
-            continue
-          }
-          const res = upsertExplotacion(next, parsed)
-          if (res.skipped) {
-            toast('warn', `${f.name}: ya hay datos mas recientes de ${parsed.code}; no se ha importado.`)
-            continue
-          }
-          next = res.db
-          toast('ok', `${parsed.code}: explotacion actualizada con ${parsed.entries.length} apuntes.`)
-          parsed.warnings.forEach((w) => toast('warn', `${parsed.code}: ${w}`))
-          continue
-        }
-
-        const parsed = await parseHorasAsync(f)
-        if (parsed.code && parsed.code !== selected) {
-          toast('error', `${f.name}: es del proyecto ${parsed.code}, no de ${selected}; no se ha importado.`)
-          continue
-        }
-        next = aplicarHorasImportadas(next, selected, f, parsed)
-      } catch (err) {
-        toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
-      }
-    }
-    setDb(next)
-  }
-
-  const handleOverviewHoursFiles = async (files: File[]) => {
-    let next = db
-    for (const f of files) {
-      try {
-        const parsed = await parseHorasAsync(f)
-        if (!parsed.code) {
-          toast('error', `${f.name}: no se ha podido identificar el proyecto. Sube primero el fichero de Explotacion.`)
-          continue
-        }
-        if (!next.projects[parsed.code]) {
-          toast('error', `${f.name}: primero importa Explotacion para crear el proyecto ${parsed.code}.`)
-          continue
-        }
-        next = aplicarHorasImportadas(next, parsed.code, f, parsed)
-      } catch (err) {
-        toast('error', `${f.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
-      }
-    }
-    setDb(next)
-  }
+  const {
+    handleExplotacionFiles,
+    handleConcostFiles,
+    handleOverviewHoursFiles,
+    handleImportHorasProduccion,
+  } = useImportaciones({ db, setDb, selected, setSelected, miDepartamento, toast })
 
   const allProjects = orderProjects(db.projects, projectOrder).filter(
     (p) => myRole !== 'contrato' || p.code === myProyectoAsignado,
@@ -410,21 +173,6 @@ export default function App() {
   const puedeAccederDepartamento =
     !isSsoEnabled || myRole === 'administracion' || myRole === 'director_departamento'
   const puedeVerTodosDepartamentos = !isSsoEnabled || myRole === 'administracion'
-
-  const handleImportHorasProduccion = async (file: File) => {
-    if (!miDepartamento) return
-    try {
-      const parsed = await parseHorasProduccionAsync(file)
-      setDb((d) => setHorasProduccion(d, miDepartamento, parsed.horas, file.name))
-      toast(
-        'ok',
-        `${file.name}: ${parsed.horas.length.toLocaleString('es-ES')} apuntes de ${parsed.personas.length} personas importados.`,
-      )
-      parsed.warnings.forEach((w) => toast('warn', w))
-    } catch (err) {
-      toast('error', `${file.name}: ${err instanceof Error ? err.message : 'error al leer el fichero'}`)
-    }
-  }
 
   const handleUpdateRoster = (roster: DepartmentModule['roster']) => {
     if (!miDepartamento) return
@@ -641,25 +389,7 @@ export default function App() {
         </main>
       </div>
 
-      <div className="fixed inset-x-4 bottom-4 z-50 space-y-2 sm:inset-x-auto sm:right-4 sm:max-w-md">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`rounded-[14px] px-4 py-2.5 text-sm font-medium shadow-hover ${
-              t.kind === 'ok'
-                ? 'bg-success text-white'
-                : t.kind === 'warn'
-                  ? 'bg-warning text-primary-950'
-                  : 'bg-danger text-white'
-            }`}
-          >
-            <span className="mr-1.5 align-[-1px]">
-              <EmojiIcon>{t.kind === 'ok' ? emoji.check : t.kind === 'warn' ? emoji.alert : emoji.alert}</EmojiIcon>
-            </span>
-            {t.text}
-          </div>
-        ))}
-      </div>
+      <Toasts toasts={toasts} />
     </div>
   )
 }

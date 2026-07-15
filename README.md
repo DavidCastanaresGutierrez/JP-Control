@@ -1,9 +1,9 @@
 # JP Control — Seguimiento económico de proyectos
 
 Dashboard web para el seguimiento económico de contratos a partir de las hojas
-de **Detalle de Explotación** del ERP. Todo funciona en el navegador: los
-ficheros se procesan en local y los datos se guardan en `localStorage` (no se
-suben a ningún servidor).
+de **Detalle de Explotación** del ERP. Los ficheros se procesan en el navegador
+(en un Web Worker) y los datos se guardan en una caché local (IndexedDB); con
+la nube configurada se sincronizan además con la base de datos del proyecto.
 
 ## Qué hace
 
@@ -13,9 +13,9 @@ suben a ningún servidor).
   identifica por su código; como los exportes son acumulativos, el fichero más
   reciente sustituye al anterior del mismo proyecto y los de otros códigos se
   añaden como proyectos nuevos.
-- **Guardado automático**: todo se persiste en el navegador (`localStorage`) en
-  cuanto cambia; no hace falta guardar a mano. Para llevarte los datos a otro
-  equipo, usa «Exportar copia» / «Restaurar copia».
+- **Guardado automático**: todo se persiste en el navegador (IndexedDB) en
+  cuanto cambia; no hace falta guardar a mano. Con la sincronización en la nube
+  activa, los datos te siguen a cualquier equipo al iniciar sesión.
 - **Panel por proyecto**: arriba, una **barra grande de consumo sobre
   presupuesto** — usa el mayor de (facturado, gasto acumulado) ÷ presupuesto y
   muestra una **marca (rallita) en el % de avance** para ver de un vistazo si el
@@ -104,14 +104,19 @@ node scripts/test-horas.mjs
 ## Arquitectura de datos
 
 - **Sin nube** (desarrollo local o Vercel sin base de datos): todo se guarda en
-  `localStorage` del navegador, como siempre. La barra superior muestra «Solo local».
+  IndexedDB del navegador (la copia antigua de `localStorage` se migra sola la
+  primera vez). La barra superior muestra «Solo local».
 - **Con nube** (Vercel + Postgres): al arrancar, la app carga los proyectos de la
   base de datos y los fusiona con lo local (lo local que no exista en la nube se
-  sube). Cada cambio se sincroniza automáticamente (~1 s de retardo). Todos los
-  usuarios con la URL y el código de acceso ven los mismos datos. La barra
-  superior muestra «Sincronizado con la nube».
+  sube). Cada cambio se sincroniza automáticamente (~1 s de retardo) con
+  **bloqueo optimista**: si otro usuario guardó una versión más reciente, se
+  adopta esa versión y se avisa (nadie pisa el trabajo de nadie en silencio).
+  La barra superior muestra «Sincronizado con la nube».
 - El API es una función serverless en [api/projects.ts](api/projects.ts) que crea
-  la tabla `jp_projects` (una fila JSON por proyecto) automáticamente en el primer uso.
+  la tabla `jp_projects` (una fila JSON por proyecto, con columna `version`)
+  automáticamente en el primer uso.
+- Las decisiones de escalabilidad aplazadas a propósito (metadata ligera, PATCH
+  parcial, soft-delete…) están en [docs/DEUDA-TECNICA.md](docs/DEUDA-TECNICA.md).
 - Concurrencia: gana la última escritura por proyecto (pensado para un equipo
   pequeño, no para edición simultánea intensiva del mismo proyecto).
 - **Roles de usuario** (solo con SSO + base de datos configurados): cada persona
