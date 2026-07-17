@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 
 function Badge({ kind, children }: { kind: 'required' | 'optional'; children: string }) {
@@ -81,7 +82,10 @@ export function ConcostImportModal({
     input.value = ''
   }
 
-  return (
+  // Portal a <body>: si el modal se renderiza dentro de un ancestro con
+  // `transform` (p.ej. el Sidebar animado), `position: fixed` quedaria
+  // atrapado en su caja y el modal saldria apiñado en 17rem de ancho.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-950/45 p-4">
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-line bg-surface shadow-hover">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-4 py-4 sm:px-6 sm:py-5">
@@ -163,6 +167,7 @@ export function ConcostImportModal({
           onChange={(e) => handleFiles(e.target.files, onHorasFiles, e.currentTarget)}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
