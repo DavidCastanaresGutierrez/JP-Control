@@ -16,6 +16,8 @@ aplazadas a propósito, con la señal que indicaría que toca abordarlas.
 | **Conflictos a nivel de entidad** | Fusión a tres vías campo a campo usando la última copia sincronizada como base común: si dos usuarios editan campos distintos del mismo proyecto, se combinan ambos; solo el campo con doble edición lo gana el que guardó primero (con aviso detallando qué campos). |
 | **Resurrección de zombis** | `?vista=versiones` devuelve también los tombstones del soft-delete; un borrado hecho en otro dispositivo se propaga a la caché local (con aviso). Excepción deliberada: si aquí hay trabajo offline sin subir, se conserva y revive. |
 | **Sin tests de componentes** | Andamiaje montado (jsdom + testing-library, entorno por fichero con `@vitest-environment`): smoke tests de Overview (tarjetas, KPIs, buscador, navegación) y Toasts fijan el patrón para ampliar. |
+| **PATCH parcial** | Los cambios que no tocan `entries`/`hours`/`horas` viajan como PATCH con solo los campos modificados (diff superficial contra la última copia sincronizada) + condición de versión; en conflicto cae en la fusión a tres vías con PUT completo. Editar el % de avance ya no sube megabytes. |
+| **Sin E2E** | Playwright contra el build de producción (`npm run test:e2e`, también en CI): importa un Excel real por la UI (parseo en el Web Worker), verifica dashboard y tabla, y comprueba la persistencia IndexedDB tras recargar. |
 
 ## Pendiente (a propósito)
 

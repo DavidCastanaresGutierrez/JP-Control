@@ -109,6 +109,45 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     })
   }
 
+  if (req.method === 'PATCH') {
+    // Actualizacion parcial de campos ligeros (roster, objetivo, mesInicio...):
+    // las horas de produccion (miles de apuntes) siguen requiriendo PUT completo.
+    const { nombre, baseVersion, set, unset } = (req.body ?? {}) as {
+      nombre?: string
+      baseVersion?: number
+      set?: Record<string, unknown>
+      unset?: string[]
+    }
+    const setCampos = set && typeof set === 'object' ? set : {}
+    const unsetCampos = Array.isArray(unset) ? unset.filter((c): c is string => typeof c === 'string') : []
+    if (!nombre || typeof nombre !== 'string' || typeof baseVersion !== 'number') {
+      return res.status(400).json({ error: 'Faltan nombre o baseVersion en el cuerpo.' })
+    }
+    if (me && !puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
+      return res.status(403).json({ error: 'No tienes acceso a este departamento.' })
+    }
+    const campos = [...Object.keys(setCampos), ...unsetCampos]
+    if (campos.length === 0) return res.status(400).json({ error: 'PATCH sin campos.' })
+    if (campos.some((c) => c === 'horas' || c === 'departamento')) {
+      return res.status(400).json({ error: 'horas/departamento no admiten PATCH parcial: usa PUT.' })
+    }
+
+    const rows = await sql`
+      UPDATE jp_departments
+      SET data = (data - ${unsetCampos}::text[]) || ${JSON.stringify(setCampos)}::jsonb,
+          updated_at = now(), version = version + 1, deleted_at = NULL
+      WHERE nombre = ${nombre} AND version = ${baseVersion}
+      RETURNING version`
+    if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
+
+    const current = await sql`SELECT data, version FROM jp_departments WHERE nombre = ${nombre} AND deleted_at IS NULL`
+    return res.status(409).json({
+      error: 'Otro usuario ha guardado una version mas reciente de este departamento.',
+      data: current[0]?.data ?? null,
+      version: current[0] ? Number(current[0].version) : null,
+    })
+  }
+
   if (req.method === 'DELETE') {
     const nombre = typeof req.query.nombre === 'string' ? req.query.nombre : ''
     if (!nombre) return res.status(400).json({ error: 'Falta el parametro nombre.' })
@@ -119,6 +158,6 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     return res.status(200).json({ ok: true })
   }
 
-  res.setHeader('Allow', 'GET, PUT, DELETE')
+  res.setHeader('Allow', 'GET, PUT, PATCH, DELETE')
   return res.status(405).json({ error: 'Metodo no permitido.' })
 })

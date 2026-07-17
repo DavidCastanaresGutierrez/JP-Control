@@ -1,6 +1,6 @@
 import type { DepartmentModule, Project } from '../types.ts'
 import { apiFetch } from './http.ts'
-import type { PushResult } from './cloudSync.ts'
+import type { DiffSuperficial, PushResult } from './cloudSync.ts'
 
 export type { PushResult }
 
@@ -20,8 +20,12 @@ async function call(path: string, init?: RequestInit): Promise<Response | 'sin-n
   return res
 }
 
-async function push<T>(path: string, body: Record<string, unknown>): Promise<PushResult<T>> {
-  const res = await call(path, { method: 'PUT', body: JSON.stringify(body) })
+async function push<T>(
+  path: string,
+  body: Record<string, unknown>,
+  method: 'PUT' | 'PATCH' = 'PUT',
+): Promise<PushResult<T>> {
+  const res = await call(path, { method, body: JSON.stringify(body) })
   if (res === 'sin-nube') return { estado: 'error' }
   if (res.status === 409) {
     const conflict = (await res.json().catch(() => ({}))) as { data?: T; version?: number | null }
@@ -82,6 +86,11 @@ export function pushProject(project: Project, baseVersion: number | null): Promi
   return push('/api/projects', { code: project.code, data: project, baseVersion })
 }
 
+/** Sube solo los campos ligeros cambiados de un proyecto (KBs en vez del blob entero). */
+export function patchProject(code: string, diff: DiffSuperficial, baseVersion: number): Promise<PushResult<Project>> {
+  return push('/api/projects', { code, baseVersion, set: diff.set, unset: diff.unset }, 'PATCH')
+}
+
 export async function deleteRemoteProject(code: string): Promise<boolean> {
   const res = await call(`/api/projects?code=${encodeURIComponent(code)}`, { method: 'DELETE' })
   return res !== 'sin-nube' && res.ok
@@ -109,6 +118,15 @@ export function pushDepartment(
   baseVersion: number | null,
 ): Promise<PushResult<DepartmentModule>> {
   return push('/api/departments', { nombre: modulo.departamento, data: modulo, baseVersion })
+}
+
+/** Sube solo los campos ligeros cambiados de un departamento (roster, objetivo, mesInicio...). */
+export function patchDepartment(
+  nombre: string,
+  diff: DiffSuperficial,
+  baseVersion: number,
+): Promise<PushResult<DepartmentModule>> {
+  return push('/api/departments', { nombre, baseVersion, set: diff.set, unset: diff.unset }, 'PATCH')
 }
 
 export async function deleteRemoteDepartment(nombre: string): Promise<boolean> {

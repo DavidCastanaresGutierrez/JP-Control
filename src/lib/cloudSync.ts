@@ -165,6 +165,33 @@ export function fusionarTresVias<T extends object>(baseJson: string, local: T, r
   return { fusionado: fusionado as T, camposPisados, conservaCambiosLocales }
 }
 
+export interface DiffSuperficial {
+  /** Campos de primer nivel con valor nuevo o cambiado */
+  set: Record<string, unknown>
+  /** Campos de primer nivel eliminados */
+  unset: string[]
+}
+
+/**
+ * Diferencias de primer nivel entre la ultima copia sincronizada (base) y el
+ * valor local: la base de los PATCH parciales. Devuelve null sin base comun.
+ */
+export function diferenciasSuperficiales(baseJson: string, valor: object): DiffSuperficial | null {
+  if (!baseJson) return null
+  const base = JSON.parse(baseJson) as Record<string, unknown>
+  const actual = valor as Record<string, unknown>
+  const set: Record<string, unknown> = {}
+  const unset: string[] = []
+  for (const clave of new Set([...Object.keys(base), ...Object.keys(actual)])) {
+    if (!(clave in actual) || actual[clave] === undefined) {
+      if (clave in base) unset.push(clave)
+    } else if (JSON.stringify(actual[clave]) !== JSON.stringify(base[clave])) {
+      set[clave] = actual[clave]
+    }
+  }
+  return { set, unset }
+}
+
 export interface ConflictoSync<T> {
   key: string
   /** Version vigente adoptada tras el conflicto (fusionada si fue posible) */
@@ -197,8 +224,12 @@ export async function sincronizarEntidades<T>(opts: {
   mapa: MapaSync<T>
   push: (key: string, valor: T, baseVersion: number | null) => Promise<PushResult<T>>
   remove: (key: string) => Promise<boolean>
+  /** PATCH parcial para cambios que solo tocan campos ligeros (opcional) */
+  pushParcial?: (key: string, diff: DiffSuperficial, baseVersion: number) => Promise<PushResult<T>>
+  /** Campos cuyo cambio obliga a subir la entidad completa (p.ej. entries/hours) */
+  esCampoPesado?: (campo: string) => boolean
 }): Promise<ResultadoSync<T>> {
-  const { actuales, mapa, push, remove } = opts
+  const { actuales, mapa, push, remove, pushParcial, esCampoPesado } = opts
   const conflictos: Array<ConflictoSync<T>> = []
 
   for (const [key, valor] of Object.entries(actuales)) {
@@ -209,7 +240,25 @@ export async function sincronizarEntidades<T>(opts: {
       entrada.obj = valor // mismo contenido con objeto nuevo: refrescar la referencia
       continue
     }
-    const resultado = await push(key, valor, entrada?.version ?? null)
+
+    // Si el cambio solo toca campos ligeros, basta un PATCH con esos campos
+    // en vez de subir la entidad entera (los imports siguen yendo por PUT).
+    let resultado: PushResult<T> | null = null
+    if (pushParcial && entrada && entrada.json && entrada.version !== null) {
+      const diff = diferenciasSuperficiales(entrada.json, valor as object)
+      if (diff) {
+        const campos = [...Object.keys(diff.set), ...diff.unset]
+        if (campos.length === 0) {
+          // Mismo contenido con distinto orden de claves: nada que subir
+          mapa.set(key, { obj: valor, json, version: entrada.version })
+          continue
+        }
+        if (!campos.some((c) => esCampoPesado?.(c))) {
+          resultado = await pushParcial(key, diff, entrada.version)
+        }
+      }
+    }
+    resultado ??= await push(key, valor, entrada?.version ?? null)
     if (resultado.estado === 'ok') {
       mapa.set(key, { obj: valor, json, version: resultado.version })
     } else if (resultado.estado === 'conflicto') {

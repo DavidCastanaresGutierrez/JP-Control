@@ -61,13 +61,13 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     return res.status(200).json({ projects, versions })
   }
 
-  if (req.method === 'PUT' || req.method === 'DELETE') {
+  if (req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') {
     const targetCode =
-      req.method === 'PUT'
-        ? String((req.body as { code?: string } | undefined)?.code ?? '')
-        : typeof req.query.code === 'string'
+      req.method === 'DELETE'
+        ? typeof req.query.code === 'string'
           ? req.query.code
           : ''
+        : String((req.body as { code?: string } | undefined)?.code ?? '')
     if (me) {
       if (me.role === 'lectura') {
         return res.status(403).json({ error: 'Tu rol es de solo lectura: no puedes modificar proyectos.' })
@@ -142,6 +142,43 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     })
   }
 
+  if (req.method === 'PATCH') {
+    // Actualizacion parcial de campos ligeros (progress, watchers, deptShare...):
+    // evita subir el jsonb completo cuando el cambio es pequeño. Los campos
+    // pesados (entries/hours) siguen requiriendo el PUT completo.
+    const { code, baseVersion, set, unset } = (req.body ?? {}) as {
+      code?: string
+      baseVersion?: number
+      set?: Record<string, unknown>
+      unset?: string[]
+    }
+    const setCampos = set && typeof set === 'object' ? set : {}
+    const unsetCampos = Array.isArray(unset) ? unset.filter((c): c is string => typeof c === 'string') : []
+    if (!code || typeof code !== 'string' || typeof baseVersion !== 'number') {
+      return res.status(400).json({ error: 'Faltan code o baseVersion en el cuerpo.' })
+    }
+    const campos = [...Object.keys(setCampos), ...unsetCampos]
+    if (campos.length === 0) return res.status(400).json({ error: 'PATCH sin campos.' })
+    if (campos.some((c) => c === 'entries' || c === 'hours' || c === 'code')) {
+      return res.status(400).json({ error: 'entries/hours/code no admiten PATCH parcial: usa PUT.' })
+    }
+
+    const rows = await sql`
+      UPDATE jp_projects
+      SET data = (data - ${unsetCampos}::text[]) || ${JSON.stringify(setCampos)}::jsonb,
+          updated_at = now(), version = version + 1, deleted_at = NULL
+      WHERE code = ${code} AND version = ${baseVersion}
+      RETURNING version`
+    if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
+
+    const current = await sql`SELECT data, version FROM jp_projects WHERE code = ${code} AND deleted_at IS NULL`
+    return res.status(409).json({
+      error: 'Otro usuario ha guardado una version mas reciente de este proyecto.',
+      data: current[0]?.data ?? null,
+      version: current[0] ? Number(current[0].version) : null,
+    })
+  }
+
   if (req.method === 'DELETE') {
     const code = typeof req.query.code === 'string' ? req.query.code : ''
     if (!code) return res.status(400).json({ error: 'Falta el parametro code.' })
@@ -151,6 +188,6 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     return res.status(200).json({ ok: true })
   }
 
-  res.setHeader('Allow', 'GET, PUT, DELETE')
+  res.setHeader('Allow', 'GET, PUT, PATCH, DELETE')
   return res.status(405).json({ error: 'Metodo no permitido.' })
 })

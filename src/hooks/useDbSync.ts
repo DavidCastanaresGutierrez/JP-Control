@@ -24,6 +24,8 @@ import {
   fetchRemoteDepartments,
   fetchRemoteProjectVersions,
   fetchRemoteProjects,
+  patchDepartment,
+  patchProject,
   pushDepartment,
   pushProject,
 } from '../lib/api'
@@ -196,6 +198,9 @@ export function useDbSync(opts: {
         actuales: db.projects,
         mapa: syncProyectos.current,
         push: (_code, project, baseVersion) => pushProject(project, baseVersion),
+        // Cambios que no tocan apuntes ni horas viajan como PATCH (KBs)
+        pushParcial: patchProject,
+        esCampoPesado: (campo) => campo === 'entries' || campo === 'hours',
         remove: deleteRemoteProject,
       })
       const departamentos =
@@ -204,6 +209,8 @@ export function useDbSync(opts: {
               actuales: db.departamentos,
               mapa: syncDepartamentos.current,
               push: (_nombre, modulo, baseVersion) => pushDepartment(modulo, baseVersion),
+              pushParcial: patchDepartment,
+              esCampoPesado: (campo) => campo === 'horas',
               remove: deleteRemoteDepartment,
             })
           : { estado: 'error' as const, conflictos: [] }

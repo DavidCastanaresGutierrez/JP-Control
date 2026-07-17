@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { crearEntradaPendiente, crearMapaSync, fusionarTresVias, hashJson, metaDesdeMapa, planificarSync, sincronizarEntidades } from './cloudSync.ts'
+import { crearEntradaPendiente, crearMapaSync, diferenciasSuperficiales, fusionarTresVias, hashJson, metaDesdeMapa, planificarSync, sincronizarEntidades } from './cloudSync.ts'
 import type { PushResult } from './cloudSync.ts'
 
 type Doc = { nombre: string; valor: number }
@@ -284,5 +284,75 @@ describe('planificarSync con tombstones', () => {
     const plan = planificarSync<Doc>({}, {}, {}, ['a'])
     expect(plan.eliminar).toEqual([])
     expect(plan.pendientes).toEqual([])
+  })
+})
+
+describe('diferenciasSuperficiales', () => {
+  it('detecta campos nuevos, cambiados y eliminados a primer nivel', () => {
+    const base = JSON.stringify({ a: 1, b: [1, 2], c: 'x' })
+    const diff = diferenciasSuperficiales(base, { a: 1, b: [1, 2, 3], d: true })
+    expect(diff).toEqual({ set: { b: [1, 2, 3], d: true }, unset: ['c'] })
+  })
+
+  it('sin base comun devuelve null', () => {
+    expect(diferenciasSuperficiales('', { a: 1 })).toBeNull()
+  })
+})
+
+describe('sincronizarEntidades con pushParcial', () => {
+  type Ficha = { nombre: string; valor: number; pesado: number[] }
+  const esCampoPesado = (c: string) => c === 'pesado'
+
+  it('un cambio solo en campos ligeros viaja como PATCH', async () => {
+    const base: Ficha = { nombre: 'a', valor: 1, pesado: [1, 2, 3] }
+    const mapa = crearMapaSync({ a: base }, { a: 4 })
+    const push = vi.fn()
+    const pushParcial = vi.fn(async (): Promise<PushResult<Ficha>> => ({ estado: 'ok', version: 5 }))
+    const local = { ...base, valor: 99 }
+    await sincronizarEntidades({ actuales: { a: local }, mapa, push, pushParcial, esCampoPesado, remove: vi.fn() })
+    expect(pushParcial).toHaveBeenCalledWith('a', { set: { valor: 99 }, unset: [] }, 4)
+    expect(push).not.toHaveBeenCalled()
+    expect(mapa.get('a')).toEqual({ obj: local, json: JSON.stringify(local), version: 5 })
+  })
+
+  it('si el cambio toca un campo pesado va por PUT completo', async () => {
+    const base: Ficha = { nombre: 'a', valor: 1, pesado: [1] }
+    const mapa = crearMapaSync({ a: base }, { a: 4 })
+    const push = vi.fn(async (): Promise<PushResult<Ficha>> => ({ estado: 'ok', version: 5 }))
+    const pushParcial = vi.fn()
+    const local = { ...base, pesado: [1, 2] }
+    await sincronizarEntidades({ actuales: { a: local }, mapa, push, pushParcial, esCampoPesado, remove: vi.fn() })
+    expect(pushParcial).not.toHaveBeenCalled()
+    expect(push).toHaveBeenCalledWith('a', local, 4)
+  })
+
+  it('una entidad nueva (sin version) va por PUT completo', async () => {
+    const mapa = crearMapaSync<Ficha>({}, {})
+    const push = vi.fn(async (): Promise<PushResult<Ficha>> => ({ estado: 'ok', version: 1 }))
+    const pushParcial = vi.fn()
+    await sincronizarEntidades({
+      actuales: { b: { nombre: 'b', valor: 1, pesado: [] } },
+      mapa,
+      push,
+      pushParcial,
+      esCampoPesado,
+      remove: vi.fn(),
+    })
+    expect(pushParcial).not.toHaveBeenCalled()
+    expect(push).toHaveBeenCalled()
+  })
+
+  it('un conflicto en el PATCH cae en la fusion a tres vias con PUT completo', async () => {
+    const base: Ficha = { nombre: 'a', valor: 1, pesado: [1] }
+    const mapa = crearMapaSync({ a: base }, { a: 4 })
+    const remoto: Ficha = { ...base, nombre: 'renombrada' }
+    const pushParcial = vi.fn(async (): Promise<PushResult<Ficha>> => ({ estado: 'conflicto', version: 6, data: remoto }))
+    const push = vi.fn(async (): Promise<PushResult<Ficha>> => ({ estado: 'ok', version: 7 }))
+    const local = { ...base, valor: 99 }
+    const resultado = await sincronizarEntidades({ actuales: { a: local }, mapa, push, pushParcial, esCampoPesado, remove: vi.fn() })
+    // La fusion conserva valor=99 local + nombre remoto y reintenta con PUT
+    expect(push).toHaveBeenCalledWith('a', { nombre: 'renombrada', valor: 99, pesado: [1] }, 6)
+    expect(resultado.conflictos[0].fusionado).toBe(true)
+    expect(mapa.get('a')!.version).toBe(7)
   })
 })
