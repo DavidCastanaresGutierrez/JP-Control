@@ -35,6 +35,7 @@ export function ProjectDashboard({
   isWatching,
   onToggleWatch,
   soloLectura,
+  puedeAdministrar = true,
 }: {
   project: Project
   onUpdate: (patch: Partial<Project>) => void
@@ -43,6 +44,10 @@ export function ProjectDashboard({
   isWatching?: boolean
   onToggleWatch?: () => void
   soloLectura?: boolean
+  /** Decision de negocio (07/2026): la pestana Configuracion (presupuesto,
+   * asignaciones, archivado y borrado) solo la ven el JP del proyecto o
+   * administracion. */
+  puedeAdministrar?: boolean
 }) {
   const [tab, setTab] = useState<Tab>('panel')
   const k = useMemo(() => kpis(project), [project])
@@ -84,7 +89,7 @@ export function ProjectDashboard({
     { id: 'panel', label: 'Panel' },
     { id: 'horas', label: 'Horas' },
     { id: 'movimientos', label: 'Facturas' },
-    { id: 'ajustes', label: 'Configuracion' },
+    ...(puedeAdministrar ? [{ id: 'ajustes' as const, label: 'Configuracion' }] : []),
   ]
 
   return (
@@ -306,7 +311,7 @@ export function ProjectDashboard({
                 Define el importe de contrato (y el % de avance) en la pestana{' '}
                 <button
                   className="text-primary-800 font-semibold underline hover:text-primary-900"
-                  onClick={() => setTab('ajustes')}
+                  onClick={() => puedeAdministrar && setTab('ajustes')}
                 >
                   Configuracion
                 </button>{' '}
@@ -383,7 +388,7 @@ export function ProjectDashboard({
                   Asigna personas y facturas a departamentos en{' '}
                   <button
                     className="text-primary-800 font-semibold underline hover:text-primary-900"
-                    onClick={() => setTab('ajustes')}
+                    onClick={() => puedeAdministrar && setTab('ajustes')}
                   >
                     Configuracion
                   </button>{' '}
@@ -436,7 +441,7 @@ export function ProjectDashboard({
         <HoursView project={project} onUpdate={onUpdate} initialDeptFocus={pendingHorasDept} />
       )}
       {tab === 'movimientos' && <EntriesTable entries={project.entries} />}
-      {tab === 'ajustes' && (
+      {tab === 'ajustes' && puedeAdministrar && (
         <Ajustes
           project={project}
           onUpdate={onUpdate}

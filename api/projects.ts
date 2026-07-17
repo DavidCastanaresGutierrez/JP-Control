@@ -1,5 +1,6 @@
 import { withDb } from './_db.js'
 import type { Sql } from './_db.js'
+import { esJpDelUsuario } from '../src/lib/projectAccess.ts'
 
 /**
  * Fila con version para el bloqueo optimista: el cliente guarda la version que
@@ -20,9 +21,13 @@ async function init(sql: Sql) {
   // recuperar un proyecto borrado por error (basta reimportarlo o restaurar
   // deleted_at a NULL a mano). El GET solo devuelve filas vivas.
   await sql`ALTER TABLE jp_projects ADD COLUMN IF NOT EXISTS deleted_at timestamptz`
+  // Retencion decidida por negocio (07/2026): 90 dias y purga definitiva.
+  // Corre una vez por arranque en frio; al purgarse desaparece tambien el
+  // tombstone (un dispositivo con cache >90 dias podria revivir la fila).
+  await sql`DELETE FROM jp_projects WHERE deleted_at IS NOT NULL AND deleted_at < now() - interval '90 days'`
 }
 
-export default withDb({ init }, async ({ req, res, sql, me }) => {
+export default withDb({ init }, async ({ req, res, sql, email, nombre, me }) => {
   if (req.method === 'GET') {
     // ?vista=versiones: solo code->version (KBs), para que el cliente decida
     // que proyectos necesita descargar comparando con su cache local.
@@ -182,6 +187,17 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
   if (req.method === 'DELETE') {
     const code = typeof req.query.code === 'string' ? req.query.code : ''
     if (!code) return res.status(400).json({ error: 'Falta el parametro code.' })
+    // Decision de negocio (07/2026): borrar un proyecto solo puede hacerlo su
+    // JP o administracion (en modo APP_TOKEN legacy, me es null: acceso total)
+    if (me && me.role !== 'administracion') {
+      const filas = await sql`SELECT data->>'jp' AS jp FROM jp_projects WHERE code = ${code} AND deleted_at IS NULL`
+      if (filas.length > 0) {
+        const jp = (filas[0].jp as string | null) ?? undefined
+        if (!esJpDelUsuario({ jp }, nombre, email)) {
+          return res.status(403).json({ error: 'Solo el JP del proyecto o administracion pueden borrarlo.' })
+        }
+      }
+    }
     // Soft-delete: la fila queda marcada (recuperable reimportando el proyecto
     // o poniendo deleted_at a NULL en la base de datos)
     await sql`UPDATE jp_projects SET deleted_at = now(), updated_at = now() WHERE code = ${code}`

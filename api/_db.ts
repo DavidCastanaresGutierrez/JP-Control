@@ -13,6 +13,8 @@ export interface DbContext {
   sql: Sql
   /** Email de la sesion SSO en minusculas ('' en modo APP_TOKEN legacy) */
   email: string
+  /** Nombre del usuario segun el token SSO ('' si no lo trae) */
+  nombre: string
   /** Rol y alcance del usuario; null en modo APP_TOKEN legacy (acceso completo) */
   me: UserInfo | null
 }
@@ -61,7 +63,7 @@ export function withDb(options: WithDbOptions, handler: (ctx: DbContext) => Prom
         if (options.registerLogin) await registerLogin(sql, email, String(auth.name ?? email))
         me = await getUserInfo(sql, email)
       }
-      return await handler({ req, res, sql, email, me })
+      return await handler({ req, res, sql, email, nombre: String(auth.name ?? ''), me })
     } catch (err) {
       initPromise = null
       return res.status(500).json({ error: err instanceof Error ? err.message : 'Error de base de datos.' })

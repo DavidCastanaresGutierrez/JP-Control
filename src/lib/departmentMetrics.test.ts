@@ -38,6 +38,13 @@ describe('clasificarActividad', () => {
     expect(clasificarActividad('DSES.DE3423ESP.TYES - ATLAS')).toBe('facturable')
   })
 
+  it('codigo con IDI (regla TYPSA): innovacion, sin confundir palabras del nombre', () => {
+    expect(clasificarActividad('DS.IDI0003 - Gemelo digital')).toBe('innovacion')
+    expect(clasificarActividad('DSES.IDI21ESP.TYES - Plataforma')).toBe('innovacion')
+    // "idi" en minusculas dentro de palabras del nombre NO es innovacion
+    expect(clasificarActividad('DSES.DE1ESP.TYES - Estudio de medidas e idiomas')).toBe('facturable')
+  })
+
   it('los overrides manuales mandan sobre las palabras clave', () => {
     expect(clasificarActividad('Vacaciones', { Vacaciones: 'gestion' })).toBe('gestion')
   })

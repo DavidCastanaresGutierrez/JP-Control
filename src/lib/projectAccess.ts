@@ -8,8 +8,12 @@ function tokensNombre(value: string): string[] {
     .filter((token) => token.length > 1)
 }
 
-/** Determina si el usuario logueado figura como JP del proyecto, cotejando nombre y email. */
-export function esJpDelUsuario(project: Project, userName?: string, userEmail?: string): boolean {
+/**
+ * Determina si el usuario logueado figura como JP del proyecto, cotejando
+ * nombre y email. Acepta cualquier objeto con `jp` para poder usarse tambien
+ * desde la API (que solo carga ese campo del jsonb).
+ */
+export function esJpDelUsuario(project: Pick<Project, 'jp'>, userName?: string, userEmail?: string): boolean {
   if (!project.jp) return false
   const jp = new Set(tokensNombre(project.jp))
   if (jp.size === 0) return false

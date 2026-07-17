@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { DepartmentModule } from './types'
 import { deleteDepartamento, deleteProject, updateDepartamento, updateProject } from './lib/store'
 import { fetchUsers, updateUserRole } from './lib/adminApi'
@@ -47,9 +48,23 @@ function VistaCargando() {
 type ProjectArchiveFilter = 'active' | 'archived' | 'all'
 type ProjectScope = 'mine' | 'all'
 
+const RUTA_PROYECTO = '/proyecto/'
+
 export default function App() {
   const [projectOrder, setProjectOrder] = useState<string[]>(() => loadProjectOrder())
-  const [selected, setSelected] = useState<string | null>(null)
+  // Deep links: la vista activa vive en la URL (/proyecto/:code, /departamento,
+  // /admin), asi que cualquier proyecto se puede compartir por enlace.
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const adminView = pathname === '/admin'
+  const deptView = pathname === '/departamento'
+  const selected = pathname.startsWith(RUTA_PROYECTO)
+    ? decodeURIComponent(pathname.slice(RUTA_PROYECTO.length))
+    : null
+  const setSelected = useCallback(
+    (code: string | null) => navigate(code ? `${RUTA_PROYECTO}${encodeURIComponent(code)}` : '/'),
+    [navigate],
+  )
   const [scope, setScope] = useState<ProjectScope>('mine')
   const [archiveFilter, setArchiveFilter] = useState<ProjectArchiveFilter>('active')
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
@@ -64,8 +79,6 @@ export default function App() {
   const [myProyectoAsignado, setMyProyectoAsignado] = useState<string | null>(null)
   const [myNivelContrato, setMyNivelContrato] = useState<NivelContrato | null>(null)
   const [adminUsers, setAdminUsers] = useState<AppUser[] | null>(null)
-  const [adminView, setAdminView] = useState(false)
-  const [deptView, setDeptView] = useState(false)
   const [miDepartamento, setMiDepartamento] = useState<string | null>(() => loadMiDepartamento())
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -97,9 +110,9 @@ export default function App() {
 
   useEffect(() => {
     if (isSsoEnabled && deptView && myRole !== 'administracion' && myRole !== 'director_departamento') {
-      setDeptView(false)
+      navigate('/', { replace: true })
     }
-  }, [deptView, myRole])
+  }, [deptView, myRole, navigate])
 
   useEffect(() => {
     if (isSsoEnabled && myRole === 'director_departamento' && myDepartamento && miDepartamento !== myDepartamento) {
@@ -140,6 +153,12 @@ export default function App() {
   })
   const project = selected ? db.projects[selected] : undefined
   const siguiendoProyecto = project ? esSeguidoPorUsuario(project, authSession?.email) : false
+  // Decision de negocio (07/2026): la Configuracion del proyecto (y su
+  // borrado) solo para el JP del proyecto o administracion
+  const puedeAdministrarProyecto =
+    !isSsoEnabled ||
+    myRole === 'administracion' ||
+    (project ? esJpDelUsuario(project, authSession?.username, authSession?.email) : false)
 
   const handleReorderProjects = (draggedCode: string, targetCode: string) => {
     setProjectOrder((current) => {
@@ -207,10 +226,9 @@ export default function App() {
   const handleLogout = useCallback(async () => {
     await logoutSso()
     setAuthSession(null)
-    setSelected(null)
-    setAdminView(false)
+    navigate('/')
     setSyncEstado('auth')
-  }, [setSyncEstado])
+  }, [navigate, setSyncEstado])
 
   const handleChangeRole = async (
     email: string,
@@ -275,16 +293,13 @@ export default function App() {
         onRequestClose={() => setMobileNavOpen(false)}
         syncEstado={syncEstado}
         onSelect={(code) => {
-          setAdminView(false)
-          setDeptView(false)
           setSelected(code)
           setMobileNavOpen(false)
         }}
         onImportConcost={handleConcostFiles}
         scope={scope}
         onScopeChange={(s) => {
-          setAdminView(false)
-          setDeptView(false)
+          navigate('/')
           setScope(s)
           setMobileNavOpen(false)
         }}
@@ -297,17 +312,13 @@ export default function App() {
         showAdmin={myRole === 'administracion'}
         adminActive={adminView}
         onOpenAdmin={() => {
-          setSelected(null)
-          setDeptView(false)
-          setAdminView(true)
+          navigate('/admin')
           setMobileNavOpen(false)
         }}
         showDept={puedeAccederDepartamento}
         departamentoActive={deptView}
         onOpenDepartamento={() => {
-          setSelected(null)
-          setAdminView(false)
-          setDeptView(true)
+          navigate('/departamento')
           setMobileNavOpen(false)
         }}
       />
@@ -374,6 +385,7 @@ export default function App() {
               isWatching={siguiendoProyecto}
               onToggleWatch={() => handleToggleWatch(project.code)}
               soloLectura={myRole === 'lectura' || (myRole === 'contrato' && myNivelContrato !== 'edicion')}
+              puedeAdministrar={puedeAdministrarProyecto}
             />
           ) : (
             <Overview

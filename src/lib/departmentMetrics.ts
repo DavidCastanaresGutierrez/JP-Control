@@ -7,10 +7,19 @@ const RE_SOPORTE = /soporte/i
 const RE_FORMACION = /formaci[oó]n/i
 const RE_GESTION = /labores no asignables|tareas transversales|ofertas/i
 const RE_VACACIONES = /vacaciones|permiso retribuido/i
+// Regla TYPSA: los proyectos de I+D+i llevan "IDI" (en mayusculas) dentro del
+// codigo de proyecto (la parte antes del " - "), p.ej. "DS.IDI0003 - Gemelo".
+// Se comprueba solo sobre el codigo y sin ignorar mayusculas para no confundir
+// palabras como "idioma" o "medida" del nombre.
+const RE_CODIGO_IDI = /IDI/
 
 /**
- * Clasifica un proyecto/actividad por palabras clave de su nombre en Concost.
- * Los codigos internos (sin cliente) empiezan por "DS." en vez de "DSES.".
+ * Clasifica un proyecto/actividad segun las reglas de TYPSA:
+ * - innovacion: "IDI" en el codigo de proyecto, o "I+D+i" en el nombre
+ * - soporte / formacion / vacaciones: por palabras clave del nombre
+ * - gestion: palabras clave ("labores no asignables", "ofertas"...) — el
+ *   codigo interno anual que aglutina la gestion entra por aqui — o cualquier
+ *   codigo interno "DS." sin otra clasificacion
  * `overrides` permite reclasificar a mano un proyecto concreto.
  * `extra` son otros campos del apunte (descripcion, tarea) donde tambien puede
  * aparecer la palabra clave cuando el codigo de proyecto es opaco (p.ej. "AV0000").
@@ -21,9 +30,10 @@ export function clasificarActividad(
   extra?: string,
 ): TipoActividad {
   if (overrides?.[proyecto]) return overrides[proyecto]
+  const codigo = proyecto.split(' - ')[0]
   const texto = extra ? `${proyecto} ${extra}` : proyecto
   if (RE_VACACIONES.test(texto)) return 'vacaciones'
-  if (RE_INNOVACION.test(texto)) return 'innovacion'
+  if (RE_CODIGO_IDI.test(codigo) || RE_INNOVACION.test(texto)) return 'innovacion'
   if (RE_SOPORTE.test(texto)) return 'soporte'
   if (RE_FORMACION.test(texto)) return 'formacion'
   if (RE_GESTION.test(texto)) return 'gestion'

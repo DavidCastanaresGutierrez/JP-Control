@@ -12,6 +12,8 @@ async function init(sql: Sql) {
   await sql`ALTER TABLE jp_departments ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 1`
   // Soft-delete: el DELETE marca la fila en vez de destruirla (recuperable)
   await sql`ALTER TABLE jp_departments ADD COLUMN IF NOT EXISTS deleted_at timestamptz`
+  // Retencion decidida por negocio (07/2026): 90 dias y purga definitiva
+  await sql`DELETE FROM jp_departments WHERE deleted_at IS NOT NULL AND deleted_at < now() - interval '90 days'`
 }
 
 export default withDb({ init }, async ({ req, res, sql, me }) => {

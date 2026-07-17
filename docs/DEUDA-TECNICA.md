@@ -42,11 +42,18 @@ el volumen real. **Diseño**: columna `resumen` (KPIs del Overview) calculada al
 guardar; `GET ?vista=resumen` para pintar el Overview al instante y detalle
 bajo demanda al abrir cada proyecto.
 
-### Otras decisiones aplazadas
+## Decisiones de producto tomadas (David, 18/07/2026)
+
+| Tema | Decisión | Estado |
+| --- | --- | --- |
+| **Quién borra/administra proyectos** | Solo el JP del proyecto o administración. | Implementado: el DELETE del servidor lo exige (misma heurística de matching que "Mi cartera") y la pestaña Configuración solo la ven JP/admin. |
+| **Configuración de negocio editable** | "En principio no va a cambiar": se queda en constantes en código. | Cerrado por decisión. Si algún día cambia: tabla `jp_config` + pantalla en Administración. |
+| **Deep links** | Sí: se comparten enlaces a proyectos. | Implementado: `/proyecto/:code`, `/departamento`, `/admin` (react-router); el rewrite SPA de vercel.json ya lo soportaba. |
+| **Retención de borrados** | 90 días y purga definitiva. | Implementado: purga oportunista en el arranque en frío de cada endpoint. Al purgarse desaparece el tombstone (una caché de >90 días podría revivir la fila; asumido). |
+| **Clasificación de actividad** | Innovación = "IDI" en el código de proyecto; soporte = por nombre; gestión = código anual aglutinador (entra por palabras clave u override manual). | Implementado y testeado. |
+
+### Aplazado
 
 | Tema | Estado | Cuándo reabrirlo |
 | --- | --- | --- |
-| **Configuración de negocio editable** | Departamentos estándar, cuentas contables (9990/9101), umbrales (70/110/85, 30 días) y regex de clasificación están en constantes con nombre, pero en código. | Si Gestión pide cambiarlos sin redeploy: tabla `jp_config` (jsonb) + pantalla en Administración. |
-| **react-router / deep links** | La navegación es estado en memoria (no hay URLs por proyecto). El lazy-loading que motivaba el router ya se logró con `lazy()`. | Si se quiere compartir por enlace un proyecto o pestaña concretos. |
-| **Purga del soft-delete** | Las filas borradas se conservan indefinidamente (volumen irrelevante hoy). Ojo: purgarlas elimina también su tombstone (un dispositivo con copia local muy antigua podría revivirlas). | Si algún día estorban: `DELETE ... WHERE deleted_at < now() - interval '90 days'` en un cron. |
-| **Tests E2E** | Los 107 tests cubren lógica pura y componentes en jsdom; no hay E2E real de navegador (los flujos se verifican a mano en cada cambio). | Si el equipo crece o las regresiones de UI empiezan a colarse: Playwright con el flujo import → dashboard como primer caso. |
+| **Tests E2E: ampliar cobertura** | Playwright montado con el flujo import → dashboard → persistencia como primer caso (corre con `npm run test:e2e`). | Añadir casos (conflictos multiusuario, roles) cuando haya regresiones que lo pidan. |
