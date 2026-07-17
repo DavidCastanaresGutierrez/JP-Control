@@ -27,15 +27,19 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     // ?vista=versiones: solo code->version (KBs), para que el cliente decida
     // que proyectos necesita descargar comparando con su cache local.
     if (req.query.vista === 'versiones') {
-      const rows = await sql`SELECT code, version FROM jp_projects WHERE deleted_at IS NULL`
+      const rows = await sql`SELECT code, version, deleted_at FROM jp_projects`
       const versions: Record<string, number> = {}
+      const deleted: string[] = []
       for (const r of rows) {
         const code = r.code as string
         if (!me || me.role !== 'contrato' || me.proyectoAsignado === code) {
-          versions[code] = Number(r.version)
+          if (r.deleted_at) deleted.push(code)
+          else versions[code] = Number(r.version)
         }
       }
-      return res.status(200).json({ versions })
+      // `deleted` son los tombstones del soft-delete: el cliente los usa para
+      // propagar el borrado a su cache local (salvo trabajo offline sin subir)
+      return res.status(200).json({ versions, deleted })
     }
 
     // ?codes=A,B: detalle completo solo de esos proyectos; sin parametro,

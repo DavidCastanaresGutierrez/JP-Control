@@ -1,9 +1,29 @@
 import { useEffect, useState } from 'react'
 import type { Project } from '../types'
+import type { SyncEstado } from '../hooks/useDbSync'
 import { emoji } from '../lib/emoji'
 import { EmojiIcon } from '../lib/EmojiIcon'
 import { repairMojibake } from '../lib/format'
 import { ConcostImportModal } from './ConcostImportModal'
+
+/** Indicador del estado de sincronizacion con la nube, siempre visible. */
+const SYNC_ESTILO: Record<SyncEstado, { punto: string; texto: string; label: string }> = {
+  nube: { punto: 'bg-success', texto: 'text-white/60', label: 'Sincronizado con la nube' },
+  local: { punto: 'bg-warning', texto: 'text-white/60', label: 'Solo local (sin nube)' },
+  cargando: { punto: 'bg-info animate-pulse', texto: 'text-white/60', label: 'Conectando…' },
+  auth: { punto: 'bg-warning', texto: 'text-white/60', label: 'Sesion pendiente' },
+  error: { punto: 'bg-danger', texto: 'text-danger', label: 'Error de sincronizacion' },
+}
+
+function SyncIndicador({ estado }: { estado: SyncEstado }) {
+  const s = SYNC_ESTILO[estado]
+  return (
+    <div className="mt-1 flex items-center gap-1.5" title="Estado de la sincronizacion con la nube">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${s.punto}`} aria-hidden="true" />
+      <span className={`truncate text-[11px] font-semibold ${s.texto}`}>{s.label}</span>
+    </div>
+  )
+}
 
 function initialsFromUser(name?: string, email?: string): string {
   const source = repairMojibake(name || email || 'Usuario TYPSA')
@@ -33,6 +53,7 @@ export function Sidebar({
   onOpenDepartamento,
   mobileOpen,
   onRequestClose,
+  syncEstado,
 }: {
   projects: Project[]
   selected: string | null
@@ -54,6 +75,7 @@ export function Sidebar({
   onOpenDepartamento?: () => void
   mobileOpen?: boolean
   onRequestClose?: () => void
+  syncEstado?: SyncEstado
 }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [photoError, setPhotoError] = useState(false)
@@ -77,6 +99,7 @@ export function Sidebar({
           <div className="min-w-0 flex-1">
             <div className="font-display text-lg font-extrabold tracking-tight text-white">JP Control</div>
             <div className="mt-0.5 truncate text-xs text-white/45">Seguimiento economico</div>
+            {syncEstado && <SyncIndicador estado={syncEstado} />}
           </div>
           <button
             type="button"

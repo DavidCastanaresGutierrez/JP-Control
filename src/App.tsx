@@ -54,7 +54,7 @@ export default function App() {
   const [archiveFilter, setArchiveFilter] = useState<ProjectArchiveFilter>('active')
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => getAuthSession())
   const { toasts, toast } = useToasts()
-  const { db, setDb, dbReady, setSyncEstado, conectar } = useDbSync({
+  const { db, setDb, dbReady, syncEstado, setSyncEstado, conectar } = useDbSync({
     authSession,
     setAuthSession,
     toast,
@@ -273,6 +273,7 @@ export default function App() {
         selected={selected}
         mobileOpen={mobileNavOpen}
         onRequestClose={() => setMobileNavOpen(false)}
+        syncEstado={syncEstado}
         onSelect={(code) => {
           setAdminView(false)
           setDeptView(false)

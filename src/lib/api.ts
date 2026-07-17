@@ -36,7 +36,7 @@ async function push<T>(path: string, body: Record<string, unknown>): Promise<Pus
 }
 
 export type RemoteVersions =
-  | { estado: 'ok'; versions: Record<string, number> }
+  | { estado: 'ok'; versions: Record<string, number>; borradas: string[] }
   | { estado: 'auth' }
   | { estado: 'sin-nube' }
 
@@ -48,8 +48,8 @@ async function fetchVersions(path: string): Promise<RemoteVersions> {
   if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
     return { estado: 'sin-nube' }
   }
-  const body = (await res.json()) as { versions?: Record<string, number> }
-  return { estado: 'ok', versions: body.versions ?? {} }
+  const body = (await res.json()) as { versions?: Record<string, number>; deleted?: string[] }
+  return { estado: 'ok', versions: body.versions ?? {}, borradas: body.deleted ?? [] }
 }
 
 /** Solo las versiones remotas (KBs): la base del sync incremental. */

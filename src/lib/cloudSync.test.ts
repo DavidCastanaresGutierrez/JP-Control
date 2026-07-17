@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { crearEntradaPendiente, crearMapaSync, hashJson, metaDesdeMapa, planificarSync, sincronizarEntidades } from './cloudSync.ts'
+import { crearEntradaPendiente, crearMapaSync, fusionarTresVias, hashJson, metaDesdeMapa, planificarSync, sincronizarEntidades } from './cloudSync.ts'
 import type { PushResult } from './cloudSync.ts'
 
 type Doc = { nombre: string; valor: number }
@@ -72,7 +72,10 @@ describe('sincronizarEntidades', () => {
       remove: vi.fn(),
     })
     expect(resultado.estado).toBe('ok')
-    expect(resultado.conflictos).toEqual([{ key: 'a', remoto, version: 5 }])
+    // Ambos tocaron 'valor': no hay nada local que conservar, gana lo remoto
+    expect(resultado.conflictos).toEqual([
+      { key: 'a', remoto, version: 5, fusionado: false, camposPisados: ['valor'] },
+    ])
     expect(mapa.get('a')).toEqual({ obj: remoto, json: JSON.stringify(remoto), version: 5 })
     expect(mapa.get('b')!.version).toBe(2) // b se ha subido igualmente
   })
@@ -172,5 +175,114 @@ describe('crearEntradaPendiente', () => {
     const push = vi.fn(async (): Promise<PushResult<Doc>> => ({ estado: 'ok', version: 6 }))
     await sincronizarEntidades({ actuales: { a: doc('a', 1) }, mapa, push, remove: vi.fn() })
     expect(push).toHaveBeenCalledWith('a', doc('a', 1), 5)
+  })
+})
+
+describe('fusionarTresVias', () => {
+  type Ficha = { nombre: string; valor: number; nota?: string }
+  const base: Ficha = { nombre: 'a', valor: 1, nota: 'original' }
+  const baseJson = JSON.stringify(base)
+
+  it('conserva el cambio local si lo remoto no toco ese campo', () => {
+    const fusion = fusionarTresVias(baseJson, { ...base, valor: 99 }, { ...base, nota: 'remota' })
+    expect(fusion.fusionado).toEqual({ nombre: 'a', valor: 99, nota: 'remota' })
+    expect(fusion.conservaCambiosLocales).toBe(true)
+    expect(fusion.camposPisados).toEqual([])
+  })
+
+  it('si ambos tocan el mismo campo gana lo remoto y se informa', () => {
+    const fusion = fusionarTresVias(baseJson, { ...base, valor: 99 }, { ...base, valor: 7 })
+    expect(fusion.fusionado).toEqual({ ...base, valor: 7 })
+    expect(fusion.camposPisados).toEqual(['valor'])
+    expect(fusion.conservaCambiosLocales).toBe(false)
+  })
+
+  it('un campo borrado en local se respeta si lo remoto no lo toco', () => {
+    const sinNota: Ficha = { nombre: 'a', valor: 1 }
+    const fusion = fusionarTresVias(baseJson, sinNota, { ...base, valor: 5 })
+    expect(fusion.fusionado).toEqual({ nombre: 'a', valor: 5 })
+    expect(fusion.conservaCambiosLocales).toBe(true)
+  })
+
+  it('sin base comun gana lo remoto entero', () => {
+    const fusion = fusionarTresVias('', { ...base, valor: 99 }, { ...base, valor: 7 })
+    expect(fusion.fusionado).toEqual({ ...base, valor: 7 })
+    expect(fusion.conservaCambiosLocales).toBe(false)
+  })
+})
+
+describe('sincronizarEntidades con fusion en conflicto', () => {
+  type Ficha = { nombre: string; valor: number; nota: string }
+
+  it('cambios en campos distintos: fusiona, reintenta y conserva lo de ambos', async () => {
+    const base: Ficha = { nombre: 'a', valor: 1, nota: 'x' }
+    const mapa = crearMapaSync({ a: base }, { a: 1 })
+    const local: Ficha = { ...base, valor: 99 } // local toca 'valor'
+    const remoto: Ficha = { ...base, nota: 'editada' } // remoto toco 'nota'
+    const push = vi.fn(async (_key: string, _valor: Ficha, baseVersion: number | null): Promise<PushResult<Ficha>> =>
+      baseVersion === 1 ? { estado: 'conflicto', version: 2, data: remoto } : { estado: 'ok', version: 3 },
+    )
+    const resultado = await sincronizarEntidades({ actuales: { a: local }, mapa, push, remove: vi.fn() })
+
+    expect(push).toHaveBeenCalledTimes(2)
+    expect(push).toHaveBeenLastCalledWith('a', { nombre: 'a', valor: 99, nota: 'editada' }, 2)
+    expect(resultado.conflictos).toEqual([
+      {
+        key: 'a',
+        remoto: { nombre: 'a', valor: 99, nota: 'editada' },
+        version: 3,
+        fusionado: true,
+        camposPisados: [],
+      },
+    ])
+    expect(mapa.get('a')!.version).toBe(3)
+  })
+
+  it('si el reintento vuelve a chocar, adopta lo ultimo del servidor sin insistir', async () => {
+    const base: Ficha = { nombre: 'a', valor: 1, nota: 'x' }
+    const mapa = crearMapaSync({ a: base }, { a: 1 })
+    const remotoFinal: Ficha = { nombre: 'a', valor: 5, nota: 'z' }
+    let llamadas = 0
+    const push = vi.fn(async (): Promise<PushResult<Ficha>> => {
+      llamadas++
+      return llamadas === 1
+        ? { estado: 'conflicto', version: 2, data: { ...base, nota: 'y' } }
+        : { estado: 'conflicto', version: 4, data: remotoFinal }
+    })
+    const resultado = await sincronizarEntidades({
+      actuales: { a: { ...base, valor: 99 } },
+      mapa,
+      push,
+      remove: vi.fn(),
+    })
+    expect(push).toHaveBeenCalledTimes(2)
+    expect(resultado.conflictos[0].remoto).toEqual(remotoFinal)
+    expect(resultado.conflictos[0].fusionado).toBe(false)
+    expect(mapa.get('a')!.version).toBe(4)
+  })
+})
+
+describe('planificarSync con tombstones', () => {
+  const local = doc('a', 1)
+  const json = JSON.stringify(local)
+  const huella = { version: 3, hash: hashJson(json) }
+
+  it('borrado en remoto y local sin tocar: eliminar de la cache', () => {
+    const plan = planificarSync({ a: local }, { a: huella }, {}, ['a'])
+    expect(plan.eliminar).toEqual(['a'])
+    expect(plan.pendientes).toEqual([])
+  })
+
+  it('borrado en remoto pero con edicion offline: se conserva y se sube (revive)', () => {
+    const editado = doc('a', 99)
+    const plan = planificarSync({ a: editado }, { a: huella }, {}, ['a'])
+    expect(plan.eliminar).toEqual([])
+    expect(plan.pendientes).toEqual([{ key: 'a', version: 3 }])
+  })
+
+  it('tombstone sin copia local: no hay nada que hacer', () => {
+    const plan = planificarSync<Doc>({}, {}, {}, ['a'])
+    expect(plan.eliminar).toEqual([])
+    expect(plan.pendientes).toEqual([])
   })
 })

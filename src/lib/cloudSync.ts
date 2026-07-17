@@ -24,6 +24,8 @@ export interface PlanSync<T> {
   base: Array<{ key: string; obj: T; json: string; version: number }>
   /** Entidades locales con cambios sin subir (edicion offline o solo-locales) */
   pendientes: Array<{ key: string; version: number | null }>
+  /** Entidades borradas en remoto y sin cambios locales: quitar de la cache */
+  eliminar: string[]
 }
 
 /**
@@ -32,16 +34,21 @@ export interface PlanSync<T> {
  * - version igual y hash igual  -> linea base local, no se descarga nada
  * - version igual y hash distinto -> edicion offline: se sube en el primer ciclo
  * - version distinta o sin huella -> descargar el detalle (lo remoto manda)
+ * - borrada en remoto (tombstone) y local sin tocar -> eliminar de la cache;
+ *   con edicion offline se conserva y se sube (revivira a proposito)
  * - solo local -> pendiente de subir como nuevo
  */
 export function planificarSync<T>(
   locales: Record<string, T>,
   meta: MetaSync,
   remotas: Record<string, number>,
+  remotasBorradas: string[] = [],
 ): PlanSync<T> {
   const descargar: string[] = []
   const base: PlanSync<T>['base'] = []
   const pendientes: PlanSync<T>['pendientes'] = []
+  const eliminar: string[] = []
+  const borradas = new Set(remotasBorradas)
 
   for (const [key, versionRemota] of Object.entries(remotas)) {
     const huella = meta[key]
@@ -59,10 +66,20 @@ export function planificarSync<T>(
   }
 
   for (const key of Object.keys(locales)) {
-    if (!(key in remotas)) pendientes.push({ key, version: null })
+    if (key in remotas) continue
+    if (borradas.has(key)) {
+      // Borrada en otro dispositivo: se propaga el borrado salvo que aqui
+      // haya trabajo sin sincronizar (entonces se conserva y revivira)
+      const huella = meta[key]
+      const sinCambiosLocales = Boolean(huella) && hashJson(JSON.stringify(locales[key])) === huella!.hash
+      if (sinCambiosLocales) eliminar.push(key)
+      else pendientes.push({ key, version: huella?.version ?? null })
+      continue
+    }
+    pendientes.push({ key, version: null })
   }
 
-  return { descargar, base, pendientes }
+  return { descargar, base, pendientes, eliminar }
 }
 
 /** Entrada de mapa para una entidad con cambios sin subir: nunca casa ni por identidad ni por JSON. */
@@ -106,11 +123,57 @@ export function crearMapaSync<T>(
   )
 }
 
+export interface ResultadoFusion<T> {
+  fusionado: T
+  /** Campos editados a la vez en local y en remoto: se ha impuesto lo remoto */
+  camposPisados: string[]
+  /** true si el fusionado conserva algun cambio local (hay que subirlo) */
+  conservaCambiosLocales: boolean
+}
+
+/**
+ * Fusion a tres vias campo a campo (primer nivel): la base comun es la ultima
+ * copia sincronizada (el `json` del mapa de sync). Un campo que solo cambio
+ * en local se conserva; uno que solo cambio en remoto se adopta; si ambos lo
+ * tocaron gana lo remoto (ya persistido) y se informa en `camposPisados`.
+ * Sin base comun no se puede fusionar: gana lo remoto entero.
+ */
+export function fusionarTresVias<T extends object>(baseJson: string, local: T, remoto: T): ResultadoFusion<T> {
+  if (!baseJson) return { fusionado: remoto, camposPisados: [], conservaCambiosLocales: false }
+  const base = JSON.parse(baseJson) as Record<string, unknown>
+  const loc = local as Record<string, unknown>
+  const rem = remoto as Record<string, unknown>
+  const claves = new Set([...Object.keys(base), ...Object.keys(loc), ...Object.keys(rem)])
+
+  const fusionado: Record<string, unknown> = {}
+  const camposPisados: string[] = []
+  let conservaCambiosLocales = false
+  const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+  for (const clave of claves) {
+    const cambioLocal = !igual(loc[clave], base[clave])
+    const cambioRemoto = !igual(rem[clave], base[clave])
+    if (cambioLocal && !cambioRemoto) {
+      conservaCambiosLocales = true
+      if (clave in loc) fusionado[clave] = loc[clave]
+    } else {
+      if (cambioLocal && cambioRemoto && !igual(loc[clave], rem[clave])) camposPisados.push(clave)
+      if (clave in rem) fusionado[clave] = rem[clave]
+    }
+  }
+
+  return { fusionado: fusionado as T, camposPisados, conservaCambiosLocales }
+}
+
 export interface ConflictoSync<T> {
   key: string
-  /** Version remota vigente que ha ganado el conflicto */
+  /** Version vigente adoptada tras el conflicto (fusionada si fue posible) */
   remoto: T
   version: number
+  /** true si se conservaron los cambios locales via fusion a tres vias */
+  fusionado: boolean
+  /** Campos donde la edicion remota ha pisado la local */
+  camposPisados: string[]
 }
 
 export interface ResultadoSync<T> {
@@ -150,12 +213,34 @@ export async function sincronizarEntidades<T>(opts: {
     if (resultado.estado === 'ok') {
       mapa.set(key, { obj: valor, json, version: resultado.version })
     } else if (resultado.estado === 'conflicto') {
-      mapa.set(key, {
-        obj: resultado.data,
-        json: JSON.stringify(resultado.data),
-        version: resultado.version,
+      // Fusion a tres vias: si el cambio local toca campos que lo remoto no
+      // toco, se combina y se reintenta una vez sobre la version nueva.
+      const fusion = fusionarTresVias(entrada?.json ?? '', valor as object, resultado.data as object)
+      let adoptado = resultado.data
+      let versionAdoptada = resultado.version
+      let fusionAplicada = false
+      if (fusion.conservaCambiosLocales) {
+        const reintento = await push(key, fusion.fusionado as T, resultado.version)
+        if (reintento.estado === 'ok') {
+          adoptado = fusion.fusionado as T
+          versionAdoptada = reintento.version
+          fusionAplicada = true
+        } else if (reintento.estado === 'conflicto') {
+          // Doble carrera: adoptar lo ultimo del servidor sin insistir
+          adoptado = reintento.data
+          versionAdoptada = reintento.version
+        } else {
+          return { estado: 'error', conflictos }
+        }
+      }
+      mapa.set(key, { obj: adoptado, json: JSON.stringify(adoptado), version: versionAdoptada })
+      conflictos.push({
+        key,
+        remoto: adoptado,
+        version: versionAdoptada,
+        fusionado: fusionAplicada,
+        camposPisados: fusion.camposPisados,
       })
-      conflictos.push({ key, remoto: resultado.data, version: resultado.version })
     } else {
       return { estado: 'error', conflictos }
     }

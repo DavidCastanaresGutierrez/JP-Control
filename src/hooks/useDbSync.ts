@@ -90,7 +90,12 @@ export function useDbSync(opts: {
       return
     }
 
-    const planP = planificarSync(dbRef.current.projects, metaSync.current.projects, versionesP.versions)
+    const planP = planificarSync(
+      dbRef.current.projects,
+      metaSync.current.projects,
+      versionesP.versions,
+      versionesP.borradas,
+    )
     const bajadaP =
       planP.descargar.length > 0
         ? await fetchRemoteProjects(planP.descargar)
@@ -112,12 +117,15 @@ export function useDbSync(opts: {
 
     const versionesD = await fetchRemoteDepartmentVersions()
     let departamentosRemotos: Record<string, DepartmentModule> = {}
+    let eliminarDepartamentos: string[] = []
     if (versionesD.estado === 'ok') {
       const planD = planificarSync(
         dbRef.current.departamentos,
         metaSync.current.departamentos,
         versionesD.versions,
+        versionesD.borradas,
       )
+      eliminarDepartamentos = planD.eliminar
       const bajadaD =
         planD.descargar.length > 0
           ? await fetchRemoteDepartments(planD.descargar)
@@ -138,17 +146,28 @@ export function useDbSync(opts: {
       }
     }
 
-    setDb((local) => ({
-      projects: { ...local.projects, ...projectsRemotos },
-      departamentos: { ...local.departamentos, ...departamentosRemotos },
-    }))
+    setDb((local) => {
+      const projects = { ...local.projects, ...projectsRemotos }
+      const departamentos = { ...local.departamentos, ...departamentosRemotos }
+      // Tombstones: lo borrado en otro dispositivo se quita de la cache local
+      // (el plan solo lo marca si aqui no hay trabajo sin sincronizar)
+      for (const key of planP.eliminar) delete projects[key]
+      for (const key of eliminarDepartamentos) delete departamentos[key]
+      return { projects, departamentos }
+    })
+    for (const key of planP.eliminar) {
+      toast('warn', `${key}: borrado desde otro dispositivo; se ha quitado tambien de este equipo.`)
+    }
+    for (const key of eliminarDepartamentos) {
+      toast('warn', `Departamento ${key}: borrado desde otro dispositivo; se ha quitado tambien de este equipo.`)
+    }
     metaSync.current = {
       projects: metaDesdeMapa(syncProyectos.current),
       departamentos: metaDesdeMapa(syncDepartamentos.current),
     }
     guardarMetaSync(metaSync.current)
     setSyncEstado('nube')
-  }, [setAuthSession])
+  }, [setAuthSession, toast])
 
   useEffect(() => {
     if (dbReady) conectar()
@@ -202,12 +221,17 @@ export function useDbSync(opts: {
             ...Object.fromEntries(departamentos.conflictos.map((c) => [c.key, c.remoto])),
           },
         }))
-        for (const c of proyectos.conflictos) {
-          toast('warn', `${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
+        const avisarConflicto = (prefijo: string, c: (typeof proyectos.conflictos)[number] | (typeof departamentos.conflictos)[number]) => {
+          if (c.fusionado && c.camposPisados.length === 0) {
+            toast('ok', `${prefijo}${c.key}: tus cambios se han combinado con los de otro usuario.`)
+          } else if (c.fusionado) {
+            toast('warn', `${prefijo}${c.key}: cambios combinados con los de otro usuario; en ${c.camposPisados.join(', ')} ha prevalecido su edicion.`)
+          } else {
+            toast('warn', `${prefijo}${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
+          }
         }
-        for (const c of departamentos.conflictos) {
-          toast('warn', `Departamento ${c.key}: otro usuario ha guardado una version mas reciente; se ha cargado esa version y tus ultimos cambios no se han aplicado.`)
-        }
+        for (const c of proyectos.conflictos) avisarConflicto('', c)
+        for (const c of departamentos.conflictos) avisarConflicto('Departamento ', c)
       }
 
       if (proyectos.estado === 'error' || departamentos.estado === 'error') {

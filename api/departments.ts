@@ -22,15 +22,17 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
   if (req.method === 'GET') {
     // ?vista=versiones: solo nombre->version, para el sync incremental
     if (req.query.vista === 'versiones') {
-      const rows = await sql`SELECT nombre, version FROM jp_departments WHERE deleted_at IS NULL`
+      const rows = await sql`SELECT nombre, version, deleted_at FROM jp_departments`
       const versions: Record<string, number> = {}
+      const deleted: string[] = []
       for (const r of rows) {
         const nombre = r.nombre as string
         if (!me || puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
-          versions[nombre] = Number(r.version)
+          if (r.deleted_at) deleted.push(nombre)
+          else versions[nombre] = Number(r.version)
         }
       }
-      return res.status(200).json({ versions })
+      return res.status(200).json({ versions, deleted })
     }
 
     // ?nombres=A,B: detalle completo solo de esos departamentos
