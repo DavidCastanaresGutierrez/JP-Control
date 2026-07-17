@@ -35,8 +35,36 @@ async function push<T>(path: string, body: Record<string, unknown>): Promise<Pus
   return { estado: 'ok', version: typeof body2.version === 'number' ? body2.version : 0 }
 }
 
-export async function fetchRemoteProjects(): Promise<RemoteProjects> {
-  const res = await call('/api/projects')
+export type RemoteVersions =
+  | { estado: 'ok'; versions: Record<string, number> }
+  | { estado: 'auth' }
+  | { estado: 'sin-nube' }
+
+async function fetchVersions(path: string): Promise<RemoteVersions> {
+  const res = await call(`${path}?vista=versiones`)
+  if (res === 'sin-nube') return { estado: 'sin-nube' }
+  if (res.status === 401) return { estado: 'auth' }
+  if (!res.ok) return { estado: 'sin-nube' }
+  if (!(res.headers.get('content-type') ?? '').includes('application/json')) {
+    return { estado: 'sin-nube' }
+  }
+  const body = (await res.json()) as { versions?: Record<string, number> }
+  return { estado: 'ok', versions: body.versions ?? {} }
+}
+
+/** Solo las versiones remotas (KBs): la base del sync incremental. */
+export function fetchRemoteProjectVersions(): Promise<RemoteVersions> {
+  return fetchVersions('/api/projects')
+}
+
+export function fetchRemoteDepartmentVersions(): Promise<RemoteVersions> {
+  return fetchVersions('/api/departments')
+}
+
+/** Detalle completo; con `codes` solo el de esos proyectos (sync incremental). */
+export async function fetchRemoteProjects(codes?: string[]): Promise<RemoteProjects> {
+  const query = codes && codes.length > 0 ? `?codes=${encodeURIComponent(codes.join(','))}` : ''
+  const res = await call(`/api/projects${query}`)
   if (res === 'sin-nube') return { estado: 'sin-nube' }
   if (res.status === 401) return { estado: 'auth' }
   if (!res.ok) return { estado: 'sin-nube' }
@@ -59,8 +87,10 @@ export async function deleteRemoteProject(code: string): Promise<boolean> {
   return res !== 'sin-nube' && res.ok
 }
 
-export async function fetchRemoteDepartments(): Promise<RemoteDepartments> {
-  const res = await call('/api/departments')
+/** Detalle completo; con `nombres` solo el de esos departamentos (sync incremental). */
+export async function fetchRemoteDepartments(nombres?: string[]): Promise<RemoteDepartments> {
+  const query = nombres && nombres.length > 0 ? `?nombres=${encodeURIComponent(nombres.join(','))}` : ''
+  const res = await call(`/api/departments${query}`)
   if (res === 'sin-nube') return { estado: 'sin-nube' }
   if (res.status === 401) return { estado: 'auth' }
   if (!res.ok) return { estado: 'sin-nube' }

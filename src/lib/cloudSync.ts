@@ -4,6 +4,82 @@ export type PushResult<T> =
   | { estado: 'conflicto'; version: number; data: T }
   | { estado: 'error' }
 
+/** Huella de la ultima copia sincronizada de cada entidad, persistida en IndexedDB. */
+export type MetaSync = Record<string, { version: number; hash: string }>
+
+/** Hash FNV-1a (32 bits) del JSON de una entidad: suficiente para detectar ediciones offline. */
+export function hashJson(json: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < json.length; i++) {
+    h ^= json.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(16)
+}
+
+export interface PlanSync<T> {
+  /** Claves cuyo detalle hay que descargar (nuevas o con version remota distinta) */
+  descargar: string[]
+  /** Entidades locales al dia con la nube: sirven de linea base sin descargar nada */
+  base: Array<{ key: string; obj: T; json: string; version: number }>
+  /** Entidades locales con cambios sin subir (edicion offline o solo-locales) */
+  pendientes: Array<{ key: string; version: number | null }>
+}
+
+/**
+ * Decide que hace falta descargar de la nube comparando las versiones remotas
+ * con la huella local (version + hash de la ultima copia sincronizada):
+ * - version igual y hash igual  -> linea base local, no se descarga nada
+ * - version igual y hash distinto -> edicion offline: se sube en el primer ciclo
+ * - version distinta o sin huella -> descargar el detalle (lo remoto manda)
+ * - solo local -> pendiente de subir como nuevo
+ */
+export function planificarSync<T>(
+  locales: Record<string, T>,
+  meta: MetaSync,
+  remotas: Record<string, number>,
+): PlanSync<T> {
+  const descargar: string[] = []
+  const base: PlanSync<T>['base'] = []
+  const pendientes: PlanSync<T>['pendientes'] = []
+
+  for (const [key, versionRemota] of Object.entries(remotas)) {
+    const huella = meta[key]
+    const local = locales[key]
+    if (!huella || huella.version !== versionRemota || local === undefined) {
+      descargar.push(key)
+      continue
+    }
+    const json = JSON.stringify(local)
+    if (hashJson(json) === huella.hash) {
+      base.push({ key, obj: local, json, version: versionRemota })
+    } else {
+      pendientes.push({ key, version: huella.version })
+    }
+  }
+
+  for (const key of Object.keys(locales)) {
+    if (!(key in remotas)) pendientes.push({ key, version: null })
+  }
+
+  return { descargar, base, pendientes }
+}
+
+/** Entrada de mapa para una entidad con cambios sin subir: nunca casa ni por identidad ni por JSON. */
+export function crearEntradaPendiente<T>(version: number | null): EntradaSync<T> {
+  return { obj: undefined as unknown as T, json: '', version }
+}
+
+/** Huellas (version + hash) desde un mapa de sync; omite las entradas pendientes. */
+export function metaDesdeMapa<T>(mapa: MapaSync<T>): MetaSync {
+  const meta: MetaSync = {}
+  for (const [key, entrada] of mapa) {
+    if (entrada.json === '' || entrada.version === null) continue
+    meta[key] = { version: entrada.version, hash: hashJson(entrada.json) }
+  }
+  return meta
+}
+
 /**
  * Estado de sincronizacion de una entidad (proyecto o departamento):
  * - obj/json: ultima copia confirmada por el servidor, para detectar cambios

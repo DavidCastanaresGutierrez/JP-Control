@@ -1,13 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { DB, DepartmentModule, Project } from '../types'
-import { crearPersistState, loadDBAsync, persistDB, sanearDepartamentos, sanearProjects } from '../lib/store'
-import { crearMapaSync, sincronizarEntidades } from '../lib/cloudSync'
-import type { MapaSync } from '../lib/cloudSync'
+import {
+  cargarMetaSync,
+  crearPersistState,
+  guardarMetaSync,
+  loadDBAsync,
+  persistDB,
+  sanearDepartamentos,
+  sanearProjects,
+} from '../lib/store'
+import {
+  crearEntradaPendiente,
+  metaDesdeMapa,
+  planificarSync,
+  sincronizarEntidades,
+} from '../lib/cloudSync'
+import type { MapaSync, MetaSync } from '../lib/cloudSync'
 import {
   deleteRemoteDepartment,
   deleteRemoteProject,
+  fetchRemoteDepartmentVersions,
   fetchRemoteDepartments,
+  fetchRemoteProjectVersions,
   fetchRemoteProjects,
   pushDepartment,
   pushProject,
@@ -38,11 +53,16 @@ export function useDbSync(opts: {
   const syncProyectos = useRef<MapaSync<Project>>(new Map())
   const syncDepartamentos = useRef<MapaSync<DepartmentModule>>(new Map())
   const persistState = useRef(crearPersistState({ projects: {}, departamentos: {} }))
+  const metaSync = useRef<{ projects: MetaSync; departamentos: MetaSync }>({ projects: {}, departamentos: {} })
   const dbQuotaWarned = useRef(false)
+  // Espejo del estado para leerlo desde conectar sin re-crear el callback
+  const dbRef = useRef(db)
+  dbRef.current = db
 
   useEffect(() => {
-    loadDBAsync().then((cargado) => {
+    Promise.all([loadDBAsync(), cargarMetaSync()]).then(([cargado, meta]) => {
       persistState.current = crearPersistState(cargado)
+      metaSync.current = meta
       setDb(cargado)
       setDbReady(true)
     })
@@ -55,31 +75,78 @@ export function useDbSync(opts: {
     }
 
     setSyncEstado('cargando')
-    const remoto = await fetchRemoteProjects()
-    if (remoto.estado === 'auth') {
+    // Sync incremental: primero solo las versiones remotas (KBs); el detalle
+    // completo se descarga unicamente para lo que no este al dia en la cache
+    // local (comparando version + hash de la ultima copia sincronizada).
+    const versionesP = await fetchRemoteProjectVersions()
+    if (versionesP.estado === 'auth') {
       clearAuthSession()
       setAuthSession(null)
       setSyncEstado('auth')
       return
     }
-    if (remoto.estado === 'sin-nube') {
+    if (versionesP.estado === 'sin-nube') {
       setSyncEstado('local')
+      return
+    }
+
+    const planP = planificarSync(dbRef.current.projects, metaSync.current.projects, versionesP.versions)
+    const bajadaP =
+      planP.descargar.length > 0
+        ? await fetchRemoteProjects(planP.descargar)
+        : { estado: 'ok' as const, projects: {} as Record<string, Project>, versions: {} as Record<string, number> }
+    if (bajadaP.estado !== 'ok') {
+      setSyncEstado(bajadaP.estado === 'auth' ? 'auth' : 'local')
       return
     }
     // El JSON remoto se sanea antes de entrar en la app: un proyecto corrupto
     // o de un esquema antiguo no debe reventar las vistas ni el sync.
-    const projectsRemotos = sanearProjects(remoto.projects)
-    syncProyectos.current = crearMapaSync(projectsRemotos, remoto.versions)
-    const remotoDept = await fetchRemoteDepartments()
-    const departamentosRemotos =
-      remotoDept.estado === 'ok' ? sanearDepartamentos(remotoDept.departamentos) : {}
-    if (remotoDept.estado === 'ok') {
-      syncDepartamentos.current = crearMapaSync(departamentosRemotos, remotoDept.versions)
+    const projectsRemotos = sanearProjects(bajadaP.projects)
+    const mapaP: MapaSync<Project> = new Map()
+    for (const b of planP.base) mapaP.set(b.key, { obj: b.obj, json: b.json, version: b.version })
+    for (const [code, p] of Object.entries(projectsRemotos)) {
+      mapaP.set(code, { obj: p, json: JSON.stringify(p), version: bajadaP.versions[code] ?? null })
     }
+    for (const pend of planP.pendientes) mapaP.set(pend.key, crearEntradaPendiente(pend.version))
+    syncProyectos.current = mapaP
+
+    const versionesD = await fetchRemoteDepartmentVersions()
+    let departamentosRemotos: Record<string, DepartmentModule> = {}
+    if (versionesD.estado === 'ok') {
+      const planD = planificarSync(
+        dbRef.current.departamentos,
+        metaSync.current.departamentos,
+        versionesD.versions,
+      )
+      const bajadaD =
+        planD.descargar.length > 0
+          ? await fetchRemoteDepartments(planD.descargar)
+          : {
+              estado: 'ok' as const,
+              departamentos: {} as Record<string, DepartmentModule>,
+              versions: {} as Record<string, number>,
+            }
+      if (bajadaD.estado === 'ok') {
+        departamentosRemotos = sanearDepartamentos(bajadaD.departamentos)
+        const mapaD: MapaSync<DepartmentModule> = new Map()
+        for (const b of planD.base) mapaD.set(b.key, { obj: b.obj, json: b.json, version: b.version })
+        for (const [nombre, d] of Object.entries(departamentosRemotos)) {
+          mapaD.set(nombre, { obj: d, json: JSON.stringify(d), version: bajadaD.versions[nombre] ?? null })
+        }
+        for (const pend of planD.pendientes) mapaD.set(pend.key, crearEntradaPendiente(pend.version))
+        syncDepartamentos.current = mapaD
+      }
+    }
+
     setDb((local) => ({
       projects: { ...local.projects, ...projectsRemotos },
       departamentos: { ...local.departamentos, ...departamentosRemotos },
     }))
+    metaSync.current = {
+      projects: metaDesdeMapa(syncProyectos.current),
+      departamentos: metaDesdeMapa(syncDepartamentos.current),
+    }
+    guardarMetaSync(metaSync.current)
     setSyncEstado('nube')
   }, [setAuthSession])
 
@@ -145,6 +212,13 @@ export function useDbSync(opts: {
 
       if (proyectos.estado === 'error' || departamentos.estado === 'error') {
         setSyncEstado('error')
+      } else {
+        // Huellas al dia para que el proximo arranque no descargue lo que ya tiene
+        metaSync.current = {
+          projects: metaDesdeMapa(syncProyectos.current),
+          departamentos: metaDesdeMapa(syncDepartamentos.current),
+        }
+        guardarMetaSync(metaSync.current)
       }
     }, 1000)
     return () => clearTimeout(timer)

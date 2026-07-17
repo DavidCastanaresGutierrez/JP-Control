@@ -20,7 +20,25 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
   }
 
   if (req.method === 'GET') {
-    const rows = await sql`SELECT nombre, data, version FROM jp_departments WHERE deleted_at IS NULL`
+    // ?vista=versiones: solo nombre->version, para el sync incremental
+    if (req.query.vista === 'versiones') {
+      const rows = await sql`SELECT nombre, version FROM jp_departments WHERE deleted_at IS NULL`
+      const versions: Record<string, number> = {}
+      for (const r of rows) {
+        const nombre = r.nombre as string
+        if (!me || puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
+          versions[nombre] = Number(r.version)
+        }
+      }
+      return res.status(200).json({ versions })
+    }
+
+    // ?nombres=A,B: detalle completo solo de esos departamentos
+    const nombresParam = typeof req.query.nombres === 'string' ? req.query.nombres : ''
+    const filtro = nombresParam ? nombresParam.split(',').filter(Boolean) : null
+    const rows = filtro
+      ? await sql`SELECT nombre, data, version FROM jp_departments WHERE deleted_at IS NULL AND nombre = ANY(${filtro})`
+      : await sql`SELECT nombre, data, version FROM jp_departments WHERE deleted_at IS NULL`
     const departamentos: Record<string, unknown> = {}
     const versions: Record<string, number> = {}
     for (const r of rows) {

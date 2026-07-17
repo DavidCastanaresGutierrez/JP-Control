@@ -119,6 +119,38 @@ export async function loadDBAsync(): Promise<DB> {
   }
 }
 
+/** Huellas del sync incremental (version + hash por entidad), persistidas en el store 'meta'. */
+export interface MetaSyncGuardada {
+  projects: Record<string, { version: number; hash: string }>
+  departamentos: Record<string, { version: number; hash: string }>
+}
+
+export async function cargarMetaSync(): Promise<MetaSyncGuardada> {
+  const vacia: MetaSyncGuardada = { projects: {}, departamentos: {} }
+  if (!idbDisponible()) return vacia
+  try {
+    const meta = await idbCargarStore<MetaSyncGuardada[keyof MetaSyncGuardada]>('meta')
+    return {
+      projects: (meta['projects'] as MetaSyncGuardada['projects']) ?? {},
+      departamentos: (meta['departamentos'] as MetaSyncGuardada['departamentos']) ?? {},
+    }
+  } catch {
+    return vacia
+  }
+}
+
+export async function guardarMetaSync(meta: MetaSyncGuardada): Promise<void> {
+  if (!idbDisponible()) return
+  try {
+    await idbAplicar('meta', [
+      ['projects', meta.projects],
+      ['departamentos', meta.departamentos],
+    ], [])
+  } catch {
+    // sin huellas persistidas el proximo arranque hara una descarga completa; no es critico
+  }
+}
+
 /** Referencias de la ultima copia persistida, para escribir solo lo que cambia. */
 export interface PersistState {
   projects: Map<string, Project>

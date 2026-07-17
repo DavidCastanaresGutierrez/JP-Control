@@ -14,7 +14,8 @@ import {
 } from './lib/prefs'
 import type { AuthSession } from './lib/auth'
 import { getAuthSession, isSsoEnabled, logoutSso } from './lib/auth'
-import { Toasts, useToasts } from './hooks/useToasts'
+import { useToasts } from './hooks/useToasts'
+import { Toasts } from './components/Toasts'
 import { useDbSync } from './hooks/useDbSync'
 import { useImportaciones } from './hooks/useImportaciones'
 import { Sidebar } from './components/Sidebar'
@@ -209,7 +210,7 @@ export default function App() {
     setSelected(null)
     setAdminView(false)
     setSyncEstado('auth')
-  }, [])
+  }, [setSyncEstado])
 
   const handleChangeRole = async (
     email: string,

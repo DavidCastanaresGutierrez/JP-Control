@@ -6,8 +6,9 @@
  */
 
 const DB_NAME = 'jp-control'
-const DB_VERSION = 1
-export const STORES = ['projects', 'departamentos'] as const
+// v2: store 'meta' con las huellas (version+hash) del sync incremental
+const DB_VERSION = 2
+export const STORES = ['projects', 'departamentos', 'meta'] as const
 export type StoreName = (typeof STORES)[number]
 
 let dbPromise: Promise<IDBDatabase> | null = null
@@ -24,7 +25,16 @@ function abrir(): Promise<IDBDatabase> {
         if (!req.result.objectStoreNames.contains(store)) req.result.createObjectStore(store)
       }
     }
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      // Si otra pestaña (con codigo mas nuevo) pide subir la version de la
+      // base, cerramos nuestra conexion para no bloquear su upgrade; la
+      // proxima operacion de esta pestaña reabrira la base ya actualizada.
+      req.result.onversionchange = () => {
+        req.result.close()
+        dbPromise = null
+      }
+      resolve(req.result)
+    }
     req.onerror = () => {
       dbPromise = null
       reject(req.error ?? new Error('No se pudo abrir IndexedDB'))

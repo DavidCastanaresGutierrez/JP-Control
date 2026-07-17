@@ -24,7 +24,27 @@ async function init(sql: Sql) {
 
 export default withDb({ init }, async ({ req, res, sql, me }) => {
   if (req.method === 'GET') {
-    const rows = await sql`SELECT code, data, version FROM jp_projects WHERE deleted_at IS NULL`
+    // ?vista=versiones: solo code->version (KBs), para que el cliente decida
+    // que proyectos necesita descargar comparando con su cache local.
+    if (req.query.vista === 'versiones') {
+      const rows = await sql`SELECT code, version FROM jp_projects WHERE deleted_at IS NULL`
+      const versions: Record<string, number> = {}
+      for (const r of rows) {
+        const code = r.code as string
+        if (!me || me.role !== 'contrato' || me.proyectoAsignado === code) {
+          versions[code] = Number(r.version)
+        }
+      }
+      return res.status(200).json({ versions })
+    }
+
+    // ?codes=A,B: detalle completo solo de esos proyectos; sin parametro,
+    // toda la tabla (clientes antiguos y primera sincronizacion).
+    const codesParam = typeof req.query.codes === 'string' ? req.query.codes : ''
+    const filtro = codesParam ? codesParam.split(',').filter(Boolean) : null
+    const rows = filtro
+      ? await sql`SELECT code, data, version FROM jp_projects WHERE deleted_at IS NULL AND code = ANY(${filtro})`
+      : await sql`SELECT code, data, version FROM jp_projects WHERE deleted_at IS NULL`
     const projects: Record<string, unknown> = {}
     const versions: Record<string, number> = {}
     for (const r of rows) {

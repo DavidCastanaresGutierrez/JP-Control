@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { crearMapaSync, sincronizarEntidades } from './cloudSync.ts'
+import { crearEntradaPendiente, crearMapaSync, hashJson, metaDesdeMapa, planificarSync, sincronizarEntidades } from './cloudSync.ts'
 import type { PushResult } from './cloudSync.ts'
 
 type Doc = { nombre: string; valor: number }
@@ -105,5 +105,72 @@ describe('sincronizarEntidades', () => {
     const resultado = await sincronizarEntidades({ actuales: {}, mapa, push: pushOk(2), remove })
     expect(resultado.estado).toBe('error')
     expect(mapa.has('a')).toBe(true)
+  })
+})
+
+describe('hashJson', () => {
+  it('es estable y distingue contenidos', () => {
+    expect(hashJson('{"a":1}')).toBe(hashJson('{"a":1}'))
+    expect(hashJson('{"a":1}')).not.toBe(hashJson('{"a":2}'))
+  })
+})
+
+describe('planificarSync', () => {
+  const local = doc('a', 1)
+  const json = JSON.stringify(local)
+  const huella = { version: 3, hash: hashJson(json) }
+
+  it('version y hash iguales: linea base local, sin descargas', () => {
+    const plan = planificarSync({ a: local }, { a: huella }, { a: 3 })
+    expect(plan.descargar).toEqual([])
+    expect(plan.pendientes).toEqual([])
+    expect(plan.base).toEqual([{ key: 'a', obj: local, json, version: 3 }])
+  })
+
+  it('version remota distinta: descargar (lo remoto manda)', () => {
+    const plan = planificarSync({ a: local }, { a: huella }, { a: 4 })
+    expect(plan.descargar).toEqual(['a'])
+    expect(plan.base).toEqual([])
+  })
+
+  it('sin huella local (primer arranque tras migrar): descargar', () => {
+    const plan = planificarSync({ a: local }, {}, { a: 3 })
+    expect(plan.descargar).toEqual(['a'])
+  })
+
+  it('remoto conocido pero cache local vaciada: descargar', () => {
+    const plan = planificarSync<Doc>({}, { a: huella }, { a: 3 })
+    expect(plan.descargar).toEqual(['a'])
+  })
+
+  it('misma version pero hash distinto: edicion offline pendiente de subir', () => {
+    const editado = doc('a', 99)
+    const plan = planificarSync({ a: editado }, { a: huella }, { a: 3 })
+    expect(plan.descargar).toEqual([])
+    expect(plan.pendientes).toEqual([{ key: 'a', version: 3 }])
+  })
+
+  it('solo local (no existe en remoto): pendiente como nuevo', () => {
+    const plan = planificarSync({ b: doc('b', 1) }, {}, {})
+    expect(plan.pendientes).toEqual([{ key: 'b', version: null }])
+  })
+})
+
+describe('metaDesdeMapa', () => {
+  it('genera huellas y omite entradas pendientes', () => {
+    const a = doc('a', 1)
+    const mapa = crearMapaSync({ a }, { a: 2 })
+    mapa.set('b', crearEntradaPendiente<Doc>(null))
+    const meta = metaDesdeMapa(mapa)
+    expect(meta).toEqual({ a: { version: 2, hash: hashJson(JSON.stringify(a)) } })
+  })
+})
+
+describe('crearEntradaPendiente', () => {
+  it('nunca casa ni por identidad ni por JSON: fuerza el push', async () => {
+    const mapa = new Map([['a', crearEntradaPendiente<Doc>(5)]])
+    const push = vi.fn(async (): Promise<PushResult<Doc>> => ({ estado: 'ok', version: 6 }))
+    await sincronizarEntidades({ actuales: { a: doc('a', 1) }, mapa, push, remove: vi.fn() })
+    expect(push).toHaveBeenCalledWith('a', doc('a', 1), 5)
   })
 })
