@@ -21,6 +21,20 @@
     "tailwindcss": "^4.3.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
+  "overrides": {
+    "@vercel/node": {
+      "path-to-regexp": "^6.3.0",
+      "undici": "^7.10.0"
+    },
+    "@vercel/python-analysis": {
+      "js-yaml": "^4.1.2",
+      "minimatch": "^10.2.3",
+      "smol-toml": "^1.6.1"
+    },
+    "@vercel/static-config": {
+      "ajv": "^8.18.0"
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",

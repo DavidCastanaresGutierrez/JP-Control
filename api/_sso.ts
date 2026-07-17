@@ -83,7 +83,10 @@ function serializeCookie(req: VercelRequest, name: string, value: string, option
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     'Path=/',
-    `SameSite=${secure ? 'None' : 'Lax'}`,
+    // Lax basta: el SSO devuelve los tokens por parametros de URL (navegacion
+    // top-level) y las cookies solo se usan en llamadas same-origin. Con None
+    // un tercero podia disparar el refresh de sesion cross-site (CSRF).
+    'SameSite=Lax',
     options.maxAge !== undefined ? `Max-Age=${options.maxAge}` : 'Max-Age=31104000',
   ]
   const domain = cookieDomain()

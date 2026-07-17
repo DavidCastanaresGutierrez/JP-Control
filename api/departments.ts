@@ -10,6 +10,8 @@ async function init(sql: Sql) {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`
   await sql`ALTER TABLE jp_departments ADD COLUMN IF NOT EXISTS version bigint NOT NULL DEFAULT 1`
+  // Soft-delete: el DELETE marca la fila en vez de destruirla (recuperable)
+  await sql`ALTER TABLE jp_departments ADD COLUMN IF NOT EXISTS deleted_at timestamptz`
 }
 
 export default withDb({ init }, async ({ req, res, sql, me }) => {
@@ -18,7 +20,7 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
   }
 
   if (req.method === 'GET') {
-    const rows = await sql`SELECT nombre, data, version FROM jp_departments`
+    const rows = await sql`SELECT nombre, data, version FROM jp_departments WHERE deleted_at IS NULL`
     const departamentos: Record<string, unknown> = {}
     const versions: Record<string, number> = {}
     for (const r of rows) {
@@ -50,7 +52,7 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
       const rows = await sql`
         INSERT INTO jp_departments (nombre, data, updated_at)
         VALUES (${nombre}, ${json}::jsonb, now())
-        ON CONFLICT (nombre) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), version = jp_departments.version + 1
+        ON CONFLICT (nombre) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), version = jp_departments.version + 1, deleted_at = NULL
         RETURNING version`
       return res.status(200).json({ ok: true, version: Number(rows[0].version) })
     }
@@ -59,25 +61,27 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
       const rows = await sql`
         INSERT INTO jp_departments (nombre, data, updated_at)
         VALUES (${nombre}, ${json}::jsonb, now())
-        ON CONFLICT (nombre) DO NOTHING
+        ON CONFLICT (nombre) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), version = jp_departments.version + 1, deleted_at = NULL
+        WHERE jp_departments.deleted_at IS NOT NULL
         RETURNING version`
       if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
     } else {
       const rows = await sql`
         UPDATE jp_departments
-        SET data = ${json}::jsonb, updated_at = now(), version = version + 1
+        SET data = ${json}::jsonb, updated_at = now(), version = version + 1, deleted_at = NULL
         WHERE nombre = ${nombre} AND version = ${baseVersion}
         RETURNING version`
       if (rows.length > 0) return res.status(200).json({ ok: true, version: Number(rows[0].version) })
       const recreated = await sql`
         INSERT INTO jp_departments (nombre, data, updated_at)
         VALUES (${nombre}, ${json}::jsonb, now())
-        ON CONFLICT (nombre) DO NOTHING
+        ON CONFLICT (nombre) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), version = jp_departments.version + 1, deleted_at = NULL
+        WHERE jp_departments.deleted_at IS NOT NULL
         RETURNING version`
       if (recreated.length > 0) return res.status(200).json({ ok: true, version: Number(recreated[0].version) })
     }
 
-    const current = await sql`SELECT data, version FROM jp_departments WHERE nombre = ${nombre}`
+    const current = await sql`SELECT data, version FROM jp_departments WHERE nombre = ${nombre} AND deleted_at IS NULL`
     return res.status(409).json({
       error: 'Otro usuario ha guardado una version mas reciente de este departamento.',
       data: current[0]?.data ?? null,
@@ -91,7 +95,7 @@ export default withDb({ init }, async ({ req, res, sql, me }) => {
     if (me && !puedeAccederDepartamentoConcreto(me.role, me.departamento, nombre)) {
       return res.status(403).json({ error: 'No tienes acceso a este departamento.' })
     }
-    await sql`DELETE FROM jp_departments WHERE nombre = ${nombre}`
+    await sql`UPDATE jp_departments SET deleted_at = now(), updated_at = now() WHERE nombre = ${nombre}`
     return res.status(200).json({ ok: true })
   }
 
