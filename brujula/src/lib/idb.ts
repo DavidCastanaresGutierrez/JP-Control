@@ -1,10 +1,10 @@
 /**
  * Envoltorio mínimo de IndexedDB (sin dependencias) para la caché local.
- * Vida Control guarda un único documento `db` más algo de metadatos de sync,
+ * Brújula guarda un único documento `db` más algo de metadatos de sync,
  * así que basta un store clave-valor.
  */
 
-const DB_NAME = 'vida-control'
+const DB_NAME = 'brujula'
 const DB_VERSION = 1
 const STORE = 'app'
 

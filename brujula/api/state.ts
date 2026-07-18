@@ -10,7 +10,7 @@ import type { Sql } from './_db.js'
 
 async function init(sql: Sql) {
   await sql`
-    CREATE TABLE IF NOT EXISTS vc_state (
+    CREATE TABLE IF NOT EXISTS brujula_state (
       id int PRIMARY KEY,
       data jsonb NOT NULL,
       version bigint NOT NULL DEFAULT 1,
@@ -20,7 +20,7 @@ async function init(sql: Sql) {
 
 export default withDb({ init }, async ({ req, res, sql }) => {
   if (req.method === 'GET') {
-    const rows = await sql`SELECT data, version FROM vc_state WHERE id = 1`
+    const rows = await sql`SELECT data, version FROM brujula_state WHERE id = 1`
     if (rows.length === 0) return res.status(200).json({ data: null, version: 0 })
     return res.status(200).json({ data: rows[0].data, version: Number(rows[0].version) })
   }
@@ -36,7 +36,7 @@ export default withDb({ init }, async ({ req, res, sql }) => {
     if (base === 0) {
       // Primera escritura: insertar si no existe la fila.
       const rows = await sql`
-        INSERT INTO vc_state (id, data, version, updated_at)
+        INSERT INTO brujula_state (id, data, version, updated_at)
         VALUES (1, ${json}::jsonb, 1, now())
         ON CONFLICT (id) DO NOTHING
         RETURNING version`
@@ -44,7 +44,7 @@ export default withDb({ init }, async ({ req, res, sql }) => {
       // Ya existía: es un conflicto, hay algo más reciente en la nube.
     } else {
       const rows = await sql`
-        UPDATE vc_state
+        UPDATE brujula_state
         SET data = ${json}::jsonb, version = version + 1, updated_at = now()
         WHERE id = 1 AND version = ${base}
         RETURNING version`
@@ -52,7 +52,7 @@ export default withDb({ init }, async ({ req, res, sql }) => {
     }
 
     // Conflicto: la versión no coincide (o la fila ya existía en la primera escritura).
-    const actual = await sql`SELECT data, version FROM vc_state WHERE id = 1`
+    const actual = await sql`SELECT data, version FROM brujula_state WHERE id = 1`
     return res.status(409).json({
       error: 'Hay una versión más reciente guardada desde otro dispositivo.',
       data: actual[0]?.data ?? null,

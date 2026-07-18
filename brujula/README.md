@@ -1,4 +1,4 @@
-# Vida Control — Control personal de tres pilares
+# Brújula — Control personal de tres pilares
 
 App web personal para llevar el control de tres pilares de tu vida:
 
@@ -65,7 +65,7 @@ npm run lint     # oxlint
   guardó una versión más reciente desde otro dispositivo, en vez de pisarla en
   silencio se **fusionan** los cambios de ambos lados (unión por `id`) y se avisa.
 - El API es una única función serverless en [api/state.ts](api/state.ts) que crea
-  la tabla `vc_state` (un solo documento JSON con columna `version`)
+  la tabla `brujula_state` (un solo documento JSON con columna `version`)
   automáticamente en el primer uso.
 - Al ser una app **personal de un solo usuario**, no hay SSO ni roles: la nube se
   protege con un código de acceso compartido (`APP_TOKEN`).

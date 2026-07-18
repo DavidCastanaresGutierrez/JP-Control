@@ -1,5 +1,5 @@
 /**
- * Modelo de datos de Vida Control. Todo vive en un único documento `DB` que se
+ * Modelo de datos de Brújula. Todo vive en un único documento `DB` que se
  * guarda en IndexedDB y, con la nube configurada, se sincroniza como un solo
  * blob JSON con bloqueo optimista por versión (ver lib/store.ts).
  */

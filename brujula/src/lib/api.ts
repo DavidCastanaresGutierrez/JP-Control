@@ -5,7 +5,7 @@
  */
 import type { DB } from '../types.ts'
 
-const TOKEN_KEY = 'vc-token'
+const TOKEN_KEY = 'brujula-token'
 
 export function leerToken(): string {
   try {

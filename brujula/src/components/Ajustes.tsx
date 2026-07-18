@@ -32,7 +32,7 @@ export function Ajustes() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `vida-control-${hoy()}.json`
+    a.download = `brujula-${hoy()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -46,7 +46,7 @@ export function Ajustes() {
         reemplazar(normalizarDb(parsed))
         alert('Copia restaurada correctamente.')
       } catch {
-        alert('El fichero no es una copia válida de Vida Control.')
+        alert('El fichero no es una copia válida de Brújula.')
       }
     }
     reader.readAsText(file)
@@ -124,7 +124,7 @@ export function Ajustes() {
         </button>
       </Card>
 
-      <p className="text-center text-xs text-ink-muted">Vida Control · local-first · nube opcional</p>
+      <p className="text-center text-xs text-ink-muted">Brújula · local-first · nube opcional</p>
     </div>
   )
 }

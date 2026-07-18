@@ -16,7 +16,7 @@ export function BarraSync() {
   return (
     <div className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
-        <div className="lg:hidden font-display font-bold">Vida Control</div>
+        <div className="lg:hidden font-display font-bold">Brújula</div>
         <div className="ml-auto flex items-center gap-2 text-xs text-ink-soft">
           <span className={`inline-block h-2 w-2 rounded-full ${info.punto}`} />
           <span>{info.texto}</span>

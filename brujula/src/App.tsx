@@ -53,7 +53,7 @@ function Layout({ children }: { children: ReactNode }) {
         <div className="mb-6 flex items-center gap-2 px-2">
           <img src="/favicon.svg" alt="" className="h-8 w-8" />
           <div>
-            <div className="font-display text-base font-bold leading-tight">Vida Control</div>
+            <div className="font-display text-base font-bold leading-tight">Brújula</div>
             <div className="text-xs text-ink-muted">3 pilares</div>
           </div>
         </div>

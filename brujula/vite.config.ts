@@ -14,8 +14,8 @@ export default defineConfig({
       includeAssets: ['favicon.svg'],
       manifest: {
         id: '/',
-        name: 'Vida Control',
-        short_name: 'Vida Control',
+        name: 'Brújula',
+        short_name: 'Brújula',
         description: 'Control personal de tres pilares: economía, salud y hábitos.',
         lang: 'es',
         start_url: '/',
