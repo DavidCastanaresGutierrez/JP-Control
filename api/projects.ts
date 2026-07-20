@@ -1,6 +1,6 @@
 import { withDb } from './_db.js'
 import type { Sql } from './_db.js'
-import { esJpDelUsuario } from '../src/lib/projectAccess.ts'
+import { esJpDelUsuario } from './_roles.js'
 
 /**
  * Fila con version para el bloqueo optimista: el cliente guarda la version que

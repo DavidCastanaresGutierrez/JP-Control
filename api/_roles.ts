@@ -22,6 +22,64 @@ export function puedeAccederDepartamentoConcreto(
   return false
 }
 
+// --- Coincidencia de JP por nombre/email ---------------------------------
+// Copia deliberada de la logica de src/lib/format.ts (repairMojibake,
+// normalizarTexto) y src/lib/projectAccess.ts (esJpDelUsuario). No se puede
+// importar desde src/ aqui: el frontend se compila con Vite y usa specifiers
+// con extension .ts (allowImportingTsExtensions), mientras que la API la
+// compila @vercel/node y exige specifiers .js; cruzar ese limite rompe en
+// produccion con ERR_MODULE_NOT_FOUND. Si cambia la logica alli, replicarla aqui.
+
+function repairMojibake(value?: string): string {
+  const text = (value ?? '').trim()
+  if (!/[ÃÂâ]/.test(text)) return text
+  try {
+    const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 0xff))
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch {
+    return text
+  }
+}
+
+function normalizarTexto(value: string): string {
+  return repairMojibake(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+}
+
+function tokensNombre(value: string): string[] {
+  return normalizarTexto(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((token) => token.length > 1)
+}
+
+/**
+ * Determina si el usuario logueado figura como JP del proyecto, cotejando
+ * nombre y email. Acepta cualquier objeto con `jp` para poder usarse tambien
+ * desde la API (que solo carga ese campo del jsonb).
+ */
+export function esJpDelUsuario(
+  project: { jp?: string | null },
+  userName?: string,
+  userEmail?: string,
+): boolean {
+  if (!project.jp) return false
+  const jp = new Set(tokensNombre(project.jp))
+  if (jp.size === 0) return false
+
+  const usuario = new Set(tokensNombre(userName ?? ''))
+  let comunes = 0
+  for (const token of jp) if (usuario.has(token)) comunes++
+  if (jp.size === 1 ? comunes >= 1 : comunes >= 2) return true
+
+  // Red de seguridad: emails tipo "dcastanares" contienen el apellido del JP.
+  const emailLocal = normalizarTexto((userEmail ?? '').split('@')[0]).replace(/[^a-z0-9]+/g, '')
+  return emailLocal.length >= 4 && [...jp].some((token) => token.length >= 4 && emailLocal.includes(token))
+}
+
 export interface AppUser {
   email: string
   name: string
